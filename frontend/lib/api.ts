@@ -1,0 +1,119 @@
+import axios from "axios";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+export const api = axios.create({
+  baseURL: API_BASE,
+  headers: { "Content-Type": "application/json" },
+});
+
+// Attach token on each request
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Auto-refresh on 401
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true;
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post(`${API_BASE}/auth/refresh`, null, {
+            params: { token: refreshToken },
+          });
+          localStorage.setItem("access_token", data.access_token);
+          localStorage.setItem("refresh_token", data.refresh_token);
+          original.headers.Authorization = `Bearer ${data.access_token}`;
+          return api(original);
+        } catch {
+          localStorage.clear();
+          window.location.href = "/login";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// --- Auth ---
+export const authApi = {
+  login: (email: string, password: string) =>
+    api.post("/auth/login", { email, password }).then((r) => r.data),
+  me: () => api.get("/auth/me").then((r) => r.data),
+};
+
+// --- Players ---
+export const playersApi = {
+  list: (params?: { category_id?: number; status?: string; search?: string }) =>
+    api.get("/players", { params }).then((r) => r.data),
+  get: (id: number) => api.get(`/players/${id}`).then((r) => r.data),
+  create: (data: unknown) => api.post("/players", data).then((r) => r.data),
+  update: (id: number, data: unknown) =>
+    api.patch(`/players/${id}`, data).then((r) => r.data),
+};
+
+// --- Categories ---
+export const categoriesApi = {
+  list: () => api.get("/categories").then((r) => r.data),
+};
+
+// --- Kinesiology ---
+export const kinesiologyApi = {
+  getByPlayer: (playerId: number) =>
+    api.get(`/kinesiology/player/${playerId}`).then((r) => r.data),
+  create: (data: unknown) => api.post("/kinesiology", data).then((r) => r.data),
+};
+
+// --- Injuries ---
+export const injuriesApi = {
+  getByPlayer: (playerId: number) =>
+    api.get(`/injuries/player/${playerId}`).then((r) => r.data),
+  getActive: () => api.get("/injuries/active").then((r) => r.data),
+  create: (data: unknown) => api.post("/injuries", data).then((r) => r.data),
+  update: (id: number, data: unknown) =>
+    api.patch(`/injuries/${id}`, data).then((r) => r.data),
+};
+
+// --- Matches ---
+export const matchesApi = {
+  list: (params?: { category_id?: number }) =>
+    api.get("/matches", { params }).then((r) => r.data),
+  create: (data: unknown) => api.post("/matches", data).then((r) => r.data),
+  getStats: (matchId: number) =>
+    api.get(`/matches/${matchId}/stats`).then((r) => r.data),
+  createStat: (data: unknown) =>
+    api.post("/matches/stats", data).then((r) => r.data),
+  getPlayerStats: (playerId: number) =>
+    api.get(`/matches/player/${playerId}/stats`).then((r) => r.data),
+};
+
+// --- Training ---
+export const trainingApi = {
+  getByPlayer: (playerId: number, params?: { start_date?: string; end_date?: string }) =>
+    api.get(`/training/player/${playerId}`, { params }).then((r) => r.data),
+  create: (data: unknown) => api.post("/training", data).then((r) => r.data),
+};
+
+// --- Analytics ---
+export const analyticsApi = {
+  dashboard: (categoryId?: number) =>
+    api.get("/analytics/dashboard", { params: { category_id: categoryId } }).then((r) => r.data),
+  playerSummary: (playerId: number) =>
+    api.get(`/analytics/player/${playerId}/summary`).then((r) => r.data),
+  injuryStats: () => api.get("/analytics/injuries/stats").then((r) => r.data),
+};
+
+// --- Predictions ---
+export const predictionsApi = {
+  getForPlayer: (playerId: number) =>
+    api.get(`/predictions/player/${playerId}`).then((r) => r.data),
+  teamRisk: () => api.get("/predictions/team/risk-summary").then((r) => r.data),
+};
