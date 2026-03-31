@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Deporte FC",
+    "slug": "deporte-fc",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "deportefc",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070f1a",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#070f1a"
+    },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#070f1a" },
+      "package": "com.deportefc.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.deportefc.app"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
