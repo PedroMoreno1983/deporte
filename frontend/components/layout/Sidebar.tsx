@@ -1,15 +1,16 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, AlertTriangle, Trophy,
   Dumbbell, Brain, Settings, ChevronLeft, ChevronRight,
-  LogOut, BarChart3, Shield, Map, HeartPulse
+  LogOut, BarChart3, Shield, Map, HeartPulse, Menu, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const NAV_GROUPS = [
   {
@@ -27,8 +28,8 @@ const NAV_GROUPS = [
   {
     label: "Analytics",
     items: [
-      { href: "/analytics",   icon: BarChart3, label: "Analytics",     roles: ["admin", "analyst", "coach"] },
-      { href: "/predictions", icon: Brain,     label: "Predicciones",  roles: ["admin", "analyst"] },
+      { href: "/analytics",   icon: BarChart3, label: "Analytics",    roles: ["admin", "analyst", "coach"] },
+      { href: "/predictions", icon: Brain,     label: "Predicciones", roles: ["admin", "analyst"] },
     ],
   },
   {
@@ -40,17 +41,23 @@ const NAV_GROUPS = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Administrador",
-  coach: "Entrenador",
+  admin:         "Administrador",
+  coach:         "Entrenador",
   kinesiologist: "Kinesiólogo",
-  analyst: "Analista",
+  analyst:       "Analista",
 };
 
-export function Sidebar() {
+// ─── Inner sidebar content (shared between desktop & mobile drawer) ────────────
+function SidebarContent({
+  collapsed,
+  onClose,
+}: {
+  collapsed: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const { user, logout } = useAuthStore();
-  const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
@@ -58,28 +65,22 @@ export function Sidebar() {
   const handleLogout = () => { logout(); router.push("/login"); };
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 68 : 256 }}
-      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      className="relative flex flex-col h-screen shrink-0 overflow-hidden"
+    <div
+      className="flex flex-col h-full overflow-hidden"
       style={{
         background: "var(--surface-1)",
         borderRight: "1px solid rgba(255,255,255,0.08)",
         boxShadow: "4px 0 40px rgba(0,0,0,0.7)",
+        position: "relative",
       }}
     >
       {/* Top neon accent line */}
       <div
-        className="absolute top-0 left-0 right-0 h-[1px]"
-        style={{
-          background: "linear-gradient(90deg, transparent, rgba(0,255,135,0.6), transparent)",
-        }}
+        className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(0,255,135,0.6), transparent)" }}
       />
 
-      {/* Subtle scan line animation */}
-      <div className="scan-line" />
-
-      {/* ── Logo ─────────────────────────────────────────── */}
+      {/* ── Logo ──────────────────────────────────────────── */}
       <div
         className="flex items-center gap-3 px-4 py-5 shrink-0"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
@@ -94,14 +95,15 @@ export function Sidebar() {
         >
           <Shield className="w-5 h-5" style={{ color: "#00ff87" }} />
         </div>
-        <AnimatePresence>
+
+        <AnimatePresence initial={false}>
           {!collapsed && (
             <motion.div
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.18 }}
-              className="overflow-hidden"
+              className="overflow-hidden flex-1 min-w-0"
             >
               <div className="flex items-baseline gap-1">
                 <span className="font-black text-base tracking-tighter text-white">DEPORTE</span>
@@ -113,9 +115,22 @@ export function Sidebar() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Close button — mobile only */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="ml-auto p-1.5 rounded-lg transition-colors"
+            style={{ color: "rgba(255,255,255,0.3)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "white")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* ── Navigation ───────────────────────────────────── */}
+      {/* ── Navigation ─────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
         {NAV_GROUPS.map((group, gi) => {
           const visible = group.items.filter(item =>
@@ -125,8 +140,7 @@ export function Sidebar() {
 
           return (
             <div key={gi} className={gi > 0 ? "pt-3" : ""}>
-              {/* Group label */}
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {!collapsed && (
                   <motion.p
                     initial={{ opacity: 0 }}
@@ -152,15 +166,8 @@ export function Sidebar() {
                           : "text-white/40 hover:text-white/80 hover:bg-white/[0.05]"
                       )}
                     >
-                      {/* Active indicator left bar */}
-                      {active && !collapsed && (
-                        <div
-                          className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full"
-                          style={{ background: "#000", opacity: 0.4 }}
-                        />
-                      )}
                       <item.icon className="w-[18px] h-[18px] shrink-0" />
-                      <AnimatePresence>
+                      <AnimatePresence initial={false}>
                         {!collapsed && (
                           <motion.span
                             initial={{ opacity: 0, x: -4 }}
@@ -192,7 +199,7 @@ export function Sidebar() {
         style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
       >
         <div
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
           style={{ background: "rgba(255,255,255,0.03)" }}
         >
           <div
@@ -206,7 +213,8 @@ export function Sidebar() {
           >
             {user?.full_name?.charAt(0) ?? "U"}
           </div>
-          <AnimatePresence>
+
+          <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -221,7 +229,8 @@ export function Sidebar() {
               </motion.div>
             )}
           </AnimatePresence>
-          <AnimatePresence>
+
+          <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.button
                 initial={{ opacity: 0 }}
@@ -230,8 +239,8 @@ export function Sidebar() {
                 onClick={handleLogout}
                 className="p-1.5 rounded-lg transition-colors"
                 style={{ color: "rgba(255,255,255,0.25)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b30")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+                onMouseEnter={e => (e.currentTarget.style.color = "#ff3b30")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
                 title="Cerrar sesión"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -240,23 +249,114 @@ export function Sidebar() {
           </AnimatePresence>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* ── Collapse button ─────────────────────────────────── */}
+// ─── Main Sidebar export ──────────────────────────────────────────────────────
+export function Sidebar() {
+  const [collapsed, setCollapsed]   = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile]     = useState(false);
+  const pathname = usePathname();
+
+  // Detect breakpoint
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Close drawer on navigation
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // ── Mobile: hamburger + overlay drawer ──────────────────
+  if (isMobile) {
+    return (
+      <>
+        {/* Hamburger button fixed top-left */}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-4 left-4 z-40 w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+          style={{
+            background: "var(--surface-1)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+          }}
+          aria-label="Abrir menú"
+        >
+          <Menu className="w-4 h-4" style={{ color: "rgba(255,255,255,0.7)" }} />
+        </button>
+
+        {/* Overlay + Drawer */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-50"
+                style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+                onClick={() => setMobileOpen(false)}
+              />
+
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: -280 }}
+                animate={{ x: 0 }}
+                exit={{ x: -280 }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+                className="fixed left-0 top-0 h-full z-50"
+                style={{ width: 256 }}
+              >
+                <SidebarContent collapsed={false} onClose={() => setMobileOpen(false)} />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // ── Desktop: persistent sidebar + collapse button ────────
+  return (
+    <div className="relative h-screen shrink-0" style={{ zIndex: 20 }}>
+      {/* Animated width wrapper */}
+      <motion.div
+        animate={{ width: collapsed ? 68 : 256 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        className="h-full overflow-hidden"
+        style={{ willChange: "width" }}
+      >
+        <SidebarContent collapsed={collapsed} />
+      </motion.div>
+
+      {/* Collapse toggle — outside overflow-hidden so it renders correctly */}
       <motion.button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-[52px] -right-3.5 w-7 h-7 rounded-full flex items-center justify-center z-30 transition-colors"
+        onClick={() => setCollapsed(v => !v)}
+        className="absolute top-[52px] flex items-center justify-center rounded-full"
         style={{
+          right: -14,
+          width: 28,
+          height: 28,
           background: "var(--surface-3)",
           border: "1px solid rgba(0,255,135,0.25)",
           boxShadow: "0 2px 12px rgba(0,0,0,0.5), 0 0 8px rgba(0,255,135,0.12)",
+          zIndex: 30,
+          cursor: "pointer",
         }}
         whileHover={{ scale: 1.15, boxShadow: "0 2px 16px rgba(0,0,0,0.6), 0 0 16px rgba(0,255,135,0.25)" }}
         whileTap={{ scale: 0.92 }}
+        aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
       >
         {collapsed
           ? <ChevronRight className="w-3.5 h-3.5" style={{ color: "rgba(0,255,135,0.7)" }} />
           : <ChevronLeft  className="w-3.5 h-3.5" style={{ color: "rgba(0,255,135,0.7)" }} />}
       </motion.button>
-    </motion.aside>
+    </div>
   );
 }
