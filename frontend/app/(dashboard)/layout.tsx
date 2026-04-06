@@ -43,7 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="relative z-10 flex w-full h-full">
         <Sidebar />
         <main
-          className="flex-1 overflow-y-auto pt-0 lg:pt-0"
+          className="flex-1 overflow-y-auto pt-14 lg:pt-0"
           style={{ background: "transparent" }}
         >
           {children}
