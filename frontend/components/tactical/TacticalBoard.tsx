@@ -612,7 +612,8 @@ export function TacticalBoard() {
                     onPointerDown={e => handleTokenPointerDown(e, player.id)}
                     onPointerMove={handleTokenPointerMove}
                     onPointerUp={e => handleTokenPointerUp(e, player.id)}
-                    onPointerCancel={e => handleTokenPointerUp(e, player.id)}>
+                    onPointerCancel={e => handleTokenPointerUp(e, player.id)}
+                    onClick={e => e.stopPropagation()}>
                     <motion.div
                       animate={{ scale: isDragging ? 1.18 : isOpen ? 1.12 : 1, filter: isDragging ? `drop-shadow(0 0 14px ${c.glow})` : isOpen ? `drop-shadow(0 0 10px ${c.glow})` : `drop-shadow(0 0 6px ${c.glow}88)` }}
                       whileHover={mode === "move" ? { scale: 1.1 } : {}}
