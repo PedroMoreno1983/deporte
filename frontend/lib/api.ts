@@ -122,6 +122,13 @@ export const wellnessApi = {
     api.get("/wellness/team/trend", { params: { days } }).then((r) => r.data),
 };
 
+// --- Tactical Plays ---
+export const tacticalApi = {
+  list:   ()             => api.get("/tactical/").then((r) => r.data),
+  create: (data: unknown) => api.post("/tactical/", data).then((r) => r.data),
+  delete: (id: number)   => api.delete(`/tactical/${id}`).then((r) => r.data),
+};
+
 // --- Predictions ---
 export const predictionsApi = {
   getForPlayer: (playerId: number) =>

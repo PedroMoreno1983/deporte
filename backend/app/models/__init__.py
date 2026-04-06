@@ -7,3 +7,4 @@ from .match import Match, MatchStat
 from .training import TrainingSession
 from .prediction import PredictionScore
 from .wellness import WellnessEntry
+from .tactical import TacticalPlay
