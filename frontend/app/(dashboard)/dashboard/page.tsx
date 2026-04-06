@@ -56,16 +56,16 @@ export default function DashboardPage() {
     return (
       <div className="p-6 space-y-4">
         <div className="h-10 w-64 skeleton rounded-xl mb-6" />
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="skeleton h-32 rounded-2xl" style={{ animationDelay: `${i * 0.1}s` }} />
           ))}
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="skeleton h-72 col-span-2 rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="skeleton h-72 md:col-span-2 rounded-2xl" />
           <div className="skeleton h-72 rounded-2xl" />
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="skeleton h-20 rounded-2xl" style={{ animationDelay: `${i * 0.1}s` }} />
           ))}
@@ -106,9 +106,9 @@ export default function DashboardPage() {
     <div className="p-6 space-y-4 h-full overflow-y-auto">
 
       {/* ── Header ───────────────────────────────────────── */}
-      <motion.div {...s(0)} className="flex items-center justify-between">
+      <motion.div {...s(0)} className="flex items-center justify-between pl-12 lg:pl-0">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Dashboard</h1>
+          <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-white">Dashboard</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
             Resumen general del equipo
           </p>
@@ -128,10 +128,10 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Hero row: disponibilidad + 3 KPIs ────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* HERO — Disponibilidad */}
-        <motion.div {...s(1)} className="col-span-2">
+        <motion.div {...s(1)} className="sm:col-span-2">
           <GlowCard
             className="relative h-full p-6 rounded-2xl overflow-hidden"
             style={{
@@ -159,7 +159,7 @@ export default function DashboardPage() {
                     value={availRate}
                     suffix="%"
                     decimals={1}
-                    className="text-7xl font-black leading-none"
+                    className="text-5xl lg:text-7xl font-black leading-none"
                     style={{ color: availColor, textShadow: `0 0 40px ${availColor}60` } as any}
                   />
                 </div>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 </span>
               </Link>
             </div>
-            <AnimatedCounter value={dash?.active_injuries ?? 0} className="text-5xl font-black"
+            <AnimatedCounter value={dash?.active_injuries ?? 0} className="text-4xl lg:text-5xl font-black"
               style={{ color: "#ff3b30", textShadow: "0 0 30px rgba(255,59,48,0.50)" } as any} />
             <p className="text-xs mt-1.5 font-semibold" style={{ color: "rgba(148,163,184,0.7)" }}>Lesiones activas</p>
             <p className="text-sm mt-2 font-black" style={{ color: "#ff3b30" }}>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
                 </span>
               </Link>
             </div>
-            <AnimatedCounter value={dash?.recent_matches ?? 0} className="text-5xl font-black"
+            <AnimatedCounter value={dash?.recent_matches ?? 0} className="text-4xl lg:text-5xl font-black"
               style={{ color: "#f59e0b", textShadow: "0 0 30px rgba(245,158,11,0.50)" } as any} />
             <p className="text-xs mt-1.5 font-semibold" style={{ color: "rgba(148,163,184,0.7)" }}>Partidos (30d)</p>
             {dash?.avg_team_rating && (
@@ -280,7 +280,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Charts row ───────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* Estado del plantel */}
         <motion.div {...s(4)}>
@@ -403,7 +403,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Bottom stats ──────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Total jugadores",   value: dash?.total_players ?? 0,          icon: Users,       color: "#0ea5e9" },
           { label: "En recuperación",   value: dash?.recovering ?? 0,             icon: HeartPulse,  color: "#f97316" },
