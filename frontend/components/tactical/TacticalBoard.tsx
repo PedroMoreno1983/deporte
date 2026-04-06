@@ -15,11 +15,9 @@ type PosType = "GK" | "DEF" | "MID" | "FWD";
 interface Player {
   id: string; num: string; abbr: string; type: PosType; x: number; y: number;
 }
-
 interface Assignment {
   playerId: number; name: string; fullName: string; num: string; status: string;
 }
-
 interface DrawPath {
   id: string; color: string; points: [number, number][];
 }
@@ -109,10 +107,10 @@ const FORMATIONS: Record<string, { label: string; players: Player[] }> = {
 };
 
 const TYPE_COLORS: Record<PosType, { bg: string; border: string; text: string; glow: string; label: string }> = {
-  GK:  { bg: "rgba(251,191,36,0.22)",  border: "rgba(251,191,36,0.90)", text: "#fbbf24", glow: "rgba(251,191,36,0.5)",  label: "Portero" },
-  DEF: { bg: "rgba(59,130,246,0.22)",  border: "rgba(59,130,246,0.90)", text: "#60a5fa", glow: "rgba(59,130,246,0.5)",  label: "Defensa" },
-  MID: { bg: "rgba(0,255,135,0.18)",   border: "rgba(0,255,135,0.90)",  text: "#00ff87", glow: "rgba(0,255,135,0.5)",   label: "Mediocampo" },
-  FWD: { bg: "rgba(239,68,68,0.22)",   border: "rgba(239,68,68,0.90)",  text: "#f87171", glow: "rgba(239,68,68,0.5)",   label: "Delantero" },
+  GK:  { bg: "rgba(251,191,36,0.18)",  border: "rgba(251,191,36,0.85)", text: "#fbbf24", glow: "rgba(251,191,36,0.5)",  label: "Portero" },
+  DEF: { bg: "rgba(59,130,246,0.18)",  border: "rgba(59,130,246,0.85)", text: "#60a5fa", glow: "rgba(59,130,246,0.5)",  label: "Defensa" },
+  MID: { bg: "rgba(0,255,135,0.15)",   border: "rgba(0,255,135,0.85)",  text: "#00ff87", glow: "rgba(0,255,135,0.5)",   label: "Mediocampo" },
+  FWD: { bg: "rgba(239,68,68,0.18)",   border: "rgba(239,68,68,0.85)",  text: "#f87171", glow: "rgba(239,68,68,0.5)",   label: "Delantero" },
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -178,12 +176,12 @@ function PitchSVG() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function TacticalBoard() {
-  const pitchRef         = useRef<HTMLDivElement>(null);
+  const pitchRef          = useRef<HTMLDivElement>(null);
   const pitchContainerRef = useRef<HTMLDivElement>(null);
-  const wrapperRef       = useRef<HTMLDivElement>(null);
-  const uid              = useId();
-  const dragStart        = useRef<{ x: number; y: number } | null>(null);
-  const queryClient      = useQueryClient();
+  const wrapperRef        = useRef<HTMLDivElement>(null);
+  const uid               = useId();
+  const dragStart         = useRef<{ x: number; y: number } | null>(null);
+  const queryClient       = useQueryClient();
 
   const [formKey, setFormKey]           = useState("4-3-3");
   const [players, setPlayers]           = useState<Player[]>(() => FORMATIONS["4-3-3"].players.map(p => ({ ...p })));
@@ -199,35 +197,31 @@ export function TacticalBoard() {
   const [pickerPos, setPickerPos]       = useState({ x: 0, y: 0 });
   const [pickerSearch, setPickerSearch] = useState("");
 
-  // ── Save / Load state ─────────────────────────────────────────────────────
-  const [saveModal, setSaveModal]   = useState(false);
-  const [saveName, setSaveName]     = useState("");
-  const [showPlays, setShowPlays]   = useState(false);
+  // Save modal
+  const [saveModal, setSaveModal] = useState(false);
+  const [saveName, setSaveName]   = useState("");
+  // Saved plays panel
+  const [showPlays, setShowPlays] = useState(false);
 
-  // ── API ───────────────────────────────────────────────────────────────────
+  // ── Roster ────────────────────────────────────────────────────────────────
   const { data: roster = [] } = useQuery({
     queryKey: ["players", "tactical-roster"],
     queryFn:  () => playersApi.list({ status: "available" }),
   });
 
+  // ── Saved plays ───────────────────────────────────────────────────────────
   const { data: savedPlays = [] } = useQuery<any[]>({
     queryKey: ["tactical-plays"],
     queryFn:  () => tacticalApi.list(),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (name: string) => tacticalApi.create({
-      name,
-      formation:        formKey,
-      players_json:     players,
-      assignments_json: assignments,
-      paths_json:       paths,
-    }),
+    mutationFn: (name: string) =>
+      tacticalApi.create({ name, formation: formKey, players_json: players, assignments_json: assignments, paths_json: paths }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tactical-plays"] });
       setSaveModal(false);
       setSaveName("");
-      setShowPlays(true);
     },
   });
 
@@ -235,6 +229,122 @@ export function TacticalBoard() {
     mutationFn: (id: number) => tacticalApi.delete(id),
     onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["tactical-plays"] }),
   });
+
+  const loadPlay = (play: any) => {
+    setFormKey(play.formation);
+    setPlayers(play.players_json);
+    setAssignments(play.assignments_json ?? {});
+    setPaths(play.paths_json ?? []);
+    setPickerFor(null);
+    setShowPlays(false);
+  };
+
+  // ── Download as SVG ───────────────────────────────────────────────────────
+  const downloadSVG = useCallback(() => {
+    const svgEl = pitchContainerRef.current?.querySelector("svg");
+    if (!svgEl) return;
+
+    const clone = svgEl.cloneNode(true) as SVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    const W = 700, H = 460;
+    const ns = "http://www.w3.org/2000/svg";
+
+    // Drawing paths
+    const pathsGroup = document.createElementNS(ns, "g");
+    paths.forEach(path => {
+      if (path.points.length < 2) return;
+      const el = document.createElementNS(ns, "path");
+      const d = `M ${(path.points[0][0] / 100 * W).toFixed(1)} ${(path.points[0][1] / 100 * H).toFixed(1)} ` +
+        path.points.slice(1).map(([x, y]) => `L ${(x / 100 * W).toFixed(1)} ${(y / 100 * H).toFixed(1)}`).join(" ");
+      el.setAttribute("d", d);
+      el.setAttribute("fill", "none");
+      el.setAttribute("stroke", path.color);
+      el.setAttribute("stroke-width", "5");
+      el.setAttribute("stroke-linecap", "round");
+      el.setAttribute("stroke-linejoin", "round");
+      el.setAttribute("opacity", "0.85");
+      pathsGroup.appendChild(el);
+    });
+    clone.appendChild(pathsGroup);
+
+    // Player tokens
+    const tokensGroup = document.createElementNS(ns, "g");
+    players.forEach(player => {
+      const cx = (player.x / 100) * W;
+      const cy = (player.y / 100) * H;
+      const c  = TYPE_COLORS[player.type];
+      const assigned     = assignments[player.id];
+      const displayNum   = assigned?.num  || player.num;
+      const displayLabel = assigned?.name || player.abbr;
+
+      const g = document.createElementNS(ns, "g");
+      g.setAttribute("transform", `translate(${cx.toFixed(1)},${cy.toFixed(1)})`);
+
+      const circle = document.createElementNS(ns, "circle");
+      circle.setAttribute("r", "18");
+      circle.setAttribute("fill", assigned ? c.bg : "rgba(0,0,0,0.5)");
+      circle.setAttribute("stroke", c.border);
+      circle.setAttribute("stroke-width", "2.5");
+      g.appendChild(circle);
+
+      const numText = document.createElementNS(ns, "text");
+      numText.setAttribute("y", "4");
+      numText.setAttribute("text-anchor", "middle");
+      numText.setAttribute("fill", c.text);
+      numText.setAttribute("font-size", "12");
+      numText.setAttribute("font-weight", "900");
+      numText.setAttribute("font-family", "monospace,sans-serif");
+      numText.textContent = displayNum;
+      g.appendChild(numText);
+
+      const labelBg = document.createElementNS(ns, "rect");
+      labelBg.setAttribute("x", "-20"); labelBg.setAttribute("y", "20");
+      labelBg.setAttribute("width", "40"); labelBg.setAttribute("height", "12");
+      labelBg.setAttribute("fill", "rgba(0,0,0,0.7)"); labelBg.setAttribute("rx", "2");
+      g.appendChild(labelBg);
+
+      const labelText = document.createElementNS(ns, "text");
+      labelText.setAttribute("y", "30");
+      labelText.setAttribute("text-anchor", "middle");
+      labelText.setAttribute("fill", c.text);
+      labelText.setAttribute("font-size", "7.5");
+      labelText.setAttribute("font-weight", "800");
+      labelText.setAttribute("font-family", "monospace,sans-serif");
+      labelText.textContent = displayLabel;
+      g.appendChild(labelText);
+
+      if (assigned) {
+        const dot = document.createElementNS(ns, "circle");
+        dot.setAttribute("cx", "13"); dot.setAttribute("cy", "-13"); dot.setAttribute("r", "4.5");
+        dot.setAttribute("fill", STATUS_DOT[assigned.status] ?? "#475569");
+        dot.setAttribute("stroke", "rgba(0,0,0,0.8)"); dot.setAttribute("stroke-width", "1.5");
+        g.appendChild(dot);
+      }
+      tokensGroup.appendChild(g);
+    });
+    clone.appendChild(tokensGroup);
+
+    // Watermark
+    const wm = document.createElementNS(ns, "text");
+    wm.setAttribute("x", "350"); wm.setAttribute("y", "452");
+    wm.setAttribute("text-anchor", "middle");
+    wm.setAttribute("fill", "rgba(255,255,255,0.2)");
+    wm.setAttribute("font-size", "9"); wm.setAttribute("font-family", "sans-serif");
+    wm.textContent = `DEPORTE FC · ${FORMATIONS[formKey].label}`;
+    clone.appendChild(wm);
+
+    const svgStr = new XMLSerializer().serializeToString(clone);
+    const blob   = new Blob([svgStr], { type: "image/svg+xml" });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement("a");
+    a.href       = url;
+    a.download   = `pizarra_${FORMATIONS[formKey].label.replace(/-/g, "")}_${Date.now()}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [players, assignments, paths, formKey]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const assignedIds    = new Set(Object.values(assignments).map(a => a.playerId));
@@ -252,12 +362,6 @@ export function TacticalBoard() {
       y: Math.max(0, Math.min(100, ((clientY - rect.top)   / rect.height) * 100)),
     };
   }, []);
-
-  const pctToSVGPath = (pts: [number, number][]) => {
-    if (pts.length < 2) return "";
-    return `M ${(pts[0][0] * 7).toFixed(1)} ${(pts[0][1] * 4.6).toFixed(1)} ` +
-      pts.slice(1).map(([x, y]) => `L ${(x * 7).toFixed(1)} ${(y * 4.6).toFixed(1)}`).join(" ");
-  };
 
   // ── Token drag ────────────────────────────────────────────────────────────
   const handleTokenPointerDown = useCallback((e: React.PointerEvent, id: string) => {
@@ -292,7 +396,7 @@ export function TacticalBoard() {
     dragStart.current = null;
   }, [mode]);
 
-  // ── Pitch drawing ─────────────────────────────────────────────────────────
+  // ── Drawing ───────────────────────────────────────────────────────────────
   const handlePitchPointerDown = useCallback((e: React.PointerEvent) => {
     if (mode !== "draw") return;
     const pos = getPitchPct(e.clientX, e.clientY);
@@ -331,7 +435,10 @@ export function TacticalBoard() {
   const assignPlayer = (tokenId: string, p: any) => {
     const parts = (p.full_name as string).split(" ");
     const name  = parts[parts.length - 1].toUpperCase();
-    setAssignments(prev => ({ ...prev, [tokenId]: { playerId: p.id, name, fullName: p.full_name, num: String(p.jersey_number ?? ""), status: p.status ?? "available" } }));
+    setAssignments(prev => ({
+      ...prev,
+      [tokenId]: { playerId: p.id, name, fullName: p.full_name, num: String(p.jersey_number ?? ""), status: p.status ?? "available" },
+    }));
     setPickerFor(null);
   };
   const unassign = (tokenId: string) => {
@@ -339,135 +446,22 @@ export function TacticalBoard() {
     setPickerFor(null);
   };
 
-  // ── Load saved play ───────────────────────────────────────────────────────
-  const loadPlay = (play: any) => {
-    setFormKey(play.formation);
-    setPlayers(play.players_json);
-    setAssignments(play.assignments_json ?? {});
-    setPaths(play.paths_json ?? []);
-    setPickerFor(null);
-    setShowPlays(false);
+  const pctToSVGPath = (pts: [number, number][]) => {
+    if (pts.length < 2) return "";
+    return `M ${(pts[0][0] * 7).toFixed(1)} ${(pts[0][1] * 4.6).toFixed(1)} ` +
+      pts.slice(1).map(([x, y]) => `L ${(x * 7).toFixed(1)} ${(y * 4.6).toFixed(1)}`).join(" ");
   };
 
-  // ── Download as SVG ───────────────────────────────────────────────────────
-  const downloadSVG = useCallback(() => {
-    const svgEl = pitchContainerRef.current?.querySelector("svg");
-    if (!svgEl) return;
-
-    const clone = svgEl.cloneNode(true) as SVGElement;
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    const W = 700, H = 460;
-    const ns = "http://www.w3.org/2000/svg";
-
-    // Drawing paths (below tokens)
-    const pathsGroup = document.createElementNS(ns, "g");
-    paths.forEach(path => {
-      if (path.points.length < 2) return;
-      const el = document.createElementNS(ns, "path");
-      const d = `M ${(path.points[0][0] / 100 * W).toFixed(1)} ${(path.points[0][1] / 100 * H).toFixed(1)} ` +
-        path.points.slice(1).map(([x, y]) => `L ${(x / 100 * W).toFixed(1)} ${(y / 100 * H).toFixed(1)}`).join(" ");
-      el.setAttribute("d", d);
-      el.setAttribute("fill", "none");
-      el.setAttribute("stroke", path.color);
-      el.setAttribute("stroke-width", "5");
-      el.setAttribute("stroke-linecap", "round");
-      el.setAttribute("stroke-linejoin", "round");
-      el.setAttribute("opacity", "0.85");
-      pathsGroup.appendChild(el);
-    });
-    clone.appendChild(pathsGroup);
-
-    // Player tokens
-    const tokensGroup = document.createElementNS(ns, "g");
-    players.forEach(player => {
-      const cx = (player.x / 100) * W;
-      const cy = (player.y / 100) * H;
-      const c = TYPE_COLORS[player.type];
-      const assigned = assignments[player.id];
-      const displayNum   = assigned?.num  || player.num;
-      const displayLabel = assigned?.name || player.abbr;
-
-      const g = document.createElementNS(ns, "g");
-      g.setAttribute("transform", `translate(${cx.toFixed(1)},${cy.toFixed(1)})`);
-
-      const circle = document.createElementNS(ns, "circle");
-      circle.setAttribute("r", "18");
-      circle.setAttribute("fill", assigned ? c.bg : "rgba(0,0,0,0.5)");
-      circle.setAttribute("stroke", c.border);
-      circle.setAttribute("stroke-width", "2.5");
-      g.appendChild(circle);
-
-      const numText = document.createElementNS(ns, "text");
-      numText.setAttribute("y", "5");
-      numText.setAttribute("text-anchor", "middle");
-      numText.setAttribute("fill", c.text);
-      numText.setAttribute("font-size", "12");
-      numText.setAttribute("font-weight", "900");
-      numText.setAttribute("font-family", "monospace, sans-serif");
-      numText.textContent = displayNum;
-      g.appendChild(numText);
-
-      // Label background
-      const labelBg = document.createElementNS(ns, "rect");
-      labelBg.setAttribute("x", "-20"); labelBg.setAttribute("y", "20");
-      labelBg.setAttribute("width", "40"); labelBg.setAttribute("height", "12");
-      labelBg.setAttribute("fill", "rgba(0,0,0,0.70)");
-      labelBg.setAttribute("rx", "2");
-      g.appendChild(labelBg);
-
-      const labelText = document.createElementNS(ns, "text");
-      labelText.setAttribute("y", "30");
-      labelText.setAttribute("text-anchor", "middle");
-      labelText.setAttribute("fill", c.text);
-      labelText.setAttribute("font-size", "7.5");
-      labelText.setAttribute("font-weight", "800");
-      labelText.setAttribute("font-family", "monospace, sans-serif");
-      labelText.textContent = displayLabel;
-      g.appendChild(labelText);
-
-      if (assigned) {
-        const dot = document.createElementNS(ns, "circle");
-        dot.setAttribute("cx", "13"); dot.setAttribute("cy", "-13"); dot.setAttribute("r", "4.5");
-        dot.setAttribute("fill", STATUS_DOT[assigned.status] ?? "#475569");
-        dot.setAttribute("stroke", "rgba(0,0,0,0.8)"); dot.setAttribute("stroke-width", "1.5");
-        g.appendChild(dot);
-      }
-      tokensGroup.appendChild(g);
-    });
-    clone.appendChild(tokensGroup);
-
-    // Watermark
-    const wm = document.createElementNS(ns, "text");
-    wm.setAttribute("x", "350"); wm.setAttribute("y", "452");
-    wm.setAttribute("text-anchor", "middle");
-    wm.setAttribute("fill", "rgba(255,255,255,0.20)");
-    wm.setAttribute("font-size", "9"); wm.setAttribute("font-family", "sans-serif");
-    wm.textContent = `DEPORTE FC · ${FORMATIONS[formKey].label}`;
-    clone.appendChild(wm);
-
-    const svgStr = new XMLSerializer().serializeToString(clone);
-    const blob   = new Blob([svgStr], { type: "image/svg+xml" });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement("a");
-    a.href = url;
-    a.download = `pizarra_${FORMATIONS[formKey].label.replace(/-/g, "")}_${Date.now()}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [players, assignments, paths, formKey]);
-
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div ref={wrapperRef} className="flex flex-col h-full" style={{ position: "relative" }}
-      onClick={() => { setShowFormMenu(false); setPickerFor(null); }}>
+      onClick={() => { setShowFormMenu(false); setPickerFor(null); setShowPlays(false); }}>
 
       {/* ── Toolbar ──────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-5 py-3 shrink-0 flex-wrap"
+      <div className="flex items-center gap-2.5 px-5 py-3 shrink-0 flex-wrap"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
 
-        {/* Formation selector */}
+        {/* Formation */}
         <div className="relative" onClick={e => e.stopPropagation()}>
           <button onClick={() => setShowFormMenu(v => !v)}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-bold"
@@ -495,7 +489,7 @@ export function TacticalBoard() {
 
         <div className="w-px h-5 shrink-0" style={{ background: "rgba(255,255,255,0.1)" }} />
 
-        {/* Move / Draw modes */}
+        {/* Mode */}
         <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
           {(["move", "draw"] as const).map(m => (
             <button key={m} onClick={() => setMode(m)}
@@ -547,6 +541,24 @@ export function TacticalBoard() {
           )}
         </AnimatePresence>
 
+        {/* Download */}
+        <button onClick={downloadSVG}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+          style={{ color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+          onMouseEnter={e => { e.currentTarget.style.color = "#60a5fa"; e.currentTarget.style.borderColor = "rgba(96,165,250,0.3)"; }}
+          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}>
+          <Download className="w-3.5 h-3.5" /> Descargar
+        </button>
+
+        {/* Save */}
+        <button onClick={e => { e.stopPropagation(); setSaveModal(true); setSaveName(""); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+          style={{ color: "#00ff87", background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.25)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,255,135,0.15)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,255,135,0.08)")}>
+          <Save className="w-3.5 h-3.5" /> Guardar
+        </button>
+
         {/* Reset */}
         <button onClick={resetFormation}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
@@ -554,27 +566,6 @@ export function TacticalBoard() {
           onMouseEnter={e => (e.currentTarget.style.color = "#00ff87")}
           onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}>
           <RotateCcw className="w-3.5 h-3.5" /> Resetear
-        </button>
-
-        <div className="w-px h-5 shrink-0" style={{ background: "rgba(255,255,255,0.1)" }} />
-
-        {/* Download */}
-        <button onClick={downloadSVG}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-          onMouseEnter={e => { e.currentTarget.style.color = "#60a5fa"; e.currentTarget.style.borderColor = "rgba(96,165,250,0.35)"; }}
-          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-          title="Descargar como SVG">
-          <Download className="w-3.5 h-3.5" /> Descargar
-        </button>
-
-        {/* Save */}
-        <button onClick={e => { e.stopPropagation(); setSaveModal(true); setSaveName(""); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ color: "#00ff87", background: "rgba(0,255,135,0.10)", border: "1px solid rgba(0,255,135,0.3)" }}
-          onMouseEnter={e => e.currentTarget.style.background = "rgba(0,255,135,0.18)"}
-          onMouseLeave={e => e.currentTarget.style.background = "rgba(0,255,135,0.10)"}>
-          <Save className="w-3.5 h-3.5" /> Guardar
         </button>
       </div>
 
@@ -598,18 +589,22 @@ export function TacticalBoard() {
               {/* Drawing overlay */}
               <svg viewBox="0 0 700 460" preserveAspectRatio="none"
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}>
-                {paths.map(path => <path key={path.id} d={pctToSVGPath(path.points)} fill="none" stroke={path.color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />)}
-                {activePath.length > 1 && <path d={pctToSVGPath(activePath)} fill="none" stroke={drawColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />}
+                {paths.map(path => (
+                  <path key={path.id} d={pctToSVGPath(path.points)} fill="none" stroke={path.color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+                ))}
+                {activePath.length > 1 && (
+                  <path d={pctToSVGPath(activePath)} fill="none" stroke={drawColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+                )}
               </svg>
 
               {/* Tokens */}
               {players.map(player => {
-                const c          = TYPE_COLORS[player.type];
-                const isDragging = draggingId === player.id;
-                const isOpen     = pickerFor === player.id;
-                const assigned   = assignments[player.id];
-                const displayNum   = assigned?.num  || player.num;
-                const displayLabel = assigned?.name || player.abbr;
+                const c            = TYPE_COLORS[player.type];
+                const isDragging   = draggingId === player.id;
+                const isOpen       = pickerFor === player.id;
+                const assigned     = assignments[player.id];
+                const displayNum   = assigned?.num   || player.num;
+                const displayLabel = assigned?.name  || player.abbr;
 
                 return (
                   <div key={player.id}
@@ -630,8 +625,8 @@ export function TacticalBoard() {
                           <div style={{ position: "absolute", bottom: -1, right: -1, width: 9, height: 9, borderRadius: "50%", background: STATUS_DOT[assigned.status] ?? "#475569", border: "1.5px solid rgba(0,0,0,0.8)" }} />
                         )}
                       </div>
-                      {/* Name / position label */}
-                      <div style={{ fontSize: assigned ? 7.5 : 8, fontWeight: 800, color: c.text, letterSpacing: "0.04em", textShadow: `0 0 6px ${c.glow}`, lineHeight: 1, background: "rgba(0,0,0,0.65)", padding: "1.5px 4px", borderRadius: 3, maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {/* Label — name if assigned, abbr if not */}
+                      <div style={{ fontSize: assigned ? 7.5 : 8, fontWeight: 800, color: c.text, letterSpacing: "0.04em", textShadow: `0 0 6px ${c.glow}`, lineHeight: 1, background: "rgba(0,0,0,0.65)", padding: "1px 4px", borderRadius: 3, maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {displayLabel}
                       </div>
                     </motion.div>
@@ -645,65 +640,46 @@ export function TacticalBoard() {
         {/* ── Right sidebar ─────────────────────────────── */}
         <div className="w-44 shrink-0 flex flex-col gap-3 overflow-y-auto">
 
-          {/* Saved plays toggle */}
+          {/* Saved plays */}
           <div>
             <button
               onClick={e => { e.stopPropagation(); setShowPlays(v => !v); }}
-              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg"
-              style={{ background: showPlays ? "rgba(0,255,135,0.08)" : "rgba(255,255,255,0.04)", border: `1px solid ${showPlays ? "rgba(0,255,135,0.25)" : "rgba(255,255,255,0.08)"}` }}>
+              className="w-full flex items-center justify-between mb-2"
+              style={{ color: "rgba(100,116,139,0.9)" }}>
               <div className="flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5" style={{ color: showPlays ? "#00ff87" : "rgba(255,255,255,0.4)" }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: showPlays ? "#00ff87" : "rgba(255,255,255,0.5)" }}>
-                  Jugadas guardadas
-                </span>
+                <BookOpen className="w-3 h-3" />
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em]">Jugadas guardadas</p>
               </div>
-              {(savedPlays as any[]).length > 0 && (
-                <span style={{ fontSize: 9, fontWeight: 800, color: "#00ff87", background: "rgba(0,255,135,0.15)", padding: "1px 5px", borderRadius: 8 }}>
-                  {(savedPlays as any[]).length}
-                </span>
-              )}
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff87" }}>{(savedPlays as any[]).length}</span>
             </button>
 
             <AnimatePresence>
               {showPlays && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                  style={{ overflow: "hidden" }}>
-                  <div className="mt-1.5 flex flex-col gap-1">
-                    {(savedPlays as any[]).length === 0 ? (
-                      <p className="text-center py-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
-                        Sin jugadas guardadas
-                      </p>
-                    ) : (
-                      (savedPlays as any[]).map((play: any) => (
+                  className="overflow-hidden">
+                  {(savedPlays as any[]).length === 0 ? (
+                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "8px 0" }}>Sin jugadas guardadas</p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {(savedPlays as any[]).map((play: any) => (
                         <div key={play.id}
-                          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg group"
+                          className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg"
                           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                          <button onClick={() => loadPlay(play)} className="flex-1 text-left min-w-0">
-                            <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {play.name}
-                            </p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span style={{ fontSize: 8, fontWeight: 700, color: "#00ff87", background: "rgba(0,255,135,0.12)", padding: "0 4px", borderRadius: 3 }}>
-                                {play.formation}
-                              </span>
-                              <Clock className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
-                              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)" }}>
-                                {new Date(play.created_at).toLocaleDateString("es", { day: "2-digit", month: "2-digit" })}
-                              </span>
-                            </div>
+                          <button onClick={e => { e.stopPropagation(); loadPlay(play); }}
+                            className="flex-1 text-left min-w-0">
+                            <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{play.name}</p>
+                            <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{play.formation}</p>
                           </button>
-                          <button
-                            onClick={() => deleteMutation.mutate(play.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            style={{ color: "rgba(239,68,68,0.5)", lineHeight: 0 }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "rgba(239,68,68,0.5)")}>
+                          <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(play.id); }}
+                            style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0, lineHeight: 0 }}
+                            onMouseEnter={el => (el.currentTarget.style.color = "#ef4444")}
+                            onMouseLeave={el => (el.currentTarget.style.color = "rgba(255,255,255,0.2)")}>
                             <X className="w-3 h-3" />
                           </button>
                         </div>
-                      ))
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -711,16 +687,16 @@ export function TacticalBoard() {
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-          {/* Position legend */}
+          {/* Positions legend */}
           <div>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: "rgba(100,116,139,0.8)" }}>Posiciones</p>
             <div className="flex flex-col gap-2">
               {(["GK", "DEF", "MID", "FWD"] as PosType[]).map(type => {
-                const c = TYPE_COLORS[type];
+                const c     = TYPE_COLORS[type];
                 const count = players.filter(p => p.type === type).length;
                 return (
                   <div key={type} className="flex items-center gap-2.5">
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: c.bg, border: `2px solid ${c.border}`, flexShrink: 0, boxShadow: `0 0 8px ${c.glow}44` }} />
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: c.bg, border: `2px solid ${c.border}`, flexShrink: 0, boxShadow: `0 0 8px ${c.glow}44` }} />
                     <div>
                       <p style={{ fontSize: 11, fontWeight: 700, color: c.text, lineHeight: 1.2 }}>{c.label}</p>
                       <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{count} jugador{count !== 1 ? "es" : ""}</p>
@@ -742,7 +718,7 @@ export function TacticalBoard() {
                   <MousePointer className="w-3 h-3" style={{ color: "#00ff87" }} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff87" }}>Mover</span>
                 </div>
-                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Arrastra para reposicionar. Clic para asignar jugador.</p>
+                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Arrastra para reposicionar. Clic para asignar nombre real.</p>
               </div>
               <div className="rounded-lg p-2.5" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.12)" }}>
                 <div className="flex items-center gap-1.5 mb-1">
@@ -750,13 +726,6 @@ export function TacticalBoard() {
                   <span style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa" }}>Dibujar</span>
                 </div>
                 <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Traza movimientos tácticos sobre la cancha.</p>
-              </div>
-              <div className="rounded-lg p-2.5" style={{ background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.12)" }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Download className="w-3 h-3" style={{ color: "#60a5fa" }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa" }}>Descargar</span>
-                </div>
-                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Exporta la jugada como archivo SVG.</p>
               </div>
             </div>
           </div>
@@ -769,63 +738,6 @@ export function TacticalBoard() {
           )}
         </div>
       </div>
-
-      {/* ── Save Modal ────────────────────────────────────── */}
-      <AnimatePresence>
-        {saveModal && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50, backdropFilter: "blur(4px)" }}
-              onClick={() => setSaveModal(false)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 16 }}
-              transition={{ duration: 0.2 }}
-              onClick={e => e.stopPropagation()}
-              style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 51, width: 320, borderRadius: 16, background: "rgba(6,12,20,0.98)", border: "1px solid rgba(0,255,135,0.2)", boxShadow: "0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,255,135,0.06)", padding: "20px" }}>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.95)" }}>Guardar jugada</p>
-                  <p style={{ fontSize: 11, color: "rgba(0,255,135,0.6)", marginTop: 2 }}>{FORMATIONS[formKey].label} · {assignedCount}/11 jugadores</p>
-                </div>
-                <button onClick={() => setSaveModal(false)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <input
-                autoFocus
-                value={saveName}
-                onChange={e => setSaveName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && saveName.trim()) saveMutation.mutate(saveName.trim()); }}
-                placeholder="Nombre de la jugada..."
-                style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.9)", outline: "none", caretColor: "#00ff87", boxSizing: "border-box" }}
-                onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,135,0.4)")}
-                onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
-              />
-
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => setSaveModal(false)}
-                  className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                  style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => saveName.trim() && saveMutation.mutate(saveName.trim())}
-                  disabled={!saveName.trim() || saveMutation.isPending}
-                  className="flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-                  style={{ background: saveName.trim() ? "rgba(0,255,135,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${saveName.trim() ? "rgba(0,255,135,0.4)" : "rgba(255,255,255,0.08)"}`, color: saveName.trim() ? "#00ff87" : "rgba(255,255,255,0.3)", cursor: saveName.trim() ? "pointer" : "not-allowed" }}>
-                  {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  Guardar
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* ── Player Picker Popover ─────────────────────────── */}
       <AnimatePresence>
@@ -848,7 +760,6 @@ export function TacticalBoard() {
                 boxShadow: "0 20px 56px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,255,135,0.06)",
                 overflow: "hidden",
               }}>
-              {/* Header */}
               <div className="flex items-center justify-between px-3 pt-3 pb-2">
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.9)" }}>Asignar jugador</p>
@@ -863,18 +774,15 @@ export function TacticalBoard() {
                 </button>
               </div>
 
-              {/* Search */}
               <div className="px-3 pb-2">
-                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
                   <Search className="w-3.5 h-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} />
                   <input autoFocus value={pickerSearch} onChange={e => setPickerSearch(e.target.value)}
-                    placeholder="Nombre o número..."
+                    placeholder="Buscar por nombre o número..."
                     style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: "rgba(255,255,255,0.85)", caretColor: "#00ff87" }} />
                 </div>
               </div>
 
-              {/* Player list */}
               <div style={{ maxHeight: 230, overflowY: "auto", paddingBottom: 8 }}>
                 {assignments[pickerFor!] && (
                   <button onClick={() => unassign(pickerFor!)}
@@ -891,7 +799,6 @@ export function TacticalBoard() {
                     </div>
                   </button>
                 )}
-
                 {filteredRoster.length === 0
                   ? <p className="text-center py-5" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>Sin resultados</p>
                   : filteredRoster.map((p: any) => {
@@ -919,6 +826,98 @@ export function TacticalBoard() {
                     );
                   })
                 }
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Save Modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {saveModal && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50, backdropFilter: "blur(4px)" }}
+              onClick={() => setSaveModal(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1,    y: 0  }}
+              exit={{   opacity: 0, scale: 0.94, y: 12  }}
+              transition={{ duration: 0.18 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%, -50%)",
+                zIndex: 60, width: 320, borderRadius: 18,
+                background: "rgba(6,12,22,0.98)",
+                border: "1px solid rgba(0,255,135,0.2)",
+                boxShadow: "0 24px 64px rgba(0,0,0,0.9)",
+                padding: 24,
+              }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl" style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.2)" }}>
+                    <Save className="w-4 h-4" style={{ color: "#00ff87" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.95)" }}>Guardar jugada</p>
+                    <p style={{ fontSize: 10, color: "rgba(0,255,135,0.6)", marginTop: 1 }}>{FORMATIONS[formKey].label} · {assignedCount}/11 jugadores</p>
+                  </div>
+                </div>
+                <button onClick={() => setSaveModal(false)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "white")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Input */}
+              <div className="mb-5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+                  Nombre de la jugada
+                </label>
+                <input
+                  autoFocus
+                  value={saveName}
+                  onChange={e => setSaveName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && saveName.trim()) saveMutation.mutate(saveName.trim()); }}
+                  placeholder="Ej: Contraataque por derecha..."
+                  style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.9)", outline: "none", caretColor: "#00ff87", boxSizing: "border-box" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,135,0.4)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
+                />
+              </div>
+
+              {/* Info */}
+              <div className="flex gap-2 mb-5">
+                {[
+                  { icon: Clock, label: "Formación", value: FORMATIONS[formKey].label },
+                  { icon: UserCheck, label: "Jugadores", value: `${assignedCount}/11` },
+                  { icon: Pencil, label: "Trazos", value: String(paths.length) },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex-1 rounded-lg p-2 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <p style={{ fontSize: 13, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>{value}</p>
+                    <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button onClick={() => setSaveModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => saveName.trim() && saveMutation.mutate(saveName.trim())}
+                  disabled={!saveName.trim() || saveMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
+                  style={{ background: saveName.trim() ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.04)", color: saveName.trim() ? "#00ff87" : "rgba(255,255,255,0.25)", border: `1px solid ${saveName.trim() ? "rgba(0,255,135,0.35)" : "rgba(255,255,255,0.08)"}`, cursor: saveName.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>
+                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {saveMutation.isPending ? "Guardando..." : "Guardar"}
+                </button>
               </div>
             </motion.div>
           </>
