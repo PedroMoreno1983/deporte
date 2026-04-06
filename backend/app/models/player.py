@@ -71,6 +71,7 @@ class Player(Base):
     match_stats = relationship("MatchStat", back_populates="player", cascade="all, delete-orphan")
     training_sessions = relationship("TrainingSession", back_populates="player", cascade="all, delete-orphan")
     prediction_scores = relationship("PredictionScore", back_populates="player", cascade="all, delete-orphan")
+    wellness_entries  = relationship("WellnessEntry",   back_populates="player", cascade="all, delete-orphan")
 
     @property
     def full_name(self):
