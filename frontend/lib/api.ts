@@ -7,7 +7,6 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach token on each request
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("access_token");
@@ -16,7 +15,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -43,14 +41,12 @@ api.interceptors.response.use(
   }
 );
 
-// --- Auth ---
 export const authApi = {
   login: (email: string, password: string) =>
     api.post("/auth/login", { email, password }).then((r) => r.data),
   me: () => api.get("/auth/me").then((r) => r.data),
 };
 
-// --- Players ---
 export const playersApi = {
   list: (params?: { category_id?: number; status?: string; search?: string }) =>
     api.get("/players", { params }).then((r) => r.data),
@@ -60,19 +56,16 @@ export const playersApi = {
     api.patch(`/players/${id}`, data).then((r) => r.data),
 };
 
-// --- Categories ---
 export const categoriesApi = {
   list: () => api.get("/categories").then((r) => r.data),
 };
 
-// --- Kinesiology ---
 export const kinesiologyApi = {
   getByPlayer: (playerId: number) =>
     api.get(`/kinesiology/player/${playerId}`).then((r) => r.data),
   create: (data: unknown) => api.post("/kinesiology", data).then((r) => r.data),
 };
 
-// --- Injuries ---
 export const injuriesApi = {
   getByPlayer: (playerId: number) =>
     api.get(`/injuries/player/${playerId}`).then((r) => r.data),
@@ -82,7 +75,6 @@ export const injuriesApi = {
     api.patch(`/injuries/${id}`, data).then((r) => r.data),
 };
 
-// --- Matches ---
 export const matchesApi = {
   list: (params?: { category_id?: number }) =>
     api.get("/matches", { params }).then((r) => r.data),
@@ -95,14 +87,12 @@ export const matchesApi = {
     api.get(`/matches/player/${playerId}/stats`).then((r) => r.data),
 };
 
-// --- Training ---
 export const trainingApi = {
   getByPlayer: (playerId: number, params?: { start_date?: string; end_date?: string }) =>
     api.get(`/training/player/${playerId}`, { params }).then((r) => r.data),
   create: (data: unknown) => api.post("/training", data).then((r) => r.data),
 };
 
-// --- Analytics ---
 export const analyticsApi = {
   dashboard: (categoryId?: number) =>
     api.get("/analytics/dashboard", { params: { category_id: categoryId } }).then((r) => r.data),
@@ -111,18 +101,22 @@ export const analyticsApi = {
   injuryStats: () => api.get("/analytics/injuries/stats").then((r) => r.data),
 };
 
-// --- Wellness ---
 export const wellnessApi = {
   create:      (data: unknown) => api.post("/wellness", data).then((r) => r.data),
   getByPlayer: (playerId: number, days = 30) =>
     api.get(`/wellness/player/${playerId}`, { params: { days } }).then((r) => r.data),
   teamSummary: (targetDate?: string, categoryId?: number) =>
     api.get("/wellness/team/summary", { params: { target_date: targetDate, category_id: categoryId } }).then((r) => r.data),
-  teamTrend:   (days = 14) =>
+  teamTrend: (days = 14) =>
     api.get("/wellness/team/trend", { params: { days } }).then((r) => r.data),
 };
 
-// --- Predictions ---
+export const tacticalApi = {
+  list:   ()              => api.get("/tactical/").then((r) => r.data),
+  create: (data: unknown) => api.post("/tactical/", data).then((r) => r.data),
+  delete: (id: number)    => api.delete(`/tactical/${id}`).then((r) => r.data),
+};
+
 export const predictionsApi = {
   getForPlayer: (playerId: number) =>
     api.get(`/predictions/player/${playerId}`).then((r) => r.data),
