@@ -111,6 +111,17 @@ export const analyticsApi = {
   injuryStats: () => api.get("/analytics/injuries/stats").then((r) => r.data),
 };
 
+// --- Wellness ---
+export const wellnessApi = {
+  create:      (data: unknown) => api.post("/wellness", data).then((r) => r.data),
+  getByPlayer: (playerId: number, days = 30) =>
+    api.get(`/wellness/player/${playerId}`, { params: { days } }).then((r) => r.data),
+  teamSummary: (targetDate?: string, categoryId?: number) =>
+    api.get("/wellness/team/summary", { params: { target_date: targetDate, category_id: categoryId } }).then((r) => r.data),
+  teamTrend:   (days = 14) =>
+    api.get("/wellness/team/trend", { params: { days } }).then((r) => r.data),
+};
+
 // --- Predictions ---
 export const predictionsApi = {
   getForPlayer: (playerId: number) =>

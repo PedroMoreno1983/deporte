@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, AlertTriangle, Trophy,
   Dumbbell, Brain, Settings, ChevronLeft, ChevronRight,
-  LogOut, BarChart3, Shield, Map
+  LogOut, BarChart3, Shield, Map, HeartPulse
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -21,6 +21,7 @@ const NAV_GROUPS = [
       { href: "/matches",   icon: Trophy,          label: "Partidos",      roles: ["admin", "coach", "analyst"] },
       { href: "/training",  icon: Dumbbell,        label: "Entrenamiento", roles: ["admin", "coach", "kinesiologist"] },
       { href: "/tactical",  icon: Map,             label: "Pizarra",       roles: ["admin", "coach", "analyst"] },
+      { href: "/wellness",  icon: HeartPulse,      label: "Wellness",      roles: ["admin", "coach", "kinesiologist"] },
     ],
   },
   {

@@ -6,3 +6,4 @@ from .injury import Injury, InjurySeverity, InjuryMechanism
 from .match import Match, MatchStat
 from .training import TrainingSession
 from .prediction import PredictionScore
+from .wellness import WellnessEntry
