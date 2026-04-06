@@ -2,24 +2,37 @@
 
 import { useRef, useState, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { playersApi, tacticalApi } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { playersApi } from "@/lib/api";
 import {
   RotateCcw, Pencil, MousePointer, Trash2, ChevronDown, Check,
-  Search, X, UserCheck, Circle, Save, Download, BookOpen, Clock, Loader2,
+  Search, X, UserCheck, Circle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PosType = "GK" | "DEF" | "MID" | "FWD";
 
 interface Player {
-  id: string; num: string; abbr: string; type: PosType; x: number; y: number;
+  id: string;
+  num: string;
+  abbr: string;
+  type: PosType;
+  x: number;
+  y: number;
 }
+
 interface Assignment {
-  playerId: number; name: string; fullName: string; num: string; status: string;
+  playerId: number;
+  name: string;
+  fullName: string;
+  num: string;
+  status: string;
 }
+
 interface DrawPath {
-  id: string; color: string; points: [number, number][];
+  id: string;
+  color: string;
+  points: [number, number][];
 }
 
 // ─── Formations ───────────────────────────────────────────────────────────────
@@ -174,14 +187,12 @@ function PitchSVG() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 export function TacticalBoard() {
-  const pitchRef          = useRef<HTMLDivElement>(null);
-  const pitchContainerRef = useRef<HTMLDivElement>(null);
-  const wrapperRef        = useRef<HTMLDivElement>(null);
-  const uid               = useId();
-  const dragStart         = useRef<{ x: number; y: number } | null>(null);
-  const queryClient       = useQueryClient();
+  const pitchRef   = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const uid        = useId();
+  const dragStart  = useRef<{ x: number; y: number } | null>(null);
 
   const [formKey, setFormKey]           = useState("4-3-3");
   const [players, setPlayers]           = useState<Player[]>(() => FORMATIONS["4-3-3"].players.map(p => ({ ...p })));
@@ -192,178 +203,37 @@ export function TacticalBoard() {
   const [isDrawing, setIsDrawing]       = useState(false);
   const [drawColor, setDrawColor]       = useState(DRAW_COLORS[0]);
   const [showFormMenu, setShowFormMenu] = useState(false);
+
+  // Assignments: tokenId → real player info
   const [assignments, setAssignments]   = useState<Record<string, Assignment>>({});
   const [pickerFor, setPickerFor]       = useState<string | null>(null);
   const [pickerPos, setPickerPos]       = useState({ x: 0, y: 0 });
   const [pickerSearch, setPickerSearch] = useState("");
 
-  // Save modal
-  const [saveModal, setSaveModal] = useState(false);
-  const [saveName, setSaveName]   = useState("");
-  // Saved plays panel
-  const [showPlays, setShowPlays] = useState(false);
-
-  // ── Roster ────────────────────────────────────────────────────────────────
+  // Fetch available players from API
   const { data: roster = [] } = useQuery({
     queryKey: ["players", "tactical-roster"],
     queryFn:  () => playersApi.list({ status: "available" }),
   });
 
-  // ── Saved plays ───────────────────────────────────────────────────────────
-  const { data: savedPlays = [] } = useQuery<any[]>({
-    queryKey: ["tactical-plays"],
-    queryFn:  () => tacticalApi.list(),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (name: string) =>
-      tacticalApi.create({ name, formation: formKey, players_json: players, assignments_json: assignments, paths_json: paths }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tactical-plays"] });
-      setSaveModal(false);
-      setSaveName("");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => tacticalApi.delete(id),
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["tactical-plays"] }),
-  });
-
-  const loadPlay = (play: any) => {
-    setFormKey(play.formation);
-    setPlayers(play.players_json);
-    setAssignments(play.assignments_json ?? {});
-    setPaths(play.paths_json ?? []);
-    setPickerFor(null);
-    setShowPlays(false);
-  };
-
-  // ── Download as SVG ───────────────────────────────────────────────────────
-  const downloadSVG = useCallback(() => {
-    const svgEl = pitchContainerRef.current?.querySelector("svg");
-    if (!svgEl) return;
-
-    const clone = svgEl.cloneNode(true) as SVGElement;
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    const W = 700, H = 460;
-    const ns = "http://www.w3.org/2000/svg";
-
-    // Drawing paths
-    const pathsGroup = document.createElementNS(ns, "g");
-    paths.forEach(path => {
-      if (path.points.length < 2) return;
-      const el = document.createElementNS(ns, "path");
-      const d = `M ${(path.points[0][0] / 100 * W).toFixed(1)} ${(path.points[0][1] / 100 * H).toFixed(1)} ` +
-        path.points.slice(1).map(([x, y]) => `L ${(x / 100 * W).toFixed(1)} ${(y / 100 * H).toFixed(1)}`).join(" ");
-      el.setAttribute("d", d);
-      el.setAttribute("fill", "none");
-      el.setAttribute("stroke", path.color);
-      el.setAttribute("stroke-width", "5");
-      el.setAttribute("stroke-linecap", "round");
-      el.setAttribute("stroke-linejoin", "round");
-      el.setAttribute("opacity", "0.85");
-      pathsGroup.appendChild(el);
-    });
-    clone.appendChild(pathsGroup);
-
-    // Player tokens
-    const tokensGroup = document.createElementNS(ns, "g");
-    players.forEach(player => {
-      const cx = (player.x / 100) * W;
-      const cy = (player.y / 100) * H;
-      const c  = TYPE_COLORS[player.type];
-      const assigned     = assignments[player.id];
-      const displayNum   = assigned?.num  || player.num;
-      const displayLabel = assigned?.name || player.abbr;
-
-      const g = document.createElementNS(ns, "g");
-      g.setAttribute("transform", `translate(${cx.toFixed(1)},${cy.toFixed(1)})`);
-
-      const circle = document.createElementNS(ns, "circle");
-      circle.setAttribute("r", "18");
-      circle.setAttribute("fill", assigned ? c.bg : "rgba(0,0,0,0.5)");
-      circle.setAttribute("stroke", c.border);
-      circle.setAttribute("stroke-width", "2.5");
-      g.appendChild(circle);
-
-      const numText = document.createElementNS(ns, "text");
-      numText.setAttribute("y", "4");
-      numText.setAttribute("text-anchor", "middle");
-      numText.setAttribute("fill", c.text);
-      numText.setAttribute("font-size", "12");
-      numText.setAttribute("font-weight", "900");
-      numText.setAttribute("font-family", "monospace,sans-serif");
-      numText.textContent = displayNum;
-      g.appendChild(numText);
-
-      const labelBg = document.createElementNS(ns, "rect");
-      labelBg.setAttribute("x", "-20"); labelBg.setAttribute("y", "20");
-      labelBg.setAttribute("width", "40"); labelBg.setAttribute("height", "12");
-      labelBg.setAttribute("fill", "rgba(0,0,0,0.7)"); labelBg.setAttribute("rx", "2");
-      g.appendChild(labelBg);
-
-      const labelText = document.createElementNS(ns, "text");
-      labelText.setAttribute("y", "30");
-      labelText.setAttribute("text-anchor", "middle");
-      labelText.setAttribute("fill", c.text);
-      labelText.setAttribute("font-size", "7.5");
-      labelText.setAttribute("font-weight", "800");
-      labelText.setAttribute("font-family", "monospace,sans-serif");
-      labelText.textContent = displayLabel;
-      g.appendChild(labelText);
-
-      if (assigned) {
-        const dot = document.createElementNS(ns, "circle");
-        dot.setAttribute("cx", "13"); dot.setAttribute("cy", "-13"); dot.setAttribute("r", "4.5");
-        dot.setAttribute("fill", STATUS_DOT[assigned.status] ?? "#475569");
-        dot.setAttribute("stroke", "rgba(0,0,0,0.8)"); dot.setAttribute("stroke-width", "1.5");
-        g.appendChild(dot);
-      }
-      tokensGroup.appendChild(g);
-    });
-    clone.appendChild(tokensGroup);
-
-    // Watermark
-    const wm = document.createElementNS(ns, "text");
-    wm.setAttribute("x", "350"); wm.setAttribute("y", "452");
-    wm.setAttribute("text-anchor", "middle");
-    wm.setAttribute("fill", "rgba(255,255,255,0.2)");
-    wm.setAttribute("font-size", "9"); wm.setAttribute("font-family", "sans-serif");
-    wm.textContent = `DEPORTE FC · ${FORMATIONS[formKey].label}`;
-    clone.appendChild(wm);
-
-    const svgStr = new XMLSerializer().serializeToString(clone);
-    const blob   = new Blob([svgStr], { type: "image/svg+xml" });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement("a");
-    a.href       = url;
-    a.download   = `pizarra_${FORMATIONS[formKey].label.replace(/-/g, "")}_${Date.now()}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [players, assignments, paths, formKey]);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const assignedIds    = new Set(Object.values(assignments).map(a => a.playerId));
-  const assignedCount  = Object.keys(assignments).length;
-  const filteredRoster = (roster as any[]).filter(p => {
+  const assignedIds     = new Set(Object.values(assignments).map(a => a.playerId));
+  const assignedCount   = Object.keys(assignments).length;
+  const filteredRoster  = (roster as any[]).filter(p => {
     const q = pickerSearch.toLowerCase();
     return !q || p.full_name?.toLowerCase().includes(q) || String(p.jersey_number ?? "").includes(q);
   });
 
+  // Pitch % helper
   const getPitchPct = useCallback((clientX: number, clientY: number) => {
     const rect = pitchRef.current?.getBoundingClientRect();
     if (!rect) return null;
     return {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left)  / rect.width)  * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top)   / rect.height) * 100)),
+      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
     };
   }, []);
 
-  // ── Token drag ────────────────────────────────────────────────────────────
+  // Token drag
   const handleTokenPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (mode !== "move") return;
     e.stopPropagation();
@@ -386,6 +256,7 @@ export function TacticalBoard() {
     if (!dragStart.current) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
+    // Click (not drag) → open picker
     if (Math.sqrt(dx * dx + dy * dy) < 6 && mode === "move") {
       const rect = wrapperRef.current?.getBoundingClientRect();
       setPickerPos({ x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) });
@@ -396,7 +267,7 @@ export function TacticalBoard() {
     dragStart.current = null;
   }, [mode]);
 
-  // ── Drawing ───────────────────────────────────────────────────────────────
+  // Pitch drawing
   const handlePitchPointerDown = useCallback((e: React.PointerEvent) => {
     if (mode !== "draw") return;
     const pos = getPitchPct(e.clientX, e.clientY);
@@ -420,7 +291,7 @@ export function TacticalBoard() {
     setIsDrawing(false);
   }, [mode, isDrawing, activePath, drawColor, uid]);
 
-  // ── Formation ─────────────────────────────────────────────────────────────
+  // Formation
   const changeFormation = (key: string) => {
     setFormKey(key);
     setPlayers(FORMATIONS[key].players.map(p => ({ ...p })));
@@ -431,14 +302,11 @@ export function TacticalBoard() {
     setPaths([]); setActivePath([]); setAssignments({}); setPickerFor(null);
   };
 
-  // ── Assign / unassign ─────────────────────────────────────────────────────
+  // Assign / unassign
   const assignPlayer = (tokenId: string, p: any) => {
     const parts = (p.full_name as string).split(" ");
     const name  = parts[parts.length - 1].toUpperCase();
-    setAssignments(prev => ({
-      ...prev,
-      [tokenId]: { playerId: p.id, name, fullName: p.full_name, num: String(p.jersey_number ?? ""), status: p.status ?? "available" },
-    }));
+    setAssignments(prev => ({ ...prev, [tokenId]: { playerId: p.id, name, fullName: p.full_name, num: String(p.jersey_number ?? ""), status: p.status ?? "available" } }));
     setPickerFor(null);
   };
   const unassign = (tokenId: string) => {
@@ -452,10 +320,9 @@ export function TacticalBoard() {
       pts.slice(1).map(([x, y]) => `L ${(x * 7).toFixed(1)} ${(y * 4.6).toFixed(1)}`).join(" ");
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div ref={wrapperRef} className="flex flex-col h-full" style={{ position: "relative" }}
-      onClick={() => { setShowFormMenu(false); setPickerFor(null); setShowPlays(false); }}>
+      onClick={() => { setShowFormMenu(false); setPickerFor(null); }}>
 
       {/* ── Toolbar ──────────────────────────────────────── */}
       <div className="flex items-center gap-2.5 px-5 py-3 shrink-0 flex-wrap"
@@ -501,13 +368,12 @@ export function TacticalBoard() {
           ))}
         </div>
 
-        {/* Draw colors */}
+        {/* Colors */}
         <AnimatePresence>
           {mode === "draw" && (
             <motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }} className="flex items-center gap-1.5">
               {DRAW_COLORS.map(c => (
-                <button key={c} onClick={() => setDrawColor(c)}
-                  style={{ width: 18, height: 18, borderRadius: "50%", background: c, outline: drawColor === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, transform: drawColor === c ? "scale(1.25)" : "scale(1)", transition: "transform 0.15s", flexShrink: 0 }} />
+                <button key={c} onClick={() => setDrawColor(c)} style={{ width: 18, height: 18, borderRadius: "50%", background: c, outline: drawColor === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, transform: drawColor === c ? "scale(1.25)" : "scale(1)", transition: "transform 0.15s", flexShrink: 0 }} />
               ))}
             </motion.div>
           )}
@@ -527,7 +393,6 @@ export function TacticalBoard() {
 
         <div className="flex-1" />
 
-        {/* Clear drawings */}
         <AnimatePresence>
           {paths.length > 0 && (
             <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
@@ -541,25 +406,6 @@ export function TacticalBoard() {
           )}
         </AnimatePresence>
 
-        {/* Download */}
-        <button onClick={downloadSVG}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-          onMouseEnter={e => { e.currentTarget.style.color = "#60a5fa"; e.currentTarget.style.borderColor = "rgba(96,165,250,0.3)"; }}
-          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}>
-          <Download className="w-3.5 h-3.5" /> Descargar
-        </button>
-
-        {/* Save */}
-        <button onClick={e => { e.stopPropagation(); setSaveModal(true); setSaveName(""); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ color: "#00ff87", background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.25)" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,255,135,0.15)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,255,135,0.08)")}>
-          <Save className="w-3.5 h-3.5" /> Guardar
-        </button>
-
-        {/* Reset */}
         <button onClick={resetFormation}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
           style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)" }}
@@ -571,11 +417,9 @@ export function TacticalBoard() {
 
       {/* ── Content ──────────────────────────────────────── */}
       <div className="flex flex-1 gap-4 p-4 min-h-0">
-
         {/* Pitch */}
         <div className="flex-1 flex items-center justify-center overflow-hidden">
-          <div ref={pitchContainerRef}
-            style={{ position: "relative", width: "min(calc(100% - 8px), calc((100vh - 260px) * 700 / 460))", aspectRatio: "700 / 460", flexShrink: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(0,255,135,0.1), 0 8px 48px rgba(0,0,0,0.7), 0 0 80px rgba(0,100,40,0.15)" }}>
+          <div style={{ position: "relative", width: "min(calc(100% - 8px), calc((100vh - 260px) * 700 / 460))", aspectRatio: "700 / 460", flexShrink: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(0,255,135,0.1), 0 8px 48px rgba(0,0,0,0.7), 0 0 80px rgba(0,100,40,0.15)" }}>
             <div style={{ position: "absolute", inset: 0 }}><PitchSVG /></div>
 
             {/* Interaction layer */}
@@ -589,12 +433,8 @@ export function TacticalBoard() {
               {/* Drawing overlay */}
               <svg viewBox="0 0 700 460" preserveAspectRatio="none"
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}>
-                {paths.map(path => (
-                  <path key={path.id} d={pctToSVGPath(path.points)} fill="none" stroke={path.color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
-                ))}
-                {activePath.length > 1 && (
-                  <path d={pctToSVGPath(activePath)} fill="none" stroke={drawColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
-                )}
+                {paths.map(path => <path key={path.id} d={pctToSVGPath(path.points)} fill="none" stroke={path.color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />)}
+                {activePath.length > 1 && <path d={pctToSVGPath(activePath)} fill="none" stroke={drawColor} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />}
               </svg>
 
               {/* Tokens */}
@@ -619,14 +459,14 @@ export function TacticalBoard() {
                       transition={{ duration: 0.1 }}
                       className="flex flex-col items-center" style={{ gap: 2 }}>
                       {/* Circle */}
-                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: assigned ? c.bg : "rgba(0,0,0,0.4)", border: `2px solid ${isOpen ? c.text : c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: displayNum.length > 2 ? 9 : 12, fontWeight: 900, color: c.text, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", position: "relative" }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: assigned ? c.bg : "rgba(0,0,0,0.4)", border: `2px solid ${isOpen ? c.text : c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: displayNum.length > 2 ? 9 : 11, fontWeight: 900, color: c.text, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", position: "relative" }}>
                         {displayNum}
                         {assigned && (
-                          <div style={{ position: "absolute", bottom: -1, right: -1, width: 9, height: 9, borderRadius: "50%", background: STATUS_DOT[assigned.status] ?? "#475569", border: "1.5px solid rgba(0,0,0,0.8)" }} />
+                          <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", background: STATUS_DOT[assigned.status] ?? "#475569", border: "1.5px solid rgba(0,0,0,0.8)" }} />
                         )}
                       </div>
-                      {/* Label — name if assigned, abbr if not */}
-                      <div style={{ fontSize: assigned ? 7.5 : 8, fontWeight: 800, color: c.text, letterSpacing: "0.04em", textShadow: `0 0 6px ${c.glow}`, lineHeight: 1, background: "rgba(0,0,0,0.65)", padding: "1px 4px", borderRadius: 3, maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {/* Label */}
+                      <div style={{ fontSize: assigned ? 7 : 8, fontWeight: 800, color: c.text, letterSpacing: "0.04em", textShadow: `0 0 6px ${c.glow}`, lineHeight: 1, background: "rgba(0,0,0,0.6)", padding: "1px 3px", borderRadius: 3, maxWidth: 48, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {displayLabel}
                       </div>
                     </motion.div>
@@ -638,61 +478,12 @@ export function TacticalBoard() {
         </div>
 
         {/* ── Right sidebar ─────────────────────────────── */}
-        <div className="w-44 shrink-0 flex flex-col gap-3 overflow-y-auto">
-
-          {/* Saved plays */}
-          <div>
-            <button
-              onClick={e => { e.stopPropagation(); setShowPlays(v => !v); }}
-              className="w-full flex items-center justify-between mb-2"
-              style={{ color: "rgba(100,116,139,0.9)" }}>
-              <div className="flex items-center gap-1.5">
-                <BookOpen className="w-3 h-3" />
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em]">Jugadas guardadas</p>
-              </div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff87" }}>{(savedPlays as any[]).length}</span>
-            </button>
-
-            <AnimatePresence>
-              {showPlays && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden">
-                  {(savedPlays as any[]).length === 0 ? (
-                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "8px 0" }}>Sin jugadas guardadas</p>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      {(savedPlays as any[]).map((play: any) => (
-                        <div key={play.id}
-                          className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg"
-                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                          <button onClick={e => { e.stopPropagation(); loadPlay(play); }}
-                            className="flex-1 text-left min-w-0">
-                            <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{play.name}</p>
-                            <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{play.formation}</p>
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(play.id); }}
-                            style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0, lineHeight: 0 }}
-                            onMouseEnter={el => (el.currentTarget.style.color = "#ef4444")}
-                            onMouseLeave={el => (el.currentTarget.style.color = "rgba(255,255,255,0.2)")}>
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
-
-          {/* Positions legend */}
+        <div className="w-40 shrink-0 flex flex-col gap-4 overflow-y-auto">
           <div>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: "rgba(100,116,139,0.8)" }}>Posiciones</p>
             <div className="flex flex-col gap-2">
               {(["GK", "DEF", "MID", "FWD"] as PosType[]).map(type => {
-                const c     = TYPE_COLORS[type];
+                const c = TYPE_COLORS[type];
                 const count = players.filter(p => p.type === type).length;
                 return (
                   <div key={type} className="flex items-center gap-2.5">
@@ -709,7 +500,6 @@ export function TacticalBoard() {
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
 
-          {/* Instructions */}
           <div>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "rgba(100,116,139,0.8)" }}>Instrucciones</p>
             <div className="flex flex-col gap-2">
@@ -718,7 +508,7 @@ export function TacticalBoard() {
                   <MousePointer className="w-3 h-3" style={{ color: "#00ff87" }} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff87" }}>Mover</span>
                 </div>
-                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Arrastra para reposicionar. Clic para asignar nombre real.</p>
+                <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Arrastra para reposicionar. Clic para asignar un jugador real.</p>
               </div>
               <div className="rounded-lg p-2.5" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.12)" }}>
                 <div className="flex items-center gap-1.5 mb-1">
@@ -753,18 +543,19 @@ export function TacticalBoard() {
               style={{
                 position: "absolute",
                 left: Math.min(pickerPos.x, (wrapperRef.current?.offsetWidth ?? 700) - 238),
-                top:  Math.min(pickerPos.y + 14, (wrapperRef.current?.offsetHeight ?? 600) - 320),
+                top: Math.min(pickerPos.y + 14, (wrapperRef.current?.offsetHeight ?? 600) - 320),
                 zIndex: 40, width: 228, borderRadius: 14,
                 background: "rgba(6,12,18,0.97)",
                 border: "1px solid rgba(0,255,135,0.2)",
                 boxShadow: "0 20px 56px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,255,135,0.06)",
                 overflow: "hidden",
               }}>
+              {/* Header */}
               <div className="flex items-center justify-between px-3 pt-3 pb-2">
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.9)" }}>Asignar jugador</p>
                   <p style={{ fontSize: 9, color: "rgba(0,255,135,0.6)", marginTop: 1 }}>
-                    {players.find(p => p.id === pickerFor)?.abbr} · {FORMATIONS[formKey].label}
+                    {players.find(p => p.id === pickerFor)?.abbr} · formación {FORMATIONS[formKey].label}
                   </p>
                 </div>
                 <button onClick={() => setPickerFor(null)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
@@ -774,6 +565,7 @@ export function TacticalBoard() {
                 </button>
               </div>
 
+              {/* Search */}
               <div className="px-3 pb-2">
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
                   <Search className="w-3.5 h-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} />
@@ -783,7 +575,9 @@ export function TacticalBoard() {
                 </div>
               </div>
 
+              {/* List */}
               <div style={{ maxHeight: 230, overflowY: "auto", paddingBottom: 8 }}>
+                {/* Unassign */}
                 {assignments[pickerFor!] && (
                   <button onClick={() => unassign(pickerFor!)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-left"
@@ -799,10 +593,11 @@ export function TacticalBoard() {
                     </div>
                   </button>
                 )}
+
                 {filteredRoster.length === 0
                   ? <p className="text-center py-5" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>Sin resultados</p>
                   : filteredRoster.map((p: any) => {
-                    const isMine        = assignments[pickerFor!]?.playerId === p.id;
+                    const isMine       = assignments[pickerFor!]?.playerId === p.id;
                     const usedElsewhere = assignedIds.has(p.id) && !isMine;
                     return (
                       <button key={p.id}
@@ -811,6 +606,7 @@ export function TacticalBoard() {
                         style={{ opacity: usedElsewhere ? 0.35 : 1, cursor: usedElsewhere ? "not-allowed" : "pointer" }}
                         onMouseEnter={e => { if (!usedElsewhere) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        {/* Jersey avatar */}
                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: isMine ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.07)", border: `1.5px solid ${isMine ? "rgba(0,255,135,0.6)" : "rgba(255,255,255,0.12)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isMine ? "#00ff87" : "rgba(255,255,255,0.7)", flexShrink: 0 }}>
                           {p.jersey_number ?? "?"}
                         </div>
@@ -821,103 +617,12 @@ export function TacticalBoard() {
                             <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{p.position ?? "—"}</p>
                           </div>
                         </div>
-                        {isMine && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#00ff87" }} />}
+                        {isMine        && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#00ff87" }} />}
+                        {usedElsewhere && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>en uso</span>}
                       </button>
                     );
                   })
                 }
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── Save Modal ────────────────────────────────────── */}
-      <AnimatePresence>
-        {saveModal && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50, backdropFilter: "blur(4px)" }}
-              onClick={() => setSaveModal(false)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 12 }}
-              animate={{ opacity: 1, scale: 1,    y: 0  }}
-              exit={{   opacity: 0, scale: 0.94, y: 12  }}
-              transition={{ duration: 0.18 }}
-              onClick={e => e.stopPropagation()}
-              style={{
-                position: "absolute", top: "50%", left: "50%",
-                transform: "translate(-50%, -50%)",
-                zIndex: 60, width: 320, borderRadius: 18,
-                background: "rgba(6,12,22,0.98)",
-                border: "1px solid rgba(0,255,135,0.2)",
-                boxShadow: "0 24px 64px rgba(0,0,0,0.9)",
-                padding: 24,
-              }}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl" style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.2)" }}>
-                    <Save className="w-4 h-4" style={{ color: "#00ff87" }} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.95)" }}>Guardar jugada</p>
-                    <p style={{ fontSize: 10, color: "rgba(0,255,135,0.6)", marginTop: 1 }}>{FORMATIONS[formKey].label} · {assignedCount}/11 jugadores</p>
-                  </div>
-                </div>
-                <button onClick={() => setSaveModal(false)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "white")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Input */}
-              <div className="mb-5">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-                  Nombre de la jugada
-                </label>
-                <input
-                  autoFocus
-                  value={saveName}
-                  onChange={e => setSaveName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && saveName.trim()) saveMutation.mutate(saveName.trim()); }}
-                  placeholder="Ej: Contraataque por derecha..."
-                  style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.9)", outline: "none", caretColor: "#00ff87", boxSizing: "border-box" }}
-                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,135,0.4)")}
-                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
-                />
-              </div>
-
-              {/* Info */}
-              <div className="flex gap-2 mb-5">
-                {[
-                  { icon: Clock, label: "Formación", value: FORMATIONS[formKey].label },
-                  { icon: UserCheck, label: "Jugadores", value: `${assignedCount}/11` },
-                  { icon: Pencil, label: "Trazos", value: String(paths.length) },
-                ].map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex-1 rounded-lg p-2 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <p style={{ fontSize: 13, fontWeight: 900, color: "rgba(255,255,255,0.85)" }}>{value}</p>
-                    <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button onClick={() => setSaveModal(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => saveName.trim() && saveMutation.mutate(saveName.trim())}
-                  disabled={!saveName.trim() || saveMutation.isPending}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
-                  style={{ background: saveName.trim() ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.04)", color: saveName.trim() ? "#00ff87" : "rgba(255,255,255,0.25)", border: `1px solid ${saveName.trim() ? "rgba(0,255,135,0.35)" : "rgba(255,255,255,0.08)"}`, cursor: saveName.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>
-                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {saveMutation.isPending ? "Guardando..." : "Guardar"}
-                </button>
               </div>
             </motion.div>
           </>
