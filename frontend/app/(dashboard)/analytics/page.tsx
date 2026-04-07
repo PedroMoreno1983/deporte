@@ -2,7 +2,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { analyticsApi, categoriesApi, playersApi } from "@/lib/api";
+import { analyticsApi, categoriesApi, playersApi, injuriesApi } from "@/lib/api";
+import { PDFExportButton } from "@/components/pdf/PDFExportButton";
+import { TeamReportPDF } from "@/components/pdf/TeamReportPDF";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { BarChart3, Users, Target, TrendingUp, Shield } from "lucide-react";
@@ -54,6 +56,7 @@ export default function AnalyticsPage() {
   const { data: dash }          = useQuery({ queryKey: ["dashboard", selectedCategory], queryFn: () => analyticsApi.dashboard(selectedCategory) });
   const { data: injuryStats }   = useQuery({ queryKey: ["injury-stats"], queryFn: () => analyticsApi.injuryStats() });
   const { data: players = [] }  = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
+  const { data: activeInjuries = [] } = useQuery({ queryKey: ["active-injuries"], queryFn: () => injuriesApi.getActive() });
   const { data: teamRadar = [] } = useQuery({ queryKey: ["team-radar", selectedCategory], queryFn: () => analyticsApi.teamRadar(selectedCategory) });
   const { data: playerRadar }   = useQuery({
     queryKey: ["player-radar", selectedPlayer],
@@ -94,7 +97,20 @@ export default function AnalyticsPage() {
 
       {/* Header */}
       <motion.div {...s(0)} className="flex items-center justify-between flex-wrap gap-3 pl-12 lg:pl-0">
-        <PageHeader icon={BarChart3} title="Analytics" description="Indicadores, benchmarks y radar de rendimiento" />
+        <div className="flex items-center justify-between gap-4 pl-12 lg:pl-0">
+          <PageHeader icon={BarChart3} title="Analytics" description="Indicadores, benchmarks y radar de rendimiento" className="mb-0 flex-1" />
+          <PDFExportButton
+            document={
+              <TeamReportPDF
+                players={players}
+                activeInjuries={activeInjuries}
+                categoryName={categories?.find((c: any) => c.id === selectedCategory)?.name}
+              />
+            }
+            fileName="reporte-equipo.pdf"
+            label="Reporte equipo"
+          />
+        </div>
         <select value={selectedCategory ?? ""}
           onChange={e => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
           className="text-sm rounded-xl px-3 py-2 focus:outline-none"
