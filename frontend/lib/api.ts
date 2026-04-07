@@ -131,3 +131,7 @@ export const predictionsApi = {
 export const aiTacticalApi = {
   recommend: (data: unknown) => api.post("/tactical/recommend", data).then((r) => r.data),
 };
+
+export const notificationsApi = {
+  list: () => api.get("/notifications").then((r) => r.data),
+};

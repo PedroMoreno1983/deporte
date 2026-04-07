@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
 import { useState, useEffect } from "react";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 const NAV_GROUPS = [
   {
@@ -193,6 +194,11 @@ function SidebarContent({
         })}
       </nav>
 
+      {/* ── Notifications ──────────────────────────────────── */}
+      <div className="px-2.5 pb-1 shrink-0">
+        <NotificationBell collapsed={collapsed} />
+      </div>
+
       {/* ── User card ──────────────────────────────────────── */}
       <div
         className="p-2 shrink-0"
@@ -288,6 +294,20 @@ export function Sidebar() {
         >
           <Menu className="w-4 h-4" style={{ color: "rgba(255,255,255,0.7)" }} />
         </button>
+
+        {/* Notification bell fixed top-right on mobile */}
+        <div className="fixed top-3 right-4 z-40">
+          <div
+            className="rounded-xl overflow-visible"
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            }}
+          >
+            <NotificationBell collapsed={true} />
+          </div>
+        </div>
 
         {/* Overlay + Drawer */}
         <AnimatePresence>
