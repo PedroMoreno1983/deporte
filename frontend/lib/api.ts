@@ -122,3 +122,8 @@ export const predictionsApi = {
     api.get(`/predictions/player/${playerId}`).then((r) => r.data),
   teamRisk: () => api.get("/predictions/team/risk-summary").then((r) => r.data),
 };
+
+// --- AI Tactical ---
+export const aiTacticalApi = {
+  recommend: (data: unknown) => api.post("/tactical/recommend", data).then((r) => r.data),
+};
