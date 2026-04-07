@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "deporte-files"
     ENVIRONMENT: str = "development"
+    GROQ_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

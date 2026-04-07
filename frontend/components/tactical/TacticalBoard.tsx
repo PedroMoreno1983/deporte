@@ -3,10 +3,11 @@
 import { useRef, useState, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { playersApi, tacticalApi } from "@/lib/api";
+import { playersApi, tacticalApi, aiTacticalApi } from "@/lib/api";
 import {
   RotateCcw, Pencil, MousePointer, Trash2, ChevronDown, Check,
   Search, X, UserCheck, Circle, Save, Download, BookOpen, Clock, Loader2,
+  Bot, Zap, Timer, ChevronUp, AlertTriangle, CheckCircle2, XCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -200,6 +201,19 @@ export function TacticalBoard() {
   // Save modal
   const [saveModal, setSaveModal] = useState(false);
   const [saveName, setSaveName]   = useState("");
+
+  // AI Assistant
+  const [aiOpen, setAiOpen]               = useState(false);
+  const [aiMinute, setAiMinute]           = useState(0);
+  const [aiScoreHome, setAiScoreHome]     = useState(0);
+  const [aiScoreAway, setAiScoreAway]     = useState(0);
+  const [aiOpponent, setAiOpponent]       = useState("");
+  const [aiIsHome, setAiIsHome]           = useState(true);
+  const [aiRec, setAiRec]                 = useState<any>(null);
+  const [aiAutoEnabled, setAiAutoEnabled] = useState(false);
+  const [aiAutoMinutes, setAiAutoMinutes] = useState(15);
+  const autoTimerRef                      = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Saved plays panel
   const [showPlays, setShowPlays] = useState(false);
 
@@ -229,6 +243,43 @@ export function TacticalBoard() {
     mutationFn: (id: number) => tacticalApi.delete(id),
     onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["tactical-plays"] }),
   });
+
+  const aiMutation = useMutation({
+    mutationFn: () => aiTacticalApi.recommend({
+      formation: formKey,
+      players_json: players,
+      assignments_json: assignments,
+      match_context: {
+        minute: aiMinute,
+        score_home: aiScoreHome,
+        score_away: aiScoreAway,
+        opponent: aiOpponent || "Rival",
+        is_home: aiIsHome,
+      },
+    }),
+    onSuccess: (data) => setAiRec(data),
+  });
+
+  // Auto-analysis timer
+  const startAutoTimer = useCallback(() => {
+    if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+    autoTimerRef.current = setInterval(() => {
+      aiMutation.mutate();
+    }, aiAutoMinutes * 60 * 1000);
+  }, [aiAutoMinutes]);
+
+  const stopAutoTimer = useCallback(() => {
+    if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null; }
+  }, []);
+
+  // Accept AI recommendation → apply formation change if suggested
+  const acceptRecommendation = useCallback(() => {
+    if (!aiRec) return;
+    if (aiRec.suggested_formation && aiRec.suggested_formation !== formKey && FORMATIONS[aiRec.suggested_formation]) {
+      changeFormation(aiRec.suggested_formation);
+    }
+    setAiRec(null);
+  }, [aiRec, formKey]);
 
   const loadPlay = (play: any) => {
     setFormKey(play.formation);
@@ -541,6 +592,13 @@ export function TacticalBoard() {
           )}
         </AnimatePresence>
 
+        {/* AI Assistant button */}
+        <button onClick={e => { e.stopPropagation(); setAiOpen(v => !v); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+          style={{ color: aiOpen ? "#a78bfa" : "rgba(255,255,255,0.5)", background: aiOpen ? "rgba(167,139,250,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${aiOpen ? "rgba(167,139,250,0.4)" : "rgba(255,255,255,0.08)"}`, transition: "all 0.15s" }}>
+          <Bot className="w-3.5 h-3.5" /> IA
+        </button>
+
         {/* Download */}
         <button onClick={downloadSVG}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
@@ -830,6 +888,220 @@ export function TacticalBoard() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* ── AI Assistant Panel ───────────────────────────── */}
+      <AnimatePresence>
+        {aiOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: "absolute", top: 56, right: 0, bottom: 0,
+              width: 300, zIndex: 35, display: "flex", flexDirection: "column",
+              background: "rgba(6,10,20,0.97)", borderLeft: "1px solid rgba(167,139,250,0.2)",
+              boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
+            }}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0"
+              style={{ borderBottom: "1px solid rgba(167,139,250,0.15)" }}>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg" style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)" }}>
+                  <Bot className="w-3.5 h-3.5" style={{ color: "#a78bfa" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.9)" }}>Asistente Táctico IA</p>
+                  <p style={{ fontSize: 9, color: "rgba(167,139,250,0.6)" }}>Powered by Llama 3.3 · Groq</p>
+                </div>
+              </div>
+              <button onClick={() => setAiOpen(false)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
+                onMouseEnter={e => (e.currentTarget.style.color = "white")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+
+              {/* Match context */}
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] mb-2.5" style={{ color: "rgba(167,139,250,0.7)" }}>Contexto del Partido</p>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>Minuto</label>
+                    <input type="number" min={0} max={120} value={aiMinute}
+                      onChange={e => setAiMinute(Number(e.target.value))}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 10px", fontSize: 13, color: "white", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>Rival</label>
+                    <input type="text" value={aiOpponent} onChange={e => setAiOpponent(e.target.value)}
+                      placeholder="Nombre..."
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "white", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+
+                {/* Score */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1">
+                    <label style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>{aiIsHome ? "Nosotros" : aiOpponent || "Rival"}</label>
+                    <input type="number" min={0} max={20} value={aiScoreHome}
+                      onChange={e => setAiScoreHome(Number(e.target.value))}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 10px", fontSize: 16, fontWeight: 900, color: "white", textAlign: "center", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: "rgba(255,255,255,0.4)", marginTop: 16 }}>-</span>
+                  <div className="flex-1">
+                    <label style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 4 }}>{!aiIsHome ? "Nosotros" : aiOpponent || "Rival"}</label>
+                    <input type="number" min={0} max={20} value={aiScoreAway}
+                      onChange={e => setAiScoreAway(Number(e.target.value))}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 10px", fontSize: 16, fontWeight: 900, color: "white", textAlign: "center", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+
+                {/* Home/Away toggle */}
+                <button onClick={() => setAiIsHome(v => !v)}
+                  className="w-full py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                  Jugamos como: <span style={{ color: "#a78bfa", fontWeight: 700 }}>{aiIsHome ? "Local" : "Visitante"}</span> (clic para cambiar)
+                </button>
+              </div>
+
+              {/* Auto-analysis */}
+              <div className="rounded-xl p-3" style={{ background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.12)" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Timer className="w-3 h-3" style={{ color: "#a78bfa" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa" }}>Auto-análisis</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (aiAutoEnabled) { stopAutoTimer(); setAiAutoEnabled(false); }
+                      else { startAutoTimer(); setAiAutoEnabled(true); }
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                    style={{ background: aiAutoEnabled ? "rgba(0,255,135,0.12)" : "rgba(255,255,255,0.06)", color: aiAutoEnabled ? "#00ff87" : "rgba(255,255,255,0.5)", border: `1px solid ${aiAutoEnabled ? "rgba(0,255,135,0.3)" : "rgba(255,255,255,0.1)"}` }}>
+                    {aiAutoEnabled ? "Activo" : "Inactivo"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Cada</span>
+                  {[5, 10, 15, 20].map(min => (
+                    <button key={min} onClick={() => { setAiAutoMinutes(min); if (aiAutoEnabled) startAutoTimer(); }}
+                      className="px-2 py-0.5 rounded text-xs font-bold"
+                      style={{ background: aiAutoMinutes === min ? "rgba(167,139,250,0.2)" : "rgba(255,255,255,0.04)", color: aiAutoMinutes === min ? "#a78bfa" : "rgba(255,255,255,0.4)", border: `1px solid ${aiAutoMinutes === min ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.08)"}` }}>
+                      {min}'
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Analyze button */}
+              <button
+                onClick={() => aiMutation.mutate()}
+                disabled={aiMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
+                style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.35)", cursor: aiMutation.isPending ? "not-allowed" : "pointer" }}>
+                {aiMutation.isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Analizando...</>
+                  : <><Zap className="w-4 h-4" /> Analizar ahora</>}
+              </button>
+
+              {/* Error */}
+              {aiMutation.isError && (
+                <div className="rounded-xl p-3" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  <p style={{ fontSize: 11, color: "#f87171" }}>Error al conectar con el asistente. Verifica la API key de Groq en el servidor.</p>
+                </div>
+              )}
+
+              {/* Recommendation */}
+              {aiRec && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl overflow-hidden"
+                  style={{ border: "1px solid rgba(167,139,250,0.25)", background: "rgba(167,139,250,0.06)" }}>
+
+                  {/* Urgency header */}
+                  <div className="px-3 py-2 flex items-center justify-between"
+                    style={{ background: ({ baja: "rgba(0,255,135,0.08)", media: "rgba(245,158,11,0.08)", alta: "rgba(249,115,22,0.08)", critica: "rgba(239,68,68,0.10)" } as any)[aiRec.urgency] ?? "rgba(167,139,250,0.08)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-3 h-3" style={{ color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ef4444" } as any)[aiRec.urgency] }} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ef4444" } as any)[aiRec.urgency], textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                        Urgencia {aiRec.urgency}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>Min. {aiMinute}</span>
+                  </div>
+
+                  <div className="p-3 flex flex-col gap-3">
+                    {/* Analysis */}
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>{aiRec.analysis}</p>
+
+                    {/* Suggested formation */}
+                    {aiRec.suggested_formation && aiRec.suggested_formation !== formKey && (
+                      <div className="rounded-lg px-3 py-2" style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa" }}>
+                          Cambiar a <span style={{ fontSize: 13 }}>{aiRec.suggested_formation}</span>
+                        </p>
+                        {aiRec.formation_reason && <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{aiRec.formation_reason}</p>}
+                      </div>
+                    )}
+
+                    {/* Player changes */}
+                    {aiRec.player_changes?.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Movimientos sugeridos</p>
+                        <div className="flex flex-col gap-1.5">
+                          {aiRec.player_changes.map((ch: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+                              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa" }}>{ch.current_abbr}</span>
+                              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>→</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff87" }}>{ch.suggested_abbr}</span>
+                              {ch.player_name && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{ch.player_name}</span>}
+                              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", marginLeft: "auto", maxWidth: 80, textAlign: "right", lineHeight: 1.3 }}>{ch.reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tactical tips */}
+                    {aiRec.tactical_tips?.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Tips tácticos</p>
+                        <div className="flex flex-col gap-1">
+                          {aiRec.tactical_tips.map((tip: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#a78bfa", marginTop: 5, flexShrink: 0 }} />
+                              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>{tip}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Accept / Reject */}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => setAiRec(null)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold"
+                        style={{ background: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.7)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                        <XCircle className="w-3.5 h-3.5" /> Rechazar
+                      </button>
+                      <button onClick={acceptRecommendation}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
+                        style={{ background: "rgba(0,255,135,0.12)", color: "#00ff87", border: "1px solid rgba(0,255,135,0.3)" }}>
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Aplicar
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
