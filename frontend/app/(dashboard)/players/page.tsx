@@ -42,6 +42,7 @@ export default function PlayersPage() {
         title="Jugadores"
         description={`${players?.length ?? 0} jugadores registrados`}
         badge={players?.length ? String(players.length) : undefined}
+        className="pl-12 lg:pl-0"
         action={
           <Link href="/players/new">
             <motion.button
