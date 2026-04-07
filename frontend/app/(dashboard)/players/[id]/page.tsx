@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { playersApi, analyticsApi, predictionsApi, kinesiologyApi, injuriesApi, wellnessApi } from "@/lib/api";
+import { PDFExportButton } from "@/components/pdf/PDFExportButton";
+import { PlayerReportPDF } from "@/components/pdf/PlayerReportPDF";
 import { POSITION_LABELS, formatAge } from "@/lib/utils";
 import { RiskGauge } from "@/components/ui/RiskGauge";
 import { GlowCard } from "@/components/ui/GlowCard";
@@ -125,15 +127,31 @@ export default function PlayerDetailPage() {
           {player.jersey_number ?? "?"}
         </div>
 
-        {/* Back */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-xs mb-6 transition-colors pl-10 lg:pl-0"
-          style={{ color: "var(--text-muted)" }}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Volver a jugadores
-        </button>
+        {/* Back + PDF export */}
+        <div className="flex items-center justify-between mb-6 pl-10 lg:pl-0">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-xs transition-colors"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Volver a jugadores
+          </button>
+          <PDFExportButton
+            document={
+              <PlayerReportPDF
+                player={player}
+                summary={summary}
+                prediction={prediction}
+                kinesiology={kinesiology ?? []}
+                injuries={injuries ?? []}
+                wellness={wellnessHistory ?? []}
+              />
+            }
+            fileName={`reporte-${player?.first_name?.toLowerCase()}-${player?.last_name?.toLowerCase()}.pdf`}
+            label="Exportar PDF"
+          />
+        </div>
 
         <div className="flex items-start gap-6">
           {/* Avatar */}
