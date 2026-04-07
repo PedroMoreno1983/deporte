@@ -94,11 +94,15 @@ export const trainingApi = {
 };
 
 export const analyticsApi = {
-  dashboard: (categoryId?: number) =>
+  dashboard:     (categoryId?: number) =>
     api.get("/analytics/dashboard", { params: { category_id: categoryId } }).then((r) => r.data),
   playerSummary: (playerId: number) =>
     api.get(`/analytics/player/${playerId}/summary`).then((r) => r.data),
-  injuryStats: () => api.get("/analytics/injuries/stats").then((r) => r.data),
+  injuryStats:   () => api.get("/analytics/injuries/stats").then((r) => r.data),
+  playerRadar:   (playerId: number) =>
+    api.get(`/analytics/player/${playerId}/radar`).then((r) => r.data),
+  teamRadar:     (categoryId?: number) =>
+    api.get("/analytics/team/radar", { params: { category_id: categoryId } }).then((r) => r.data),
 };
 
 export const wellnessApi = {
