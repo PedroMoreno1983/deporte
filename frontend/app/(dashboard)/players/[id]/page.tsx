@@ -3,7 +3,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { playersApi, analyticsApi, predictionsApi, kinesiologyApi, injuriesApi } from "@/lib/api";
+import { playersApi, analyticsApi, predictionsApi, kinesiologyApi, injuriesApi, wellnessApi } from "@/lib/api";
 import { POSITION_LABELS, formatAge } from "@/lib/utils";
 import { RiskGauge } from "@/components/ui/RiskGauge";
 import { GlowCard } from "@/components/ui/GlowCard";
@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import {
   Activity, AlertTriangle, Shield, TrendingUp, Dumbbell,
-  Calendar, ArrowLeft, TrendingDown, Minus, Brain
+  Calendar, ArrowLeft, TrendingDown, Minus, Brain, Heart, Moon, Zap, Droplets
 } from "lucide-react";
 import Link from "next/link";
 
@@ -41,7 +41,7 @@ const RISK_LABEL: Record<string, string> = {
   low: "Bajo", medium: "Medio", high: "Alto", critical: "Crítico",
 };
 
-const TABS = ["Resumen", "Físico", "Rendimiento", "Lesiones", "Predicción"] as const;
+const TABS = ["Resumen", "Físico", "Rendimiento", "Lesiones", "Wellness", "Predicción"] as const;
 type Tab = typeof TABS[number];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -65,6 +65,9 @@ export default function PlayerDetailPage() {
   const { data: prediction } = useQuery({ queryKey: ["prediction", playerId], queryFn: () => predictionsApi.getForPlayer(playerId) });
   const { data: kinesiology } = useQuery({ queryKey: ["kinesiology", playerId], queryFn: () => kinesiologyApi.getByPlayer(playerId) });
   const { data: injuries } = useQuery({ queryKey: ["injuries-player", playerId], queryFn: () => injuriesApi.getByPlayer(playerId) });
+  const [wellnessDays, setWellnessDays] = useState(30);
+  const { data: wellnessHistory } = useQuery({ queryKey: ["wellness-player", playerId, wellnessDays], queryFn: () => wellnessApi.getByPlayer(playerId, wellnessDays) });
+  const { data: playerRadar } = useQuery({ queryKey: ["player-radar", playerId], queryFn: () => analyticsApi.playerRadar(playerId) });
 
   if (!player) return (
     <div className="flex items-center justify-center h-full">
@@ -125,7 +128,7 @@ export default function PlayerDetailPage() {
         {/* Back */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-xs mb-6 transition-colors"
+          className="flex items-center gap-1.5 text-xs mb-6 transition-colors pl-10 lg:pl-0"
           style={{ color: "var(--text-muted)" }}
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -186,7 +189,7 @@ export default function PlayerDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="absolute bottom-0 left-6 right-6 flex gap-1">
+        <div className="absolute bottom-0 left-6 right-6 flex gap-1 overflow-x-auto scrollbar-none">
           {TABS.map((t) => (
             <button
               key={t}
@@ -404,6 +407,71 @@ export default function PlayerDetailPage() {
               ))}
             </div>
 
+            {/* Performance radar vs team avg */}
+            {playerRadar && (
+              <GlowCard className="p-5 rounded-2xl">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
+                  Radar vs promedio equipo
+                </p>
+                <p className="text-xs mb-4" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
+                  Métricas normalizadas 0-100
+                </p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <RadarChart data={[
+                      { metric: "Rendimiento", jugador: playerRadar.player?.rendimiento ?? 0, equipo: playerRadar.team_avg?.rendimiento ?? 0 },
+                      { metric: "Goles",       jugador: playerRadar.player?.goles ?? 0,       equipo: playerRadar.team_avg?.goles ?? 0 },
+                      { metric: "Asistencias", jugador: playerRadar.player?.asistencias ?? 0, equipo: playerRadar.team_avg?.asistencias ?? 0 },
+                      { metric: "Minutos",     jugador: playerRadar.player?.minutos ?? 0,     equipo: playerRadar.team_avg?.minutos ?? 0 },
+                      { metric: "Carga",       jugador: playerRadar.player?.carga ?? 0,       equipo: playerRadar.team_avg?.carga ?? 0 },
+                    ]}>
+                      <PolarGrid stroke="rgba(255,255,255,0.06)" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
+                      <Radar name="Jugador" dataKey="jugador" stroke={posColor} fill={posColor} fillOpacity={0.2} strokeWidth={2}
+                        dot={{ fill: posColor, r: 3, strokeWidth: 0 }} />
+                      <Radar name="Equipo" dataKey="equipo" stroke="rgba(255,255,255,0.2)" fill="rgba(255,255,255,0.04)" strokeWidth={1.5} strokeDasharray="4 2" />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-3 self-center">
+                    {["rendimiento","goles","asistencias","minutos","carga"].map((key) => {
+                      const val = playerRadar.player?.[key] ?? 0;
+                      const avg = playerRadar.team_avg?.[key] ?? 0;
+                      const above = val >= avg;
+                      return (
+                        <div key={key}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="capitalize" style={{ color: "var(--text-secondary)" }}>{key}</span>
+                            <span className="font-bold" style={{ color: above ? "var(--neon)" : "#f97316" }}>
+                              {val.toFixed(0)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/ prom {avg.toFixed(0)}</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${val}%` }}
+                              transition={{ duration: 0.7, delay: 0.2 }}
+                              className="h-full rounded-full"
+                              style={{ background: above ? "var(--neon)" : "#f97316" }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-0.5 rounded" style={{ background: posColor }} />
+                        Jugador
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-0.5 rounded" style={{ background: "rgba(255,255,255,0.3)" }} />
+                        Promedio
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </GlowCard>
+            )}
+
             {forecastData.length > 0 && (
               <GlowCard className="p-5 rounded-2xl">
                 <div className="flex items-center justify-between mb-4">
@@ -502,6 +570,164 @@ export default function PlayerDetailPage() {
                   );
                 })}
               </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── WELLNESS ─────────────────────────────────── */}
+        {tab === "Wellness" && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            {/* Days selector */}
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Período:</p>
+              {[7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setWellnessDays(d)}
+                  className="px-3 py-1 text-xs font-semibold rounded-lg transition-all"
+                  style={wellnessDays === d ? {
+                    background: `${posColor}20`,
+                    border: `1px solid ${posColor}50`,
+                    color: posColor,
+                  } : {
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
+
+            {(!wellnessHistory || wellnessHistory.length === 0) ? (
+              <div className="flex flex-col items-center justify-center py-20" style={{ color: "var(--text-muted)" }}>
+                <Heart className="w-10 h-10 mb-3 opacity-30" style={{ color: posColor }} />
+                <p>Sin registros de wellness disponibles</p>
+              </div>
+            ) : (
+              <>
+                {/* Score evolution chart */}
+                <GlowCard className="p-5 rounded-2xl">
+                  <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
+                    Evolución wellness — últimos {wellnessDays} días
+                  </p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={[...wellnessHistory].reverse().map((w: any) => ({
+                      fecha: w.date?.slice(5) ?? w.created_at?.slice(5, 10) ?? "",
+                      score: w.overall_score ?? Math.round(
+                        ((w.sleep_quality ?? 5) + (w.energy_level ?? 5) + (w.mood ?? 5) +
+                         (10 - (w.stress_level ?? 5)) + (w.hydration ?? 5) +
+                         (10 - (w.muscle_soreness ?? 5))) / 6 * 10
+                      ),
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="fecha" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line type="monotone" dataKey="score" stroke={posColor} strokeWidth={2.5}
+                        dot={{ fill: posColor, r: 3, strokeWidth: 0 }}
+                        style={{ filter: `drop-shadow(0 0 6px ${posColor}60)` }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </GlowCard>
+
+                {/* Last entry breakdown */}
+                {(() => {
+                  const last = wellnessHistory[0];
+                  if (!last) return null;
+                  const metrics = [
+                    { label: "Calidad de sueño", value: last.sleep_quality, icon: Moon, invert: false },
+                    { label: "Nivel de energía",  value: last.energy_level,  icon: Zap,  invert: false },
+                    { label: "Estado de ánimo",   value: last.mood,           icon: Heart, invert: false },
+                    { label: "Estrés",            value: last.stress_level,  icon: Activity, invert: true },
+                    { label: "Hidratación",       value: last.hydration,     icon: Droplets, invert: false },
+                    { label: "Dolor muscular",    value: last.muscle_soreness, icon: Dumbbell, invert: true },
+                  ].filter(m => m.value != null);
+                  return (
+                    <GlowCard className="p-5 rounded-2xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                          Último registro
+                        </p>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          {last.date ?? last.created_at?.slice(0, 10)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {metrics.map(({ label, value, icon: Icon, invert }) => {
+                          const pct = (value / 10) * 100;
+                          const normalized = invert ? 100 - pct : pct;
+                          const color = normalized >= 70 ? "var(--neon)" : normalized >= 40 ? "#f59e0b" : "#ff3b30";
+                          return (
+                            <div key={label}>
+                              <div className="flex items-center justify-between text-xs mb-1.5">
+                                <div className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                                  <Icon className="w-3.5 h-3.5" />
+                                  {label}
+                                </div>
+                                <span className="font-bold" style={{ color }}>{value}/10</span>
+                              </div>
+                              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.6, delay: 0.1 }}
+                                  className="h-full rounded-full"
+                                  style={{ background: color }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {last.notes && (
+                        <p className="mt-4 text-xs p-3 rounded-xl" style={{ color: "var(--text-secondary)", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                          {last.notes}
+                        </p>
+                      )}
+                    </GlowCard>
+                  );
+                })()}
+
+                {/* Recent entries mini list */}
+                <GlowCard className="rounded-2xl overflow-hidden">
+                  <div className="px-5 py-3.5" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                      Historial de registros
+                    </p>
+                  </div>
+                  <div className="divide-y" style={{ borderColor: "var(--border-subtle)" }}>
+                    {wellnessHistory.slice(0, 10).map((w: any, i: number) => {
+                      const score = w.overall_score ?? Math.round(
+                        ((w.sleep_quality ?? 5) + (w.energy_level ?? 5) + (w.mood ?? 5) +
+                         (10 - (w.stress_level ?? 5)) + (w.hydration ?? 5) +
+                         (10 - (w.muscle_soreness ?? 5))) / 6 * 10
+                      );
+                      const color = score >= 70 ? "var(--neon)" : score >= 50 ? "#f59e0b" : "#ff3b30";
+                      return (
+                        <motion.div
+                          key={w.id ?? i}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="flex items-center justify-between px-5 py-3"
+                        >
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            {w.date ?? w.created_at?.slice(0, 10)}
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                              <div className="h-full rounded-full" style={{ width: `${score}%`, background: color }} />
+                            </div>
+                            <span className="text-xs font-bold w-8 text-right" style={{ color }}>{score}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </GlowCard>
+              </>
             )}
           </motion.div>
         )}
