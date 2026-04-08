@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, users, players, categories, kinesiology, injuries, matches, training, predictions, analytics, wellness, tactical, ai_tactical, notifications
+from .endpoints import auth, users, players, categories, kinesiology, injuries, matches, training, predictions, analytics, wellness, tactical, ai_tactical, notifications, email_alerts
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
@@ -16,3 +16,4 @@ api_router.include_router(wellness.router, prefix="/wellness", tags=["Wellness"]
 api_router.include_router(tactical.router, prefix="/tactical", tags=["Pizarra Táctica"])
 api_router.include_router(ai_tactical.router, prefix="/tactical", tags=["Asistente IA"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notificaciones"])
+api_router.include_router(email_alerts.router, prefix="/alerts", tags=["Alertas Email"])

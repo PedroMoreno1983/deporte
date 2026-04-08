@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "deporte-files"
     ENVIRONMENT: str = "development"
     GROQ_API_KEY: str = ""
+    # Email (SMTP) — set in Railway env vars
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = "Deporte FC <noreply@deportefc.com>"
+    EMAIL_ALERTS_ENABLED: bool = False
 
     class Config:
         env_file = ".env"

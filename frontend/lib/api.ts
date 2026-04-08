@@ -142,3 +142,8 @@ export const aiTacticalApi = {
 export const notificationsApi = {
   list: () => api.get("/notifications").then((r) => r.data),
 };
+
+export const alertsApi = {
+  preview: () => api.get("/alerts/preview").then((r) => r.data),
+  send: (recipients: string[]) => api.post("/alerts/send", { recipients }).then((r) => r.data),
+};
