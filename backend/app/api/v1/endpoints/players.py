@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Body
+import base64
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from ....core.database import get_db
@@ -63,6 +64,28 @@ def update_player(
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(player, field, value)
+    db.commit()
+    db.refresh(player)
+    return db.query(Player).options(joinedload(Player.category)).filter(Player.id == player_id).first()
+
+
+@router.post("/{player_id}/photo", response_model=PlayerOut)
+def upload_player_photo(
+    player_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH)),
+):
+    player = db.query(Player).filter(Player.id == player_id).first()
+    if not player:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Solo se permiten imágenes JPEG, PNG o WebP")
+    content = file.file.read()
+    if len(content) > 1_000_000:  # 1 MB max
+        raise HTTPException(status_code=400, detail="La imagen no puede superar 1 MB")
+    b64 = base64.b64encode(content).decode("utf-8")
+    player.photo_url = f"data:{file.content_type};base64,{b64}"
     db.commit()
     db.refresh(player)
     return db.query(Player).options(joinedload(Player.category)).filter(Player.id == player_id).first()

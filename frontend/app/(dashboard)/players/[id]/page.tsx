@@ -6,6 +6,10 @@ import { useState } from "react";
 import { playersApi, analyticsApi, predictionsApi, kinesiologyApi, injuriesApi, wellnessApi } from "@/lib/api";
 import { PDFExportButton } from "@/components/pdf/PDFExportButton";
 import { PlayerReportPDF } from "@/components/pdf/PlayerReportPDF";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
+import { Camera } from "lucide-react";
+import { toast } from "sonner";
 import { POSITION_LABELS, formatAge } from "@/lib/utils";
 import { RiskGauge } from "@/components/ui/RiskGauge";
 import { GlowCard } from "@/components/ui/GlowCard";
@@ -62,7 +66,9 @@ export default function PlayerDetailPage() {
   const playerId = Number(id);
   const [tab, setTab] = useState<Tab>("Resumen");
 
-  const { data: player } = useQuery({ queryKey: ["player", playerId], queryFn: () => playersApi.get(playerId) });
+  const qc = useQueryClient();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const { data: player, refetch: refetchPlayer } = useQuery({ queryKey: ["player", playerId], queryFn: () => playersApi.get(playerId) });
   const { data: summary } = useQuery({ queryKey: ["player-summary", playerId], queryFn: () => analyticsApi.playerSummary(playerId) });
   const { data: prediction } = useQuery({ queryKey: ["prediction", playerId], queryFn: () => predictionsApi.getForPlayer(playerId) });
   const { data: kinesiology } = useQuery({ queryKey: ["kinesiology", playerId], queryFn: () => kinesiologyApi.getByPlayer(playerId) });
@@ -70,6 +76,20 @@ export default function PlayerDetailPage() {
   const [wellnessDays, setWellnessDays] = useState(30);
   const { data: wellnessHistory } = useQuery({ queryKey: ["wellness-player", playerId, wellnessDays], queryFn: () => wellnessApi.getByPlayer(playerId, wellnessDays) });
   const { data: playerRadar } = useQuery({ queryKey: ["player-radar", playerId], queryFn: () => analyticsApi.playerRadar(playerId) });
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1_000_000) { toast.error("La imagen no puede superar 1 MB"); return; }
+    try {
+      await playersApi.uploadPhoto(playerId, file);
+      await refetchPlayer();
+      qc.invalidateQueries({ queryKey: ["players"] });
+      toast.success("Foto actualizada");
+    } catch {
+      toast.error("Error al subir la foto");
+    }
+  };
 
   if (!player) return (
     <div className="flex items-center justify-center h-full">
@@ -154,19 +174,26 @@ export default function PlayerDetailPage() {
         </div>
 
         <div className="flex items-start gap-6">
-          {/* Avatar */}
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0"
-            style={{
-              background: "rgba(10,15,30,0.7)",
-              border: `2px solid ${posColor}`,
-              color: posColor,
-              boxShadow: `0 0 24px ${posBg}, 0 0 0 4px rgba(10,15,30,0.5)`,
-            }}
-          >
-            {player.photo_url ? (
-              <img src={player.photo_url} alt="" className="w-full h-full rounded-2xl object-cover" />
-            ) : `${player.first_name.charAt(0)}${player.last_name.charAt(0)}`}
+          {/* Avatar with photo upload */}
+          <div className="relative shrink-0 group">
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black cursor-pointer overflow-hidden"
+              style={{
+                background: "rgba(10,15,30,0.7)",
+                border: `2px solid ${posColor}`,
+                color: posColor,
+                boxShadow: `0 0 24px ${posBg}, 0 0 0 4px rgba(10,15,30,0.5)`,
+              }}
+              onClick={() => photoRef.current?.click()}
+            >
+              {player.photo_url ? (
+                <img src={player.photo_url} alt="" className="w-full h-full object-cover" />
+              ) : `${player.first_name.charAt(0)}${player.last_name.charAt(0)}`}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                <Camera className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <input ref={photoRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
           </div>
 
           <div className="flex-1 min-w-0">
