@@ -75,11 +75,11 @@ export default function InjuriesPage() {
         iconBg="bg-red-500/10 border-red-500/20"
         badgeColor="text-red-400 bg-red-500/10 border-red-500/20"
         badge={injuryStats?.active ? `${injuryStats.active} activas` : undefined}
-        className="pl-12 lg:pl-0"
+        className="pl-10 sm:pl-12 lg:pl-0"
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <motion.div {...stagger(0)}>
           <GlowCard className="p-5 rounded-2xl text-center">
             <div className="inline-flex p-2.5 rounded-xl mb-3"

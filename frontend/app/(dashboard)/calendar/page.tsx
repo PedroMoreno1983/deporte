@@ -148,7 +148,7 @@ export default function CalendarPage() {
   return (
     <div className="p-6 space-y-5 h-full overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pl-12 lg:pl-0">
+      <div className="flex items-center justify-between flex-wrap gap-3 pl-10 sm:pl-12 lg:pl-0">
         <PageHeader
           icon={CalendarDays}
           title="Calendario"
@@ -230,7 +230,7 @@ export default function CalendarPage() {
                   <motion.button
                     key={i}
                     onClick={() => isValid ? setSelected(isSelected ? null : dateStr) : undefined}
-                    className="relative rounded-xl p-1 min-h-[52px] flex flex-col transition-all"
+                    className="relative rounded-xl p-1 min-h-[38px] sm:min-h-[52px] flex flex-col transition-all"
                     style={{
                       background: isSelected
                         ? "rgba(0,255,135,0.1)"

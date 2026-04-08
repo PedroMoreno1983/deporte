@@ -191,28 +191,78 @@ def run():
     db.commit()
     print(f"  ✅ 20 partidos con estadísticas creados")
 
-    # --- Sesiones de entrenamiento ---
+    # --- Sesiones de entrenamiento con ACWR calculado ---
     for player in primera_players:
-        for day in range(60, 0, -1):
+        sessions_by_date: dict = {}
+        for day in range(90, 0, -1):  # 90 días para poder calcular crónico (28d)
             session_date = date.today() - timedelta(days=day)
             if session_date.weekday() == 6:  # Descanso domingo
                 continue
             duration = random.randint(60, 120)
             rpe = random.randint(4, 9)
+            load = rpe * duration
+            sessions_by_date[session_date] = load
+
+        # Calcular ACWR para cada sesión y guardar
+        sorted_dates = sorted(sessions_by_date.keys())
+        for session_date in sorted_dates:
+            load = sessions_by_date[session_date]
+            # Acute (7d)
+            acute_dates = [d for d in sorted_dates if timedelta(0) <= (session_date - d) < timedelta(days=7)]
+            acute_load = sum(sessions_by_date[d] for d in acute_dates) / 7 if acute_dates else load / 7
+            # Chronic (28d)
+            chronic_dates = [d for d in sorted_dates if timedelta(0) <= (session_date - d) < timedelta(days=28)]
+            chronic_load = sum(sessions_by_date[d] for d in chronic_dates) / 28 if chronic_dates else load / 28
+            acwr = round(acute_load / chronic_load, 3) if chronic_load > 0 else 1.0
+
             session = TrainingSession(
                 player_id=player.id,
                 session_date=session_date,
                 session_type=SessionType.TRAINING if session_date.weekday() < 5 else SessionType.MATCH,
                 duration_minutes=duration,
                 rpe=rpe,
-                session_load=rpe * duration,
+                session_load=load,
                 total_distance_m=random.uniform(5000, 10000),
                 high_intensity_distance_m=random.uniform(300, 1500),
+                sprint_distance_m=random.uniform(150, 600),
+                max_speed_kmh=random.uniform(26, 33),
+                sprints_count=random.randint(8, 35),
+                acute_load=round(acute_load, 2),
+                chronic_load=round(chronic_load, 2),
+                acwr=acwr,
                 participated=random.random() > 0.05,
             )
             db.add(session)
     db.commit()
-    print(f"  ✅ Sesiones de entrenamiento (60 días) creadas")
+    print(f"  ✅ Sesiones de entrenamiento (90 días) con ACWR calculado creadas")
+
+    # --- Wellness ---
+    from app.models.wellness import WellnessEntry
+    for player in primera_players:
+        for day in range(30, 0, -1):
+            entry_date = date.today() - timedelta(days=day)
+            sleep = random.randint(4, 10)
+            fatigue = random.randint(4, 10)
+            mood = random.randint(5, 10)
+            soreness = random.randint(3, 10)
+            stress = random.randint(4, 10)
+            wellness_score = round(
+                sleep * 0.25 + fatigue * 0.25 + mood * 0.20 + soreness * 0.15 + stress * 0.15, 2
+            )
+            entry = WellnessEntry(
+                player_id=player.id,
+                entry_date=entry_date,
+                sleep_quality=sleep,
+                fatigue=fatigue,
+                mood=mood,
+                muscle_soreness=soreness,
+                stress=stress,
+                rpe_post=random.randint(4, 9) if random.random() > 0.3 else None,
+                wellness_score=wellness_score,
+            )
+            db.add(entry)
+    db.commit()
+    print(f"  ✅ Registros de wellness (30 días × {len(primera_players)} jugadores) creados")
 
     print("\n✅ Seeding completado exitosamente!")
     print("\nCredenciales de acceso:")

@@ -1,4 +1,5 @@
 "use client";
+"use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +7,7 @@ import { motion } from "framer-motion";
 import { playersApi, categoriesApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ArrowLeft, UserPlus, Upload, X, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, UserPlus, Upload, X, Check, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -51,6 +52,17 @@ export default function NewPlayerPage() {
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.first_name.trim()) e.first_name = "Obligatorio";
+    if (!form.last_name.trim()) e.last_name = "Obligatorio";
+    if (!form.date_of_birth) e.date_of_birth = "Obligatorio";
+    if (!form.category_id) e.category_id = "Selecciona una categoría";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -81,8 +93,10 @@ export default function NewPlayerPage() {
     onError: () => toast.error("Error al crear el jugador"),
   });
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
+    if (errors[k]) setErrors(er => ({ ...er, [k]: "" }));
+  };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,7 +108,7 @@ export default function NewPlayerPage() {
     reader.readAsDataURL(file);
   };
 
-  const canSubmit = form.first_name && form.last_name && form.date_of_birth && form.category_id && form.position;
+  const canSubmit = !createMutation.isPending;
   const initials = form.first_name && form.last_name
     ? `${form.first_name.charAt(0)}${form.last_name.charAt(0)}`.toUpperCase()
     : "?";
@@ -197,16 +211,22 @@ export default function NewPlayerPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nombre *</label>
-                <input value={form.first_name} onChange={set("first_name")} placeholder="Pedro" className={inputCls} style={inputStyle} />
+                <label className={labelCls} style={{ color: errors.first_name ? "#ff3b30" : "var(--text-secondary)" }}>Nombre *</label>
+                <input value={form.first_name} onChange={set("first_name")} placeholder="Pedro" className={inputCls}
+                  style={{ ...inputStyle, borderColor: errors.first_name ? "rgba(255,59,48,0.5)" : undefined }} />
+                {errors.first_name && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.first_name}</p>}
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Apellido *</label>
-                <input value={form.last_name} onChange={set("last_name")} placeholder="García" className={inputCls} style={inputStyle} />
+                <label className={labelCls} style={{ color: errors.last_name ? "#ff3b30" : "var(--text-secondary)" }}>Apellido *</label>
+                <input value={form.last_name} onChange={set("last_name")} placeholder="García" className={inputCls}
+                  style={{ ...inputStyle, borderColor: errors.last_name ? "rgba(255,59,48,0.5)" : undefined }} />
+                {errors.last_name && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.last_name}</p>}
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Fecha de nacimiento *</label>
-                <input type="date" value={form.date_of_birth} onChange={set("date_of_birth")} className={inputCls} style={inputStyle} />
+                <label className={labelCls} style={{ color: errors.date_of_birth ? "#ff3b30" : "var(--text-secondary)" }}>Fecha de nacimiento *</label>
+                <input type="date" value={form.date_of_birth} onChange={set("date_of_birth")} className={inputCls}
+                  style={{ ...inputStyle, borderColor: errors.date_of_birth ? "rgba(255,59,48,0.5)" : undefined }} />
+                {errors.date_of_birth && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.date_of_birth}</p>}
               </div>
               <div>
                 <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nacionalidad</label>
@@ -234,13 +254,14 @@ export default function NewPlayerPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Categoría *</label>
-                <select value={form.category_id} onChange={set("category_id")} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
+                <label className={labelCls} style={{ color: errors.category_id ? "#ff3b30" : "var(--text-secondary)" }}>Categoría *</label>
+                <select value={form.category_id} onChange={set("category_id")} className={inputCls} style={{ ...inputStyle, cursor: "pointer", borderColor: errors.category_id ? "rgba(255,59,48,0.5)" : undefined }}>
                   <option value="">Seleccionar...</option>
                   {(categories as any[]).map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+                {errors.category_id && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.category_id}</p>}
               </div>
               <div>
                 <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Dorsal</label>
@@ -295,8 +316,8 @@ export default function NewPlayerPage() {
             <motion.button
               whileHover={{ scale: canSubmit && !createMutation.isPending ? 1.02 : 1 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => createMutation.mutate()}
-              disabled={!canSubmit || createMutation.isPending}
+              onClick={() => { if (validate()) createMutation.mutate(); }}
+              disabled={!canSubmit}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
               style={{
                 background: "var(--neon)",

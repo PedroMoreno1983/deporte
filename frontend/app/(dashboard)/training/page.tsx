@@ -105,7 +105,7 @@ export default function TrainingPage() {
           description="Carga de trabajo y ACWR por jugador"
           iconColor="text-orange-400"
           iconBg="bg-orange-500/10 border-orange-500/20"
-          className="pl-12 lg:pl-0 mb-0 flex-1"
+          className="pl-10 sm:pl-12 lg:pl-0 mb-0 flex-1"
         />
         {selectedPlayer && (
           <motion.button
@@ -158,7 +158,7 @@ export default function TrainingPage() {
                   <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                 <div>
                   <label className="text-xs mb-1.5 block" style={{ color: "var(--text-muted)" }}>Fecha</label>
                   <input type="date" value={form.session_date} onChange={e => setForm(f => ({ ...f, session_date: e.target.value }))} className={inputCls} style={inputStyle} />

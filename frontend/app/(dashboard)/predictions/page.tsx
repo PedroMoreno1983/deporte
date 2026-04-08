@@ -70,7 +70,7 @@ export default function PredictionsPage() {
         />
 
         {/* Level summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           {levels.map((level, i) => {
             const color = RISK_COLOR[level];
             const LevelIcon = level === "critical" ? Zap : level === "high" ? AlertTriangle : level === "medium" ? TrendingUp : Shield;
@@ -224,7 +224,7 @@ export default function PredictionsPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "rgba(255,255,255,0.01)" }}>
                     {["#", "Jugador", "Score de riesgo", "Nivel"].map((h) => (

@@ -5,7 +5,8 @@ import { matchesApi, categoriesApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
-import { Plus, Trophy, Home, Plane, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trophy, Home, Plane, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 const inputCls =
@@ -60,7 +61,7 @@ export default function MatchesPage() {
         description={`${matches?.length ?? 0} partidos registrados`}
         iconColor="text-yellow-400"
         iconBg="bg-yellow-500/10 border-yellow-500/20"
-        className="pl-12 lg:pl-0"
+        className="pl-10 sm:pl-12 lg:pl-0"
         action={
           <motion.button
             whileHover={{ scale: 1.03 }}
@@ -189,7 +190,7 @@ export default function MatchesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  {["Fecha", "Rival", "Cond.", "Resultado", "Competencia"].map(h => (
+                  {["Fecha", "Rival", "Cond.", "Resultado", "Competencia", ""].map(h => (
                     <th
                       key={h}
                       className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider"
@@ -203,13 +204,13 @@ export default function MatchesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
                       Cargando partidos...
                     </td>
                   </tr>
                 ) : !matches?.length ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-14 text-center">
+                    <td colSpan={6} className="px-4 py-14 text-center">
                       <div
                         className="inline-flex p-4 rounded-2xl mb-3"
                         style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}
@@ -272,6 +273,16 @@ export default function MatchesPage() {
                         </td>
                         <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
                           {m.competition ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link href={`/matches/${m.id}`}>
+                            <button
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-all"
+                              style={{ color: "var(--neon)", background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}
+                            >
+                              Stats <ChevronRight className="w-3 h-3" />
+                            </button>
+                          </Link>
                         </td>
                       </motion.tr>
                     );

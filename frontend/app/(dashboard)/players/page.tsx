@@ -42,7 +42,7 @@ export default function PlayersPage() {
         title="Jugadores"
         description={`${players?.length ?? 0} jugadores registrados`}
         badge={players?.length ? String(players.length) : undefined}
-        className="pl-12 lg:pl-0"
+        className="pl-10 sm:pl-12 lg:pl-0"
         action={
           <Link href="/players/new">
             <motion.button
@@ -65,7 +65,7 @@ export default function PlayersPage() {
       {/* Search + filters bar */}
       <div className="flex flex-wrap gap-3 items-center">
         {/* Search */}
-        <div className="relative flex-1 min-w-56">
+        <div className="relative flex-1 min-w-0 sm:min-w-56">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
           <input
             value={search}
