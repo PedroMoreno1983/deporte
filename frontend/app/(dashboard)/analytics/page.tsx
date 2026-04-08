@@ -7,7 +7,7 @@ import { PDFExportButton } from "@/components/pdf/PDFExportButton";
 import { TeamReportPDF } from "@/components/pdf/TeamReportPDF";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { BarChart3, Users, Target, TrendingUp, Shield } from "lucide-react";
+import { BarChart3, Users, Target, TrendingUp, Shield, ArrowRight } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
@@ -269,6 +269,88 @@ export default function AnalyticsPage() {
           </GlowCard>
         </motion.div>
       </div>
+
+      {/* Head-to-head comparison panel */}
+      {selectedPlayer && comparePlayer && playerRadar && compareRadar && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <GlowCard className="p-5 rounded-2xl" style={{ border: "1px solid rgba(168,85,247,0.2)" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: "var(--text-muted)" }}>
+                Comparación head-to-head
+              </p>
+              <div className="flex items-center gap-3 text-sm font-bold">
+                <span style={{ color: "#00ff87" }}>
+                  {(players as any[]).find((p: any) => p.id === selectedPlayer)?.full_name ?? "Jugador A"}
+                </span>
+                <ArrowRight className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                <span style={{ color: "#a855f7" }}>
+                  {(players as any[]).find((p: any) => p.id === comparePlayer)?.full_name ?? "Jugador B"}
+                </span>
+              </div>
+            </div>
+
+            {/* Metric rows */}
+            <div className="space-y-3">
+              {RADAR_KEYS.map(k => {
+                const a = playerRadar.player?.[k] ?? 0;
+                const b = compareRadar.player?.[k] ?? 0;
+                const total = (a + b) || 1;
+                const aWins = a >= b;
+                return (
+                  <div key={k}>
+                    <div className="flex items-center justify-between mb-1.5 text-xs">
+                      <span className="font-black w-10 text-right" style={{ color: aWins ? "#00ff87" : "rgba(255,255,255,0.4)" }}>
+                        {a.toFixed(0)}
+                      </span>
+                      <span className="flex-1 text-center font-semibold" style={{ color: "var(--text-muted)" }}>
+                        {RADAR_LABELS[k]}
+                      </span>
+                      <span className="font-black w-10 text-left" style={{ color: !aWins ? "#a855f7" : "rgba(255,255,255,0.4)" }}>
+                        {b.toFixed(0)}
+                      </span>
+                    </div>
+                    {/* Dual bar */}
+                    <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="rounded-l-full transition-all duration-700"
+                        style={{ width: `${(a / total) * 100}%`, background: "#00ff87", opacity: aWins ? 1 : 0.4 }}
+                      />
+                      <div
+                        className="rounded-r-full transition-all duration-700"
+                        style={{ width: `${(b / total) * 100}%`, background: "#a855f7", opacity: !aWins ? 1 : 0.4 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Winner summary */}
+            {(() => {
+              const aWins = RADAR_KEYS.filter(k => (playerRadar.player?.[k] ?? 0) >= (compareRadar.player?.[k] ?? 0)).length;
+              const bWins = RADAR_KEYS.length - aWins;
+              const playerA = (players as any[]).find((p: any) => p.id === selectedPlayer);
+              const playerB = (players as any[]).find((p: any) => p.id === comparePlayer);
+              return (
+                <div className="mt-5 pt-4 flex items-center justify-center gap-6" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                  <div className="text-center">
+                    <p className="text-2xl font-black" style={{ color: "#00ff87" }}>{aWins}</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerA?.first_name ?? "A"}</p>
+                  </div>
+                  <div className="text-center px-4" style={{ borderLeft: "1px solid var(--border-subtle)", borderRight: "1px solid var(--border-subtle)" }}>
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>métricas ganadas</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black" style={{ color: "#a855f7" }}>{bWins}</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerB?.first_name ?? "B"}</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </GlowCard>
+        </motion.div>
+      )}
 
       {/* Bottom charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

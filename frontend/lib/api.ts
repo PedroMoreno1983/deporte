@@ -48,6 +48,11 @@ export const authApi = {
 };
 
 export const playersApi = {
+  uploadPhoto: (id: number, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post(`/players/${id}/photo`, fd, { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
   list: (params?: { category_id?: number; status?: string; search?: string }) =>
     api.get("/players", { params }).then((r) => r.data),
   get: (id: number) => api.get(`/players/${id}`).then((r) => r.data),
