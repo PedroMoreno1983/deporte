@@ -1,10 +1,11 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
-import { notificationsApi } from "@/lib/api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { notificationsApi, alertsApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, AlertTriangle, Heart, Shield, X, ChevronRight } from "lucide-react";
+import { Bell, AlertTriangle, Heart, Shield, X, ChevronRight, Mail, Loader2, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 type Notification = {
   id: string;
@@ -33,7 +34,20 @@ const SEV_COLOR: Record<string, string> = {
 export function NotificationBell({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
   const [read, setRead] = useState<Set<string>>(new Set());
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const sendMutation = useMutation({
+    mutationFn: (email: string) => alertsApi.send([email]),
+    onSuccess: (data) => {
+      setEmailSent(true);
+      setEmailInput("");
+      toast.success(data.message ?? "Alerta enviada");
+      setTimeout(() => setEmailSent(false), 3000);
+    },
+    onError: () => toast.error("Error al enviar alerta"),
+  });
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
@@ -235,22 +249,30 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
               )}
             </div>
 
-            {/* Footer */}
-            {notifications.length > 0 && (
-              <div
-                className="px-4 py-2.5 text-center"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <Link
-                  href="/injuries"
-                  onClick={() => setOpen(false)}
-                  className="text-[11px] font-semibold transition-colors"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
+            {/* Footer — email alert */}
+            <div className="px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+              <p className="text-[10px] font-semibold mb-2 flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <Mail className="w-3 h-3" /> Enviar alerta por email
+              </p>
+              <div className="flex gap-1.5">
+                <input
+                  value={emailInput}
+                  onChange={e => setEmailInput(e.target.value)}
+                  placeholder="director@club.com"
+                  className="flex-1 text-xs px-2.5 py-1.5 rounded-lg outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }}
+                  onKeyDown={e => e.key === "Enter" && emailInput && sendMutation.mutate(emailInput)}
+                />
+                <button
+                  onClick={() => emailInput && sendMutation.mutate(emailInput)}
+                  disabled={!emailInput || sendMutation.isPending}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1"
+                  style={{ background: emailSent ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.08)", color: emailSent ? "#00ff87" : "white" }}
                 >
-                  Ver todas las lesiones →
-                </Link>
+                  {sendMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : emailSent ? <Check className="w-3 h-3" /> : <Mail className="w-3 h-3" />}
+                </button>
               </div>
-            )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
