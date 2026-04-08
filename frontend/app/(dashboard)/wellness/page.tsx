@@ -13,6 +13,7 @@ export default function WellnessPage() {
         iconColor="text-rose-400"
         iconBg="bg-rose-500/10 border-rose-500/20"
         badgeColor="text-rose-400 bg-rose-500/10 border-rose-500/20"
+        className="pl-10 sm:pl-12 lg:pl-0"
       />
       <WellnessDashboard />
     </div>

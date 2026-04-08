@@ -1,13 +1,12 @@
 "use client";
-"use client";
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
 import { playersApi, categoriesApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ArrowLeft, UserPlus, Upload, X, Check, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Edit2, Upload, X, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -25,9 +24,17 @@ const POSITIONS = [
 ];
 
 const FEET = [
-  { value: "right",    label: "Derecho" },
-  { value: "left",     label: "Izquierdo" },
-  { value: "both",     label: "Ambidextro" },
+  { value: "right", label: "Derecho" },
+  { value: "left",  label: "Izquierdo" },
+  { value: "both",  label: "Ambidextro" },
+];
+
+const STATUSES = [
+  { value: "available",  label: "Disponible" },
+  { value: "injured",    label: "Lesionado" },
+  { value: "recovering", label: "Recuperación" },
+  { value: "suspended",  label: "Suspendido" },
+  { value: "inactive",   label: "Inactivo" },
 ];
 
 const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
@@ -38,65 +45,84 @@ const inputStyle = {
 };
 const labelCls = "text-xs font-semibold block mb-1.5";
 
-export default function NewPlayerPage() {
+export default function EditPlayerPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const playerId = Number(id);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    first_name: "", last_name: "", date_of_birth: "",
-    nationality: "", document_id: "", phone: "", email: "",
-    jersey_number: "", position: "center_mid", secondary_position: "",
-    dominant_foot: "right", category_id: "",
-    height_cm: "", weight_kg: "",
+  const { data: player, isLoading } = useQuery({
+    queryKey: ["player", playerId],
+    queryFn: () => playersApi.get(playerId),
   });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.first_name.trim()) e.first_name = "Obligatorio";
-    if (!form.last_name.trim()) e.last_name = "Obligatorio";
-    if (!form.date_of_birth) e.date_of_birth = "Obligatorio";
-    if (!form.category_id) e.category_id = "Selecciona una categoría";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: () => categoriesApi.list(),
   });
 
-  const createMutation = useMutation({
+  const [form, setForm] = useState({
+    first_name: "", last_name: "", date_of_birth: "",
+    nationality: "", document_id: "", phone: "", email: "",
+    jersey_number: "", position: "center_mid", secondary_position: "",
+    dominant_foot: "right", status: "available", category_id: "",
+    height_cm: "", weight_kg: "",
+  });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  // Pre-fill form when player loads
+  useEffect(() => {
+    if (player && !initialized) {
+      setForm({
+        first_name: player.first_name ?? "",
+        last_name: player.last_name ?? "",
+        date_of_birth: player.date_of_birth ?? "",
+        nationality: player.nationality ?? "",
+        document_id: player.document_id ?? "",
+        phone: player.phone ?? "",
+        email: player.email ?? "",
+        jersey_number: player.jersey_number?.toString() ?? "",
+        position: player.position ?? "center_mid",
+        secondary_position: player.secondary_position ?? "",
+        dominant_foot: player.dominant_foot ?? "right",
+        status: player.status ?? "available",
+        category_id: player.category_id?.toString() ?? "",
+        height_cm: player.height_cm?.toString() ?? "",
+        weight_kg: player.weight_kg?.toString() ?? "",
+      });
+      setInitialized(true);
+    }
+  }, [player, initialized]);
+
+  const updateMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...form,
-        jersey_number: form.jersey_number ? Number(form.jersey_number) : undefined,
+        jersey_number: form.jersey_number ? Number(form.jersey_number) : null,
         category_id: Number(form.category_id),
-        height_cm: form.height_cm ? Number(form.height_cm) : undefined,
-        weight_kg: form.weight_kg ? Number(form.weight_kg) : undefined,
-        secondary_position: form.secondary_position || undefined,
+        height_cm: form.height_cm ? Number(form.height_cm) : null,
+        weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+        secondary_position: form.secondary_position || null,
       };
-      const player = await playersApi.create(payload);
+      await playersApi.update(playerId, payload);
       if (photoFile) {
-        await playersApi.uploadPhoto(player.id, photoFile);
+        await playersApi.uploadPhoto(playerId, photoFile);
       }
-      return player;
     },
-    onSuccess: (player) => {
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["player", playerId] });
       qc.invalidateQueries({ queryKey: ["players"] });
-      toast.success(`${player.first_name} ${player.last_name} agregado al plantel`);
-      router.push(`/players/${player.id}`);
+      toast.success("Jugador actualizado correctamente");
+      router.push(`/players/${playerId}`);
     },
-    onError: () => toast.error("Error al crear el jugador"),
+    onError: () => toast.error("Error al actualizar el jugador"),
   });
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
-    if (errors[k]) setErrors(er => ({ ...er, [k]: "" }));
-  };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,22 +134,30 @@ export default function NewPlayerPage() {
     reader.readAsDataURL(file);
   };
 
-  const canSubmit = !createMutation.isPending;
-  const initials = form.first_name && form.last_name
-    ? `${form.first_name.charAt(0)}${form.last_name.charAt(0)}`.toUpperCase()
-    : "?";
+  const canSubmit = form.first_name && form.last_name && form.date_of_birth && form.category_id && form.position;
+
+  const avatarSrc = photoPreview ?? player?.photo_url;
+  const initials = `${form.first_name.charAt(0)}${form.last_name.charAt(0)}`.toUpperCase() || "?";
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--neon)" }} />
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-5 h-full overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between pl-12 lg:pl-0">
         <PageHeader
-          icon={UserPlus}
-          title="Nuevo jugador"
-          description="Registra un nuevo jugador en el plantel"
+          icon={Edit2}
+          title="Editar jugador"
+          description={player ? `${player.first_name} ${player.last_name}` : "Cargando..."}
+          iconColor="text-blue-400"
+          iconBg="bg-blue-500/10 border-blue-500/20"
           className="mb-0 flex-1"
         />
-        <Link href="/players">
+        <Link href={`/players/${playerId}`}>
           <button
             className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-colors"
             style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)" }}
@@ -136,17 +170,17 @@ export default function NewPlayerPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* ── Photo & preview card ── */}
+        {/* ── Photo card ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <GlowCard className="p-6 rounded-2xl flex flex-col items-center gap-5 h-full">
-            {/* Avatar preview */}
+            {/* Avatar */}
             <div
               className="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden cursor-pointer relative group"
               style={{ background: "rgba(0,255,135,0.06)", border: "2px solid rgba(0,255,135,0.3)" }}
               onClick={() => fileRef.current?.click()}
             >
-              {photoPreview ? (
-                <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
+              {avatarSrc ? (
+                <img src={avatarSrc} alt="foto" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-3xl font-black" style={{ color: "var(--neon)" }}>{initials}</span>
               )}
@@ -164,7 +198,7 @@ export default function NewPlayerPage() {
                 style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.25)", color: "var(--neon)" }}
               >
                 <Upload className="w-3.5 h-3.5" />
-                {photoFile ? "Cambiar foto" : "Subir foto"}
+                {photoFile ? "Cambiar foto" : "Actualizar foto"}
               </button>
               {photoFile && (
                 <div className="flex items-center gap-1.5 mt-2 justify-center">
@@ -178,7 +212,7 @@ export default function NewPlayerPage() {
               <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>JPG, PNG o WebP · máx. 1 MB</p>
             </div>
 
-            {/* Mini info preview */}
+            {/* Live preview */}
             {(form.first_name || form.last_name) && (
               <div className="w-full text-center pt-3" style={{ borderTop: "1px solid var(--border-subtle)" }}>
                 <p className="text-base font-black text-white">
@@ -187,46 +221,54 @@ export default function NewPlayerPage() {
                 {form.jersey_number && (
                   <p className="text-sm font-mono" style={{ color: "var(--neon)" }}>#{form.jersey_number}</p>
                 )}
-                {form.position && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {POSITIONS.find(p => p.value === form.position)?.label}
-                  </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  {POSITIONS.find(p => p.value === form.position)?.label}
+                </p>
+                {/* Status badge */}
+                {form.status && (
+                  <span
+                    className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: form.status === "available" ? "rgba(0,255,135,0.12)" :
+                        form.status === "injured" ? "rgba(255,59,48,0.12)" :
+                        form.status === "recovering" ? "rgba(249,115,22,0.12)" : "rgba(100,116,139,0.12)",
+                      color: form.status === "available" ? "#00ff87" :
+                        form.status === "injured" ? "#ff3b30" :
+                        form.status === "recovering" ? "#f97316" : "#64748b",
+                    }}
+                  >
+                    {STATUSES.find(s => s.value === form.status)?.label}
+                  </span>
                 )}
               </div>
             )}
           </GlowCard>
         </motion.div>
 
-        {/* ── Form ── */}
+        {/* ── Forms ── */}
         <motion.div
           className="lg:col-span-2 space-y-4"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          {/* Personal data */}
+          {/* Personal */}
           <GlowCard className="p-5 rounded-2xl">
             <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
               Datos personales
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls} style={{ color: errors.first_name ? "#ff3b30" : "var(--text-secondary)" }}>Nombre *</label>
-                <input value={form.first_name} onChange={set("first_name")} placeholder="Pedro" className={inputCls}
-                  style={{ ...inputStyle, borderColor: errors.first_name ? "rgba(255,59,48,0.5)" : undefined }} />
-                {errors.first_name && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.first_name}</p>}
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nombre *</label>
+                <input value={form.first_name} onChange={set("first_name")} placeholder="Pedro" className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <label className={labelCls} style={{ color: errors.last_name ? "#ff3b30" : "var(--text-secondary)" }}>Apellido *</label>
-                <input value={form.last_name} onChange={set("last_name")} placeholder="García" className={inputCls}
-                  style={{ ...inputStyle, borderColor: errors.last_name ? "rgba(255,59,48,0.5)" : undefined }} />
-                {errors.last_name && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.last_name}</p>}
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Apellido *</label>
+                <input value={form.last_name} onChange={set("last_name")} placeholder="García" className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <label className={labelCls} style={{ color: errors.date_of_birth ? "#ff3b30" : "var(--text-secondary)" }}>Fecha de nacimiento *</label>
-                <input type="date" value={form.date_of_birth} onChange={set("date_of_birth")} className={inputCls}
-                  style={{ ...inputStyle, borderColor: errors.date_of_birth ? "rgba(255,59,48,0.5)" : undefined }} />
-                {errors.date_of_birth && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.date_of_birth}</p>}
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Fecha de nacimiento *</label>
+                <input type="date" value={form.date_of_birth} onChange={set("date_of_birth")} className={inputCls} style={inputStyle} />
               </div>
               <div>
                 <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nacionalidad</label>
@@ -254,14 +296,13 @@ export default function NewPlayerPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls} style={{ color: errors.category_id ? "#ff3b30" : "var(--text-secondary)" }}>Categoría *</label>
-                <select value={form.category_id} onChange={set("category_id")} className={inputCls} style={{ ...inputStyle, cursor: "pointer", borderColor: errors.category_id ? "rgba(255,59,48,0.5)" : undefined }}>
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Categoría *</label>
+                <select value={form.category_id} onChange={set("category_id")} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
                   <option value="">Seleccionar...</option>
                   {(categories as any[]).map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                {errors.category_id && <p className="text-[10px] mt-1 flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />{errors.category_id}</p>}
               </div>
               <div>
                 <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Dorsal</label>
@@ -286,6 +327,12 @@ export default function NewPlayerPage() {
                   {FEET.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </select>
               </div>
+              <div>
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Estado</label>
+                <select value={form.status} onChange={set("status")} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
+                  {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
             </div>
           </GlowCard>
 
@@ -306,18 +353,18 @@ export default function NewPlayerPage() {
             </div>
           </GlowCard>
 
-          {/* Submit */}
+          {/* Actions */}
           <div className="flex items-center gap-3 justify-end">
-            <Link href="/players">
+            <Link href={`/players/${playerId}`}>
               <button className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors" style={{ color: "var(--text-muted)" }}>
                 Cancelar
               </button>
             </Link>
             <motion.button
-              whileHover={{ scale: canSubmit && !createMutation.isPending ? 1.02 : 1 }}
+              whileHover={{ scale: canSubmit && !updateMutation.isPending ? 1.02 : 1 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => { if (validate()) createMutation.mutate(); }}
-              disabled={!canSubmit}
+              onClick={() => updateMutation.mutate()}
+              disabled={!canSubmit || updateMutation.isPending}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
               style={{
                 background: "var(--neon)",
@@ -325,12 +372,12 @@ export default function NewPlayerPage() {
                 boxShadow: canSubmit ? "0 0 20px rgba(0,255,135,0.35)" : "none",
               }}
             >
-              {createMutation.isPending ? (
+              {updateMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <UserPlus className="w-4 h-4" />
+                <Check className="w-4 h-4" />
               )}
-              {createMutation.isPending ? "Guardando..." : "Crear jugador"}
+              {updateMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </motion.button>
           </div>
         </motion.div>

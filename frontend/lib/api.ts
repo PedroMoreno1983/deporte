@@ -83,6 +83,7 @@ export const injuriesApi = {
 export const matchesApi = {
   list: (params?: { category_id?: number }) =>
     api.get("/matches", { params }).then((r) => r.data),
+  get: (id: number) => api.get(`/matches/${id}`).then((r) => r.data),
   create: (data: unknown) => api.post("/matches", data).then((r) => r.data),
   getStats: (matchId: number) =>
     api.get(`/matches/${matchId}/stats`).then((r) => r.data),

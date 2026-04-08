@@ -1,13 +1,11 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef } from "react";
 import { playersApi, analyticsApi, predictionsApi, kinesiologyApi, injuriesApi, wellnessApi } from "@/lib/api";
 import { PDFExportButton } from "@/components/pdf/PDFExportButton";
 import { PlayerReportPDF } from "@/components/pdf/PlayerReportPDF";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRef } from "react";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { POSITION_LABELS, formatAge } from "@/lib/utils";
@@ -20,7 +18,8 @@ import {
 } from "recharts";
 import {
   Activity, AlertTriangle, Shield, TrendingUp, Dumbbell,
-  Calendar, ArrowLeft, TrendingDown, Minus, Brain, Heart, Moon, Zap, Droplets
+  Calendar, ArrowLeft, TrendingDown, Minus, Brain, Heart, Moon, Zap, Droplets, Edit2, ClipboardList,
+  Plus, X, Loader2, Check, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 
@@ -76,6 +75,96 @@ export default function PlayerDetailPage() {
   const [wellnessDays, setWellnessDays] = useState(30);
   const { data: wellnessHistory } = useQuery({ queryKey: ["wellness-player", playerId, wellnessDays], queryFn: () => wellnessApi.getByPlayer(playerId, wellnessDays) });
   const { data: playerRadar } = useQuery({ queryKey: ["player-radar", playerId], queryFn: () => analyticsApi.playerRadar(playerId) });
+
+  // ── Injury form state ──────────────────────────────────────────────────────
+  const [showInjuryForm, setShowInjuryForm] = useState(false);
+  const [injuryForm, setInjuryForm] = useState({
+    injury_date: new Date().toISOString().split("T")[0],
+    injury_type: "", body_zone: "knee_left", severity: "grade_1",
+    mechanism: "non_contact", during_match: false,
+    estimated_days_out: "", return_date_estimated: "",
+    treatment: "", diagnosed_by: "", description: "", notes: "",
+  });
+  const [injuryErrors, setInjuryErrors] = useState<Record<string, string>>({});
+
+  const validateInjury = () => {
+    const e: Record<string, string> = {};
+    if (!injuryForm.injury_type.trim()) e.injury_type = "El tipo de lesión es obligatorio";
+    if (!injuryForm.injury_date) e.injury_date = "La fecha es obligatoria";
+    setInjuryErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const createInjuryMutation = useMutation({
+    mutationFn: () => injuriesApi.create({
+      player_id: playerId,
+      injury_date: injuryForm.injury_date,
+      injury_type: injuryForm.injury_type,
+      body_zone: injuryForm.body_zone,
+      severity: injuryForm.severity,
+      mechanism: injuryForm.mechanism,
+      during_match: injuryForm.during_match,
+      estimated_days_out: injuryForm.estimated_days_out ? Number(injuryForm.estimated_days_out) : null,
+      return_date_estimated: injuryForm.return_date_estimated || null,
+      treatment: injuryForm.treatment || null,
+      diagnosed_by: injuryForm.diagnosed_by || null,
+      description: injuryForm.description || null,
+      notes: injuryForm.notes || null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["injuries-player", playerId] });
+      qc.invalidateQueries({ queryKey: ["player", playerId] });
+      toast.success("Lesión registrada");
+      setShowInjuryForm(false);
+      setInjuryForm({
+        injury_date: new Date().toISOString().split("T")[0],
+        injury_type: "", body_zone: "knee_left", severity: "grade_1",
+        mechanism: "non_contact", during_match: false,
+        estimated_days_out: "", return_date_estimated: "",
+        treatment: "", diagnosed_by: "", description: "", notes: "",
+      });
+      setInjuryErrors({});
+    },
+    onError: () => toast.error("Error al registrar la lesión"),
+  });
+
+  // ── Wellness form state ────────────────────────────────────────────────────
+  const [showWellnessForm, setShowWellnessForm] = useState(false);
+  const [wellnessForm, setWellnessForm] = useState({
+    entry_date: new Date().toISOString().split("T")[0],
+    sleep_quality: 7, fatigue: 7, mood: 7, muscle_soreness: 7, stress: 7,
+    rpe_post: "", notes: "",
+  });
+  const [wellnessErrors, setWellnessErrors] = useState<Record<string, string>>({});
+
+  const validateWellness = () => {
+    const e: Record<string, string> = {};
+    if (!wellnessForm.entry_date) e.entry_date = "La fecha es obligatoria";
+    setWellnessErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const createWellnessMutation = useMutation({
+    mutationFn: () => wellnessApi.create({
+      player_id: playerId,
+      entry_date: wellnessForm.entry_date,
+      sleep_quality: wellnessForm.sleep_quality,
+      fatigue: wellnessForm.fatigue,
+      mood: wellnessForm.mood,
+      muscle_soreness: wellnessForm.muscle_soreness,
+      stress: wellnessForm.stress,
+      rpe_post: wellnessForm.rpe_post ? Number(wellnessForm.rpe_post) : null,
+      notes: wellnessForm.notes || null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wellness-player", playerId, wellnessDays] });
+      toast.success("Registro wellness guardado");
+      setShowWellnessForm(false);
+      setWellnessForm({ entry_date: new Date().toISOString().split("T")[0], sleep_quality: 7, fatigue: 7, mood: 7, muscle_soreness: 7, stress: 7, rpe_post: "", notes: "" });
+      setWellnessErrors({});
+    },
+    onError: () => toast.error("Error al guardar el registro"),
+  });
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -157,20 +246,40 @@ export default function PlayerDetailPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Volver a jugadores
           </button>
-          <PDFExportButton
-            document={
-              <PlayerReportPDF
-                player={player}
-                summary={summary}
-                prediction={prediction}
-                kinesiology={kinesiology ?? []}
-                injuries={injuries ?? []}
-                wellness={wellnessHistory ?? []}
-              />
-            }
-            fileName={`reporte-${player?.first_name?.toLowerCase()}-${player?.last_name?.toLowerCase()}.pdf`}
-            label="Exportar PDF"
-          />
+          <div className="flex items-center gap-2">
+            <Link href={`/players/${playerId}/kinesiology/new`}>
+              <button
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all"
+                style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)", color: "var(--neon)" }}
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Nueva evaluación</span>
+              </button>
+            </Link>
+            <Link href={`/players/${playerId}/edit`}>
+              <button
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Editar</span>
+              </button>
+            </Link>
+            <PDFExportButton
+              document={
+                <PlayerReportPDF
+                  player={player}
+                  summary={summary}
+                  prediction={prediction}
+                  kinesiology={kinesiology ?? []}
+                  injuries={injuries ?? []}
+                  wellness={wellnessHistory ?? []}
+                />
+              }
+              fileName={`reporte-${player?.first_name?.toLowerCase()}-${player?.last_name?.toLowerCase()}.pdf`}
+              label="Exportar PDF"
+            />
+          </div>
         </div>
 
         <div className="flex items-start gap-6">
@@ -421,11 +530,104 @@ export default function PlayerDetailPage() {
                     )}
                   </GlowCard>
                 )}
+
+                {/* ── Historial de evaluaciones ─── */}
+              {(kinesiology?.length ?? 0) > 1 && (() => {
+                const sorted = [...(kinesiology ?? [])].sort((a: any, b: any) =>
+                  new Date(a.evaluation_date).getTime() - new Date(b.evaluation_date).getTime()
+                );
+                const metricSeries = [
+                  { key: "squat_1rm_kg",        label: "Squat 1RM (kg)",   color: "#f97316" },
+                  { key: "cmj_height_cm",        label: "CMJ (cm)",          color: posColor  },
+                  { key: "sprint_30m_sec",        label: "Sprint 30m (s)",   color: "#0ea5e9" },
+                  { key: "vo2_max",               label: "VO₂ máx",          color: "#a855f7" },
+                  { key: "body_fat_percentage",   label: "% Grasa",          color: "#ff3b30" },
+                ];
+                return (
+                  <GlowCard className="p-5 rounded-2xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                        Evolución kinesiológica — {kinesiology?.length} evaluaciones
+                      </p>
+                      <Link href={`/players/${playerId}/kinesiology/new`}>
+                        <button className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-lg"
+                          style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)", color: posColor }}>
+                          <Plus className="w-3 h-3" /> Nueva evaluación
+                        </button>
+                      </Link>
+                    </div>
+
+                    {/* Mini cards — delta entre primera y última evaluación */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5">
+                      {metricSeries.map(({ key, label, color }) => {
+                        const first = sorted[0]?.[key];
+                        const last  = sorted[sorted.length - 1]?.[key];
+                        if (!first || !last) return null;
+                        const delta = (last - first);
+                        const pct   = first !== 0 ? ((delta / first) * 100).toFixed(1) : null;
+                        const up    = delta > 0;
+                        const isInverse = key === "sprint_30m_sec" || key === "body_fat_percentage";
+                        const good = isInverse ? !up : up;
+                        return (
+                          <div key={key} className="p-3 rounded-xl text-center"
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
+                            <p className="text-base font-black" style={{ color }}>{typeof last === 'number' ? last.toFixed(1) : last}</p>
+                            {pct && (
+                              <p className="text-[9px] font-bold mt-0.5" style={{ color: good ? "#00ff87" : "#ff3b30" }}>
+                                {delta > 0 ? "+" : ""}{delta.toFixed(1)} ({pct}%)
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Tabla de historial */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs min-w-[500px]">
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                            {["Fecha", "Evaluador", "Squat 1RM", "CMJ", "Sprint 30m", "VO₂ máx", "% Grasa", "Peso"].map(h => (
+                              <th key={h} className="text-left px-3 py-2 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap"
+                                style={{ color: "var(--text-muted)" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sorted.slice().reverse().map((r: any, i: number) => (
+                            <tr key={r.id ?? i}
+                              style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <td className="px-3 py-2.5 font-semibold" style={{ color: "var(--text-primary)" }}>{r.evaluation_date}</td>
+                              <td className="px-3 py-2.5" style={{ color: "var(--text-muted)" }}>{r.evaluated_by ?? "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: "#f97316" }}>{r.squat_1rm_kg ? `${r.squat_1rm_kg} kg` : "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: posColor }}>{r.cmj_height_cm ? `${r.cmj_height_cm} cm` : "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: "#0ea5e9" }}>{r.sprint_30m_sec ? `${r.sprint_30m_sec}s` : "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: "#a855f7" }}>{r.vo2_max ?? "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: "#ff3b30" }}>{r.body_fat_percentage ? `${r.body_fat_percentage}%` : "—"}</td>
+                              <td className="px-3 py-2.5 tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.weight_kg ? `${r.weight_kg} kg` : "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </GlowCard>
+                );
+              })()}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20" style={{ color: "var(--text-muted)" }}>
                 <Dumbbell className="w-10 h-10 mb-3 opacity-30" />
                 <p>Sin registros kinesiológicos disponibles</p>
+                <Link href={`/players/${playerId}/kinesiology/new`}>
+                  <button className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
+                    style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)", color: posColor }}>
+                    <Plus className="w-3.5 h-3.5" /> Primera evaluación
+                  </button>
+                </Link>
               </div>
             )}
           </motion.div>
@@ -548,10 +750,191 @@ export default function PlayerDetailPage() {
         {/* ── LESIONES ──────────────────────────────── */}
         {tab === "Lesiones" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            {allInjuries.length === 0 ? (
+
+            {/* Action bar */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowInjuryForm(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                style={{ background: "rgba(255,59,48,0.1)", border: "1px solid rgba(255,59,48,0.25)", color: "#ff3b30" }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Registrar lesión
+              </button>
+            </div>
+
+            {/* Inline form */}
+            <AnimatePresence>
+              {showInjuryForm && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                >
+                  <GlowCard className="p-5 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" style={{ color: "#ff3b30" }} />
+                        Nueva lesión
+                      </p>
+                      <button onClick={() => { setShowInjuryForm(false); setInjuryErrors({}); }}>
+                        <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                      </button>
+                    </div>
+
+                    {/* Row 1 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>
+                          Fecha *
+                        </label>
+                        <input
+                          type="date"
+                          value={injuryForm.injury_date}
+                          onChange={e => { setInjuryForm(f => ({ ...f, injury_date: e.target.value })); setInjuryErrors(er => ({ ...er, injury_date: "" })); }}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 focus:ring-red-500/30"
+                          style={{ background: injuryErrors.injury_date ? "rgba(255,59,48,0.08)" : "rgba(255,255,255,0.05)", border: `1px solid ${injuryErrors.injury_date ? "rgba(255,59,48,0.5)" : "var(--border-subtle)"}`, color: "var(--text-primary)" }}
+                        />
+                        {injuryErrors.injury_date && <p className="text-[10px] mt-1 text-red-400">{injuryErrors.injury_date}</p>}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>
+                          Tipo de lesión *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Rotura muscular, Esguince, Fractura..."
+                          value={injuryForm.injury_type}
+                          onChange={e => { setInjuryForm(f => ({ ...f, injury_type: e.target.value })); setInjuryErrors(er => ({ ...er, injury_type: "" })); }}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 focus:ring-red-500/30"
+                          style={{ background: injuryErrors.injury_type ? "rgba(255,59,48,0.08)" : "rgba(255,255,255,0.05)", border: `1px solid ${injuryErrors.injury_type ? "rgba(255,59,48,0.5)" : "var(--border-subtle)"}`, color: "var(--text-primary)" }}
+                        />
+                        {injuryErrors.injury_type && <p className="text-[10px] mt-1 text-red-400">{injuryErrors.injury_type}</p>}
+                      </div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Zona corporal</label>
+                        <select value={injuryForm.body_zone} onChange={e => setInjuryForm(f => ({ ...f, body_zone: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                          {[
+                            ["head","Cabeza"],["neck","Cuello"],["shoulder_left","Hombro Izq."],["shoulder_right","Hombro Der."],
+                            ["arm_left","Brazo Izq."],["arm_right","Brazo Der."],["wrist_left","Muñeca Izq."],["wrist_right","Muñeca Der."],
+                            ["thorax","Tórax"],["lumbar","Lumbar"],["abdomen","Abdomen"],
+                            ["hip_left","Cadera Izq."],["hip_right","Cadera Der."],
+                            ["thigh_left","Muslo Izq."],["thigh_right","Muslo Der."],
+                            ["knee_left","Rodilla Izq."],["knee_right","Rodilla Der."],
+                            ["leg_left","Pierna Izq."],["leg_right","Pierna Der."],
+                            ["ankle_left","Tobillo Izq."],["ankle_right","Tobillo Der."],
+                            ["foot_left","Pie Izq."],["foot_right","Pie Der."],
+                          ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Severidad</label>
+                        <select value={injuryForm.severity} onChange={e => setInjuryForm(f => ({ ...f, severity: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                          <option value="grade_1">Grado I — Leve</option>
+                          <option value="grade_2">Grado II — Moderado</option>
+                          <option value="grade_3">Grado III — Severo</option>
+                          <option value="grade_4">Grado IV — Cirugía</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Mecanismo</label>
+                        <select value={injuryForm.mechanism} onChange={e => setInjuryForm(f => ({ ...f, mechanism: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                          <option value="contact">Contacto</option>
+                          <option value="non_contact">Sin contacto</option>
+                          <option value="overload">Sobrecarga</option>
+                          <option value="reinjury">Recidiva</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>¿En partido?</label>
+                        <select value={injuryForm.during_match ? "true" : "false"} onChange={e => setInjuryForm(f => ({ ...f, during_match: e.target.value === "true" }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                          <option value="false">No</option>
+                          <option value="true">Sí</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 3 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Días estimados de baja</label>
+                        <input type="number" min={0} placeholder="—"
+                          value={injuryForm.estimated_days_out}
+                          onChange={e => setInjuryForm(f => ({ ...f, estimated_days_out: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Fecha alta estimada</label>
+                        <input type="date"
+                          value={injuryForm.return_date_estimated}
+                          onChange={e => setInjuryForm(f => ({ ...f, return_date_estimated: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Diagnosticado por</label>
+                        <input type="text" placeholder="Dr. García"
+                          value={injuryForm.diagnosed_by}
+                          onChange={e => setInjuryForm(f => ({ ...f, diagnosed_by: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Tratamiento</label>
+                        <input type="text" placeholder="Reposo, fisioterapia..."
+                          value={injuryForm.treatment}
+                          onChange={e => setInjuryForm(f => ({ ...f, treatment: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Observaciones</label>
+                      <textarea rows={2} placeholder="Descripción, notas clínicas..."
+                        value={injuryForm.description}
+                        onChange={e => setInjuryForm(f => ({ ...f, description: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm rounded-xl outline-none resize-none"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => { setShowInjuryForm(false); setInjuryErrors({}); }}
+                        className="px-4 py-2 rounded-xl text-sm" style={{ color: "var(--text-muted)" }}>
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => { if (validateInjury()) createInjuryMutation.mutate(); }}
+                        disabled={createInjuryMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
+                        style={{ background: "rgba(255,59,48,0.15)", border: "1px solid rgba(255,59,48,0.3)", color: "#ff3b30" }}
+                      >
+                        {createInjuryMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        Registrar lesión
+                      </button>
+                    </div>
+                  </GlowCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* List */}
+            {allInjuries.length === 0 && !showInjuryForm ? (
               <div className="flex flex-col items-center justify-center py-20" style={{ color: "var(--text-muted)" }}>
                 <Shield className="w-10 h-10 mb-3 opacity-30" style={{ color: "#00ff87" }} />
-                <p>Sin historial de lesiones</p>
+                <p className="text-sm">Sin historial de lesiones</p>
+                <p className="text-xs mt-1 opacity-60">Este jugador no tiene lesiones registradas</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -622,28 +1005,135 @@ export default function PlayerDetailPage() {
         {/* ── WELLNESS ─────────────────────────────────── */}
         {tab === "Wellness" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            {/* Days selector */}
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Período:</p>
-              {[7, 14, 30].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setWellnessDays(d)}
-                  className="px-3 py-1 text-xs font-semibold rounded-lg transition-all"
-                  style={wellnessDays === d ? {
-                    background: `${posColor}20`,
-                    border: `1px solid ${posColor}50`,
-                    color: posColor,
-                  } : {
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid var(--border-subtle)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {d}d
-                </button>
-              ))}
+            {/* Top bar: period selector + register button */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Período:</p>
+                {[7, 14, 30].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setWellnessDays(d)}
+                    className="px-3 py-1 text-xs font-semibold rounded-lg transition-all"
+                    style={wellnessDays === d ? {
+                      background: `${posColor}20`,
+                      border: `1px solid ${posColor}50`,
+                      color: posColor,
+                    } : {
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowWellnessForm(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                style={{ background: `${posColor}10`, border: `1px solid ${posColor}30`, color: posColor }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Registrar wellness
+              </button>
             </div>
+
+            {/* Inline wellness form */}
+            <AnimatePresence>
+              {showWellnessForm && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <GlowCard className="p-5 rounded-2xl space-y-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold flex items-center gap-2">
+                        <Heart className="w-4 h-4" style={{ color: posColor }} />
+                        Nuevo registro wellness
+                      </p>
+                      <button onClick={() => { setShowWellnessForm(false); setWellnessErrors({}); }}>
+                        <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Fecha *</label>
+                        <input
+                          type="date"
+                          value={wellnessForm.entry_date}
+                          onChange={e => { setWellnessForm(f => ({ ...f, entry_date: e.target.value })); setWellnessErrors(er => ({ ...er, entry_date: "" })); }}
+                          className="px-3 py-2 text-sm rounded-xl outline-none focus:ring-2"
+                          style={{ background: wellnessErrors.entry_date ? "rgba(255,59,48,0.08)" : "rgba(255,255,255,0.05)", border: `1px solid ${wellnessErrors.entry_date ? "rgba(255,59,48,0.5)" : "var(--border-subtle)"}`, color: "var(--text-primary)" }}
+                        />
+                        {wellnessErrors.entry_date && <p className="text-[10px] mt-1 text-red-400">{wellnessErrors.entry_date}</p>}
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>RPE post-entreno</label>
+                        <input type="number" min={1} max={10} placeholder="1-10"
+                          value={wellnessForm.rpe_post}
+                          onChange={e => setWellnessForm(f => ({ ...f, rpe_post: e.target.value }))}
+                          className="w-24 px-3 py-2 text-sm rounded-xl outline-none"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                      </div>
+                    </div>
+
+                    {/* Sliders */}
+                    {([
+                      { k: "sleep_quality",   label: "Calidad de sueño",  icon: Moon,     help: "1 = muy mal · 10 = excelente" },
+                      { k: "fatigue",          label: "Fatiga",            icon: Zap,      help: "1 = muy fatigado · 10 = sin fatiga" },
+                      { k: "mood",             label: "Estado de ánimo",   icon: Heart,    help: "1 = muy bajo · 10 = excelente" },
+                      { k: "muscle_soreness",  label: "Dolor muscular",    icon: Dumbbell, help: "1 = mucho dolor · 10 = sin dolor" },
+                      { k: "stress",           label: "Estrés",            icon: Activity, help: "1 = muy estresado · 10 = sin estrés" },
+                    ] as const).map(({ k, label, icon: Icon, help }) => {
+                      const val = wellnessForm[k as keyof typeof wellnessForm] as number;
+                      const color = val >= 7 ? posColor : val >= 5 ? "#f59e0b" : "#ff3b30";
+                      return (
+                        <div key={k}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                              <Icon className="w-3.5 h-3.5" />
+                              <span className="font-semibold">{label}</span>
+                              <span className="opacity-40 hidden sm:inline">— {help}</span>
+                            </div>
+                            <span className="text-sm font-black" style={{ color }}>{val}/10</span>
+                          </div>
+                          <input
+                            type="range" min={1} max={10} step={1}
+                            value={val}
+                            onChange={e => setWellnessForm(f => ({ ...f, [k]: Number(e.target.value) }))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ accentColor: color }}
+                          />
+                        </div>
+                      );
+                    })}
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--text-muted)" }}>Notas</label>
+                      <textarea rows={2} placeholder="Observaciones del jugador..."
+                        value={wellnessForm.notes}
+                        onChange={e => setWellnessForm(f => ({ ...f, notes: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm rounded-xl outline-none resize-none"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => { setShowWellnessForm(false); setWellnessErrors({}); }}
+                        className="px-4 py-2 rounded-xl text-sm" style={{ color: "var(--text-muted)" }}>
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => { if (validateWellness()) createWellnessMutation.mutate(); }}
+                        disabled={createWellnessMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
+                        style={{ background: `${posColor}15`, border: `1px solid ${posColor}40`, color: posColor }}
+                      >
+                        {createWellnessMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        Guardar registro
+                      </button>
+                    </div>
+                  </GlowCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {(!wellnessHistory || wellnessHistory.length === 0) ? (
               <div className="flex flex-col items-center justify-center py-20" style={{ color: "var(--text-muted)" }}>

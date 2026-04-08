@@ -61,3 +61,11 @@ def get_player_match_stats(player_id: int, db: Session = Depends(get_db), _=Depe
         .order_by(MatchStat.id.desc())
         .all()
     )
+
+
+@router.get("/{match_id}", response_model=MatchOut)
+def get_match(match_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Partido no encontrado")
+    return match

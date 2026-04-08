@@ -96,8 +96,8 @@ export default function AnalyticsPage() {
     <div className="p-6 space-y-5 h-full overflow-y-auto">
 
       {/* Header */}
-      <motion.div {...s(0)} className="flex items-center justify-between flex-wrap gap-3 pl-12 lg:pl-0">
-        <div className="flex items-center justify-between gap-4 pl-12 lg:pl-0">
+      <motion.div {...s(0)} className="flex items-center justify-between flex-wrap gap-3 pl-10 sm:pl-12 lg:pl-0">
+        <div className="flex items-center justify-between gap-4 pl-10 sm:pl-12 lg:pl-0">
           <PageHeader icon={BarChart3} title="Analytics" description="Indicadores, benchmarks y radar de rendimiento" className="mb-0 flex-1" />
           <PDFExportButton
             document={
@@ -121,7 +121,7 @@ export default function AnalyticsPage() {
       </motion.div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {[
           { icon: Users,      label: "Jugadores",       value: dash?.total_players ?? 0,                            color: "#60a5fa" },
           { icon: Shield,     label: "Disponibilidad",  value: `${dash?.availability_rate ?? 0}%`,                  color: "#00ff87" },
@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>Sin datos de partidos aún</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 400 }}>
+              <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: "clamp(200px, 50vh, 400px)" }}>
                 {top8.map((p: any, i: number) => {
                   const color   = POSITION_COLORS[p.position] ?? "#64748b";
                   const score   = p.rendimiento ?? 0;

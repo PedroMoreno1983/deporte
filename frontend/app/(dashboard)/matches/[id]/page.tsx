@@ -1,0 +1,593 @@
+"use client";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import { matchesApi, playersApi } from "@/lib/api";
+import { GlowCard } from "@/components/ui/GlowCard";
+import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  ArrowLeft, Trophy, Home, Plane, Plus, X, Loader2,
+  Target, Zap, Shield, Footprints, Star, ChevronDown, ChevronUp,
+  Timer, Flag,
+} from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
+
+const inputCls = "w-full px-3 py-2 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
+const inputStyle = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid var(--border-subtle)",
+  color: "var(--text-primary)",
+};
+const labelCls = "text-[10px] font-semibold block mb-1 uppercase tracking-wider";
+
+type StatForm = {
+  player_id: string;
+  minutes_played: string; started: boolean; rating: string;
+  goals: string; assists: string; shots_total: string; shots_on_target: string; key_passes: string;
+  passes_total: string; passes_completed: string;
+  tackles: string; interceptions: string; clearances: string;
+  fouls_committed: string; fouls_received: string;
+  yellow_cards: string; red_cards: string;
+  duels_total: string; duels_won: string; aerial_duels_total: string; aerial_duels_won: string;
+  total_distance_m: string; high_intensity_distance_m: string; sprint_distance_m: string;
+  max_speed_kmh: string; sprints_count: string; accelerations_count: string;
+  notes: string;
+};
+
+const EMPTY_STAT: StatForm = {
+  player_id: "", minutes_played: "90", started: true, rating: "",
+  goals: "0", assists: "0", shots_total: "0", shots_on_target: "0", key_passes: "0",
+  passes_total: "0", passes_completed: "0",
+  tackles: "0", interceptions: "0", clearances: "0",
+  fouls_committed: "0", fouls_received: "0",
+  yellow_cards: "0", red_cards: "0",
+  duels_total: "0", duels_won: "0", aerial_duels_total: "0", aerial_duels_won: "0",
+  total_distance_m: "", high_intensity_distance_m: "", sprint_distance_m: "",
+  max_speed_kmh: "", sprints_count: "", accelerations_count: "",
+  notes: "",
+};
+
+function n(v: string, fallback = 0) {
+  return v !== "" ? Number(v) : fallback;
+}
+
+function StatBadge({ value, label, color = "var(--text-secondary)" }: { value: React.ReactNode; label: string; color?: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-base font-black" style={{ color }}>{value}</p>
+      <p className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</p>
+    </div>
+  );
+}
+
+function RatingDot({ rating }: { rating?: number | null }) {
+  if (!rating) return <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>;
+  const color = rating >= 8 ? "#00ff87" : rating >= 6.5 ? "#f59e0b" : "#ff3b30";
+  return (
+    <span
+      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-black"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}40` }}
+    >
+      {rating.toFixed(1)}
+    </span>
+  );
+}
+
+export default function MatchDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const matchId = Number(id);
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<StatForm>(EMPTY_STAT);
+  const [showGps, setShowGps] = useState(false);
+
+  const { data: match, isLoading: loadingMatch } = useQuery({
+    queryKey: ["match", matchId],
+    queryFn: () => matchesApi.get(matchId),
+  });
+
+  const { data: stats = [], isLoading: loadingStats } = useQuery({
+    queryKey: ["match-stats", matchId],
+    queryFn: () => matchesApi.getStats(matchId),
+  });
+
+  const { data: players = [] } = useQuery({
+    queryKey: ["players"],
+    queryFn: () => playersApi.list(),
+  });
+
+  const addStatMutation = useMutation({
+    mutationFn: () =>
+      matchesApi.createStat({
+        match_id: matchId,
+        player_id: Number(form.player_id),
+        minutes_played: n(form.minutes_played),
+        started: form.started,
+        rating: form.rating ? Number(form.rating) : null,
+        goals: n(form.goals), assists: n(form.assists),
+        shots_total: n(form.shots_total), shots_on_target: n(form.shots_on_target),
+        key_passes: n(form.key_passes),
+        passes_total: n(form.passes_total), passes_completed: n(form.passes_completed),
+        tackles: n(form.tackles), interceptions: n(form.interceptions), clearances: n(form.clearances),
+        fouls_committed: n(form.fouls_committed), fouls_received: n(form.fouls_received),
+        yellow_cards: n(form.yellow_cards), red_cards: n(form.red_cards),
+        duels_total: n(form.duels_total), duels_won: n(form.duels_won),
+        aerial_duels_total: n(form.aerial_duels_total), aerial_duels_won: n(form.aerial_duels_won),
+        total_distance_m: form.total_distance_m ? Number(form.total_distance_m) : null,
+        high_intensity_distance_m: form.high_intensity_distance_m ? Number(form.high_intensity_distance_m) : null,
+        sprint_distance_m: form.sprint_distance_m ? Number(form.sprint_distance_m) : null,
+        max_speed_kmh: form.max_speed_kmh ? Number(form.max_speed_kmh) : null,
+        sprints_count: form.sprints_count ? Number(form.sprints_count) : null,
+        accelerations_count: form.accelerations_count ? Number(form.accelerations_count) : null,
+        notes: form.notes || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["match-stats", matchId] });
+      qc.invalidateQueries({ queryKey: ["match", matchId] });
+      toast.success("Estadística registrada");
+      setForm(EMPTY_STAT);
+      setShowForm(false);
+    },
+    onError: () => toast.error("Error al guardar la estadística"),
+  });
+
+  const set = (k: keyof StatForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Derived totals from all stats
+  const totals = (stats as any[]).reduce(
+    (acc: any, s: any) => ({
+      goals: acc.goals + (s.goals ?? 0),
+      assists: acc.assists + (s.assists ?? 0),
+      shots: acc.shots + (s.shots_total ?? 0),
+      passes: acc.passes + (s.passes_total ?? 0),
+      tackles: acc.tackles + (s.tackles ?? 0),
+      yellows: acc.yellows + (s.yellow_cards ?? 0),
+      reds: acc.reds + (s.red_cards ?? 0),
+    }),
+    { goals: 0, assists: 0, shots: 0, passes: 0, tackles: 0, yellows: 0, reds: 0 }
+  );
+
+  // Registered player IDs so we don't double-add
+  const registeredIds = new Set((stats as any[]).map((s: any) => s.player_id));
+  const availablePlayers = (players as any[]).filter((p: any) => !registeredIds.has(p.id));
+
+  if (loadingMatch) return (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--neon)" }} />
+    </div>
+  );
+
+  const won = match?.goals_for != null && match?.goals_against != null && match.goals_for > match.goals_against;
+  const lost = match?.goals_for != null && match?.goals_against != null && match.goals_for < match.goals_against;
+  const draw = match?.goals_for != null && match?.goals_against != null && match.goals_for === match.goals_against;
+  const resultColor = won ? "#00ff87" : lost ? "#ff3b30" : "#f59e0b";
+
+  return (
+    <div className="p-6 space-y-5 h-full overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between pl-12 lg:pl-0">
+        <PageHeader
+          icon={Trophy}
+          title={match?.opponent ? `vs ${match.opponent}` : "Detalle partido"}
+          description={`${match?.date ?? ""} · ${match?.competition ?? "Sin competencia"}`}
+          iconColor="text-yellow-400"
+          iconBg="bg-yellow-500/10 border-yellow-500/20"
+          className="mb-0 flex-1"
+        />
+        <Link href="/matches">
+          <button
+            className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-colors"
+            style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)" }}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Partidos
+          </button>
+        </Link>
+      </div>
+
+      {/* ── Scoreboard hero ── */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <GlowCard className="p-6 rounded-2xl">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            {/* Home / Away badge */}
+            <div className="flex items-center gap-2">
+              {match?.is_home ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(14,165,233,0.12)", color: "#0ea5e9" }}>
+                  <Home className="w-3.5 h-3.5" /> Local
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(168,85,247,0.12)", color: "#a855f7" }}>
+                  <Plane className="w-3.5 h-3.5" /> Visitante
+                </span>
+              )}
+              {match?.competition && (
+                <span className="text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)" }}>
+                  {match.competition}
+                </span>
+              )}
+            </div>
+
+            {/* Score */}
+            {match?.goals_for != null && match?.goals_against != null ? (
+              <div className="text-center">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-5xl font-black tabular-nums"
+                    style={{ color: resultColor, textShadow: `0 0 30px ${resultColor}60` }}
+                  >
+                    {match.goals_for}
+                  </span>
+                  <span className="text-2xl font-bold opacity-30">—</span>
+                  <span
+                    className="text-5xl font-black tabular-nums"
+                    style={{ color: lost ? "#00ff87" : won ? "#ff3b30" : "#f59e0b", opacity: 0.7 }}
+                  >
+                    {match.goals_against}
+                  </span>
+                </div>
+                <p className="text-xs font-bold uppercase tracking-widest mt-1" style={{ color: resultColor }}>
+                  {won ? "Victoria" : lost ? "Derrota" : "Empate"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-2xl font-black opacity-20">vs {match?.opponent}</p>
+            )}
+
+            {/* Team totals row */}
+            <div className="flex items-center gap-5">
+              <StatBadge value={totals.goals} label="Goles" color="var(--neon)" />
+              <StatBadge value={totals.assists} label="Asist." />
+              <StatBadge value={totals.shots} label="Tiros" />
+              <StatBadge value={totals.yellows} label="TA" color="#f59e0b" />
+              <StatBadge value={totals.reds} label="TR" color="#ff3b30" />
+            </div>
+          </div>
+        </GlowCard>
+      </motion.div>
+
+      {/* ── Add stat button ── */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>
+          Estadísticas individuales
+          <span className="ml-2 text-xs font-normal opacity-40">({(stats as any[]).length} jugadores)</span>
+        </h2>
+        <motion.button
+          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+          style={{ background: "var(--neon)", color: "#000", boxShadow: "0 0 16px rgba(0,255,135,0.35)" }}
+        >
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">Agregar estadística</span>
+          <span className="sm:hidden">Agregar</span>
+        </motion.button>
+      </div>
+
+      {/* ── Form ── */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+          >
+            <GlowCard className="p-5 rounded-2xl space-y-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold">Nueva estadística</p>
+                <button onClick={() => setShowForm(false)}>
+                  <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                </button>
+              </div>
+
+              {/* Player + base */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Jugador *</label>
+                  <select value={form.player_id} onChange={set("player_id")} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="">Seleccionar...</option>
+                    {availablePlayers.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.first_name} {p.last_name} {p.jersey_number ? `#${p.jersey_number}` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Minutos</label>
+                  <input type="number" min={0} max={120} value={form.minutes_played} onChange={set("minutes_played")} className={inputCls} style={inputStyle} />
+                </div>
+                <div>
+                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Titular</label>
+                  <select value={form.started ? "true" : "false"} onChange={e => setForm(f => ({ ...f, started: e.target.value === "true" }))} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Ofensivo */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(0,255,135,0.6)" }}>Ataque</p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                  {[
+                    { label: "Goles", k: "goals" },
+                    { label: "Asistencias", k: "assists" },
+                    { label: "Tiros tot.", k: "shots_total" },
+                    { label: "Tiros al arco", k: "shots_on_target" },
+                    { label: "Pases clave", k: "key_passes" },
+                    { label: "Rating", k: "rating" },
+                  ].map(({ label, k }) => (
+                    <div key={k}>
+                      <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
+                      <input type="number" min={0} step={k === "rating" ? "0.1" : "1"} max={k === "rating" ? "10" : undefined} value={(form as any)[k]} onChange={set(k as keyof StatForm)} className={inputCls} style={inputStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pases */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(14,165,233,0.7)" }}>Pases</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Pases tot.", k: "passes_total" },
+                    { label: "Pases ok", k: "passes_completed" },
+                    { label: "Duelos tot.", k: "duels_total" },
+                    { label: "Duelos ganados", k: "duels_won" },
+                  ].map(({ label, k }) => (
+                    <div key={k}>
+                      <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
+                      <input type="number" min={0} value={(form as any)[k]} onChange={set(k as keyof StatForm)} className={inputCls} style={inputStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Defensivo */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(249,115,22,0.7)" }}>Defensa & Disciplina</p>
+                <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
+                  {[
+                    { label: "Entradas", k: "tackles" },
+                    { label: "Intercepciones", k: "interceptions" },
+                    { label: "Despejes", k: "clearances" },
+                    { label: "Faltas com.", k: "fouls_committed" },
+                    { label: "Faltas rec.", k: "fouls_received" },
+                    { label: "T. Amarilla", k: "yellow_cards" },
+                    { label: "T. Roja", k: "red_cards" },
+                  ].map(({ label, k }) => (
+                    <div key={k}>
+                      <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
+                      <input type="number" min={0} value={(form as any)[k]} onChange={set(k as keyof StatForm)} className={inputCls} style={inputStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* GPS Toggle */}
+              <button
+                onClick={() => setShowGps(v => !v)}
+                className="flex items-center gap-2 text-xs font-semibold transition-colors"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {showGps ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                Datos GPS (opcional)
+              </button>
+
+              {showGps && (
+                <div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "Dist. total (m)", k: "total_distance_m" },
+                      { label: "Dist. alta int. (m)", k: "high_intensity_distance_m" },
+                      { label: "Dist. sprint (m)", k: "sprint_distance_m" },
+                      { label: "Vel. máx (km/h)", k: "max_speed_kmh" },
+                      { label: "Sprints (#)", k: "sprints_count" },
+                      { label: "Aceleraciones (#)", k: "accelerations_count" },
+                    ].map(({ label, k }) => (
+                      <div key={k}>
+                        <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
+                        <input type="number" min={0} step="0.1" value={(form as any)[k]} onChange={set(k as keyof StatForm)} placeholder="—" className={inputCls} style={inputStyle} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Notas</label>
+                <textarea value={form.notes} onChange={set("notes")} rows={2} placeholder="Observaciones..." className={`${inputCls} resize-none`} style={inputStyle} />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button onClick={() => { setShowForm(false); setForm(EMPTY_STAT); }} className="px-4 py-2 rounded-xl text-sm" style={{ color: "var(--text-muted)" }}>
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => addStatMutation.mutate()}
+                  disabled={!form.player_id || addStatMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
+                  style={{ background: "var(--neon)", color: "#000" }}
+                >
+                  {addStatMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Guardar
+                </button>
+              </div>
+            </GlowCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Stats table ── */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <GlowCard className="rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Jugador", "Min", "Goles", "Asist.", "Tiros", "Pases%", "Entradas", "TA/TR", "Rating"].map(h => (
+                    <th
+                      key={h}
+                      className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loadingStats ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                      Cargando estadísticas...
+                    </td>
+                  </tr>
+                ) : !(stats as any[]).length ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-14 text-center">
+                      <div
+                        className="inline-flex p-4 rounded-2xl mb-3"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}
+                      >
+                        <Trophy className="w-6 h-6 opacity-20" style={{ color: "var(--neon)" }} />
+                      </div>
+                      <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Sin estadísticas registradas</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Usa el botón "Agregar estadística" para registrar el rendimiento de cada jugador</p>
+                    </td>
+                  </tr>
+                ) : (
+                  (stats as any[]).map((s: any, i: number) => {
+                    const player = (players as any[]).find((p: any) => p.id === s.player_id);
+                    const name = player ? `${player.first_name} ${player.last_name}` : `Jugador #${s.player_id}`;
+                    const passAcc = s.passes_total > 0
+                      ? `${Math.round((s.passes_completed / s.passes_total) * 100)}%`
+                      : "—";
+                    return (
+                      <motion.tr
+                        key={s.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.02 }}
+                        className="transition-colors"
+                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <td className="px-4 py-3">
+                          <Link href={`/players/${s.player_id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
+                            {name}
+                          </Link>
+                          {s.started && (
+                            <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,255,135,0.1)", color: "var(--neon)" }}>
+                              TIT
+                            </span>
+                          )}
+                          {player?.jersey_number && (
+                            <span className="ml-1 text-[9px] opacity-40">#{player.jersey_number}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>{s.minutes_played}'</td>
+                        <td className="px-4 py-3 font-bold tabular-nums" style={{ color: s.goals > 0 ? "var(--neon)" : "var(--text-muted)" }}>
+                          {s.goals ?? 0}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: s.assists > 0 ? "#a78bfa" : "var(--text-muted)" }}>
+                          {s.assists ?? 0}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {s.shots_on_target ?? 0}/{s.shots_total ?? 0}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-xs" style={{ color: "var(--text-secondary)" }}>
+                          {passAcc}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {s.tackles ?? 0}
+                        </td>
+                        <td className="px-4 py-3">
+                          {(s.yellow_cards > 0 || s.red_cards > 0) ? (
+                            <div className="flex gap-1">
+                              {Array.from({ length: s.yellow_cards ?? 0 }).map((_,i) => (
+                                <span key={i} className="w-2.5 h-3.5 rounded-[2px] inline-block" style={{ background: "#f59e0b" }} />
+                              ))}
+                              {Array.from({ length: s.red_cards ?? 0 }).map((_,i) => (
+                                <span key={i} className="w-2.5 h-3.5 rounded-[2px] inline-block" style={{ background: "#ff3b30" }} />
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs opacity-20">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <RatingDot rating={s.rating} />
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </GlowCard>
+      </motion.div>
+
+      {/* ── GPS section (if any player has GPS data) ── */}
+      {(stats as any[]).some((s: any) => s.total_distance_m) && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: "var(--text-secondary)" }}>
+            Datos GPS
+          </h3>
+          <GlowCard className="rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    {["Jugador", "Dist. total", "Alta int.", "Sprint", "Vel. máx", "Sprints #"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(stats as any[]).filter((s: any) => s.total_distance_m).map((s: any, i) => {
+                    const player = (players as any[]).find((p: any) => p.id === s.player_id);
+                    const name = player ? `${player.first_name} ${player.last_name}` : `#${s.player_id}`;
+                    return (
+                      <tr
+                        key={s.id}
+                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>{name}</td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--neon)" }}>
+                          {s.total_distance_m ? `${(s.total_distance_m / 1000).toFixed(2)} km` : "—"}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                          {s.high_intensity_distance_m ? `${s.high_intensity_distance_m.toFixed(0)} m` : "—"}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                          {s.sprint_distance_m ? `${s.sprint_distance_m.toFixed(0)} m` : "—"}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "#f97316" }}>
+                          {s.max_speed_kmh ? `${s.max_speed_kmh.toFixed(1)} km/h` : "—"}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {s.sprints_count ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </GlowCard>
+        </motion.div>
+      )}
+    </div>
+  );
+}
