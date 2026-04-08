@@ -95,6 +95,8 @@ export const matchesApi = {
 export const trainingApi = {
   getByPlayer: (playerId: number, params?: { start_date?: string; end_date?: string }) =>
     api.get(`/training/player/${playerId}`, { params }).then((r) => r.data),
+  getTeam: (params?: { start_date?: string; end_date?: string }) =>
+    api.get("/training/team", { params }).then((r) => r.data),
   create: (data: unknown) => api.post("/training", data).then((r) => r.data),
 };
 

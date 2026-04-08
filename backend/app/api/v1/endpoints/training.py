@@ -53,6 +53,22 @@ def get_player_sessions(
     return q.order_by(TrainingSession.session_date.desc()).all()
 
 
+@router.get("/team", response_model=List[TrainingSessionOut])
+def get_team_sessions(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """All sessions in a date range — for calendar view."""
+    q = db.query(TrainingSession)
+    if start_date:
+        q = q.filter(TrainingSession.session_date >= start_date)
+    if end_date:
+        q = q.filter(TrainingSession.session_date <= end_date)
+    return q.order_by(TrainingSession.session_date.desc()).all()
+
+
 @router.post("/", response_model=TrainingSessionOut, status_code=status.HTTP_201_CREATED)
 def create_session(
     data: TrainingSessionCreate,
