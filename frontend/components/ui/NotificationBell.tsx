@@ -197,7 +197,7 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                         <Link
                           href={`/players/${n.player_id}`}
                           onClick={() => {
-                            setRead((prev) => new Set([...prev, n.id]));
+                            setRead((prev) => new Set(Array.from(prev).concat(n.id)));
                             setOpen(false);
                           }}
                         >
