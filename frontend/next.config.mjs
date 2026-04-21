@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  // standalone only for Docker/Railway — Vercel handles deployment internally
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   transpilePackages: ["@react-pdf/renderer"],
   images: {
     remotePatterns: [
