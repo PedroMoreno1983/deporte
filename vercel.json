@@ -1,0 +1,9 @@
+{
+  "framework": "nextjs",
+  "rootDirectory": "frontend",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://bubbly-eagerness-production-3e84.up.railway.app/api/v1"
+  }
+}
