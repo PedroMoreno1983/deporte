@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: var(--surface-base); display: flex; gap: 12px; }
+.player-card {
+  width: 140px; position: relative; border-radius: 16px; overflow: hidden; cursor: pointer;
+  padding: 16px 14px 14px; background: rgba(8,15,32,0.85);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.player-card:hover { transform: translateY(-3px) scale(1.02); }
+.top-edge { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.border-frame { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; }
+.watermark { position: absolute; right: -8px; bottom: -12px; font-family: var(--font-mono); font-weight: 900; font-size: 90px; line-height: 1; letter-spacing: -0.06em; opacity: 0.10; pointer-events: none; }
+.pos-badge { display: inline-block; font-size: 9px; font-weight: 900; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 5px; margin-bottom: 10px; }
+.avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 15px; font-weight: 900; margin-bottom: 10px; }
+.status-badge { position: absolute; top: 10px; right: 10px; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border-width: 1px; border-style: solid; }
+.fname { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.2; }
+.lname { font-size: 13px; font-weight: 900; color: #fff; line-height: 1.2; letter-spacing: -0.01em; }
+.pos-label { font-size: 11px; color: rgba(148,163,184,0.7); margin-top: 5px; }
+.dorsal { font-family: var(--font-mono); font-size: 11px; font-weight: 700; opacity: 0.6; }
+</style>
+</head><body>
+
+<!-- MID card -->
+<div class="player-card">
+  <div class="top-edge" style="background:linear-gradient(90deg,transparent 5%,#00ff87 30%,#00ff87 70%,transparent 95%);box-shadow:0 0 12px rgba(0,255,135,0.5)"></div>
+  <div class="border-frame" style="border:1px solid rgba(0,255,135,0.32)"></div>
+  <div class="watermark" style="color:#00ff87">8</div>
+  <div class="status-badge" style="color:#00ff87;background:rgba(0,255,135,0.14);border-color:rgba(0,255,135,0.3)">● Disponible</div>
+  <div class="pos-badge" style="color:#00ff87;background:rgba(0,255,135,0.18);border:1px solid rgba(0,255,135,0.4)">MED</div>
+  <div class="avatar" style="background:rgba(8,15,32,0.85);border:2px solid rgba(0,255,135,0.7);color:#00ff87;box-shadow:0 0 20px rgba(0,255,135,0.3)">CA</div>
+  <div><span class="dorsal" style="color:#00ff87">#8</span></div>
+  <div class="fname">Carlos</div>
+  <div class="lname">Andrés</div>
+  <div class="pos-label">MC Of.</div>
+</div>
+
+<!-- ATK card -->
+<div class="player-card">
+  <div class="top-edge" style="background:linear-gradient(90deg,transparent 5%,#ff3b30 30%,#ff3b30 70%,transparent 95%);box-shadow:0 0 12px rgba(255,59,48,0.5)"></div>
+  <div class="border-frame" style="border:1px solid rgba(255,59,48,0.35)"></div>
+  <div class="watermark" style="color:#ff3b30">9</div>
+  <div class="status-badge" style="color:#ff3b30;background:rgba(255,59,48,0.14);border-color:rgba(255,59,48,0.3)">● Lesionado</div>
+  <div class="pos-badge" style="color:#ff3b30;background:rgba(255,59,48,0.18);border:1px solid rgba(255,59,48,0.4)">DEL</div>
+  <div class="avatar" style="background:rgba(8,15,32,0.85);border:2px solid rgba(255,59,48,0.7);color:#ff3b30;box-shadow:0 0 20px rgba(255,59,48,0.3)">LM</div>
+  <div><span class="dorsal" style="color:#ff3b30">#9</span></div>
+  <div class="fname">Luis</div>
+  <div class="lname">Mendoza</div>
+  <div class="pos-label">Delantero</div>
+</div>
+
+<!-- DEF card -->
+<div class="player-card">
+  <div class="top-edge" style="background:linear-gradient(90deg,transparent 5%,#0ea5e9 30%,#0ea5e9 70%,transparent 95%);box-shadow:0 0 12px rgba(14,165,233,0.5)"></div>
+  <div class="border-frame" style="border:1px solid rgba(14,165,233,0.35)"></div>
+  <div class="watermark" style="color:#0ea5e9">4</div>
+  <div class="status-badge" style="color:#00ff87;background:rgba(0,255,135,0.14);border-color:rgba(0,255,135,0.3)">● Disponible</div>
+  <div class="pos-badge" style="color:#0ea5e9;background:rgba(14,165,233,0.18);border:1px solid rgba(14,165,233,0.4)">DEF</div>
+  <div class="avatar" style="background:rgba(8,15,32,0.85);border:2px solid rgba(14,165,233,0.7);color:#0ea5e9;box-shadow:0 0 20px rgba(14,165,233,0.3)">JR</div>
+  <div><span class="dorsal" style="color:#0ea5e9">#4</span></div>
+  <div class="fname">Jorge</div>
+  <div class="lname">Ramírez</div>
+  <div class="pos-label">Def. Central</div>
+</div>
+
+<!-- GK card -->
+<div class="player-card">
+  <div class="top-edge" style="background:linear-gradient(90deg,transparent 5%,#f59e0b 30%,#f59e0b 70%,transparent 95%);box-shadow:0 0 12px rgba(245,158,11,0.5)"></div>
+  <div class="border-frame" style="border:1px solid rgba(245,158,11,0.35)"></div>
+  <div class="watermark" style="color:#f59e0b">1</div>
+  <div class="status-badge" style="color:#00ff87;background:rgba(0,255,135,0.14);border-color:rgba(0,255,135,0.3)">● Disponible</div>
+  <div class="pos-badge" style="color:#f59e0b;background:rgba(245,158,11,0.18);border:1px solid rgba(245,158,11,0.4)">POR</div>
+  <div class="avatar" style="background:rgba(8,15,32,0.85);border:2px solid rgba(245,158,11,0.7);color:#f59e0b;box-shadow:0 0 20px rgba(245,158,11,0.3)">PG</div>
+  <div><span class="dorsal" style="color:#f59e0b">#1</span></div>
+  <div class="fname">Pedro</div>
+  <div class="lname">García</div>
+  <div class="pos-label">Portero</div>
+</div>
+</body></html>

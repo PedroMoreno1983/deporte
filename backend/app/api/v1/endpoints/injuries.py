@@ -12,18 +12,20 @@ router = APIRouter()
 
 
 @router.get("/player/{player_id}", response_model=List[InjuryOut])
-def get_player_injuries(player_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_player_injuries(player_id: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db), _=Depends(get_current_user)):
     return (
         db.query(Injury)
         .filter(Injury.player_id == player_id)
         .order_by(Injury.injury_date.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
 
 @router.get("/active", response_model=List[InjuryOut])
-def get_active_injuries(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(Injury).filter(Injury.is_recovered == False).order_by(Injury.injury_date.desc()).all()
+def get_active_injuries(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    return db.query(Injury).filter(Injury.is_recovered == False).order_by(Injury.injury_date.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/", response_model=InjuryOut, status_code=status.HTTP_201_CREATED)

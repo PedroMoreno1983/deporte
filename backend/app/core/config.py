@@ -5,7 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./deporte.db"
     REDIS_URL: str = "redis://localhost:6379"
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

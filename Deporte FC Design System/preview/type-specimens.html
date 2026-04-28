@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px 20px; background: var(--surface-base); display: flex; flex-direction: column; gap: 12px; }
+.block { display: flex; flex-direction: column; gap: 2px; }
+.tag { font-size: 9px; font-family: var(--font-mono); color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.gradient-text { background: linear-gradient(135deg,#00ff87,#0ea5e9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size:32px; font-weight:900; letter-spacing:-0.04em; line-height:1; }
+.mono-num { font-family: var(--font-mono); font-size:40px; font-weight:700; letter-spacing:-0.04em; color:#00ff87; font-variant-numeric:tabular-nums; line-height:1; }
+.inter-body { font-family: var(--font-sans); font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.divider { height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent); }
+</style>
+</head><body>
+<div class="block"><div class="tag">Gradient Display — Inter Black</div><div class="gradient-text">DEPORTE FC</div></div>
+<div class="divider"></div>
+<div class="block"><div class="tag">Display Number — JetBrains Mono</div><div class="mono-num">87.4%</div></div>
+<div class="divider"></div>
+<div class="block"><div class="tag">Body — Inter Regular</div><div class="inter-body">Plataforma de gestión deportiva para equipos profesionales de fútbol. Monitoreo en tiempo real de jugadores, lesiones y rendimiento.</div></div>
+</body></html>

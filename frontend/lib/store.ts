@@ -18,6 +18,15 @@ interface AuthStore {
   isAuthenticated: () => boolean;
 }
 
+function setCookie(name: string, value: string, days = 7) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -27,11 +36,15 @@ export const useAuthStore = create<AuthStore>()(
       setAuth: (user, accessToken, refreshToken) => {
         localStorage.setItem("access_token", accessToken);
         localStorage.setItem("refresh_token", refreshToken);
+        setCookie("access_token", accessToken);
+        setCookie("refresh_token", refreshToken);
         set({ user, accessToken, refreshToken });
       },
       logout: () => {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
+        deleteCookie("access_token");
+        deleteCookie("refresh_token");
         set({ user: null, accessToken: null, refreshToken: null });
       },
       isAuthenticated: () => !!get().accessToken,

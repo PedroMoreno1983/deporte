@@ -5,13 +5,13 @@ from typing import Any, Optional, List
 from datetime import date, timedelta
 import json
 
-from ....database import get_db
-from ....core.deps import get_current_user
-from ....core.config import settings
-from ....models.player import Player
-from ....models.injury import Injury
-from ....models.wellness import WellnessEntry
-from ....models.match import Match
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.core.config import settings
+from app.models.player import Player
+from app.models.injury import Injury
+from app.models.wellness import WellnessEntry
+from app.models.match import Match
 
 router = APIRouter()
 
@@ -88,16 +88,16 @@ def _build_team_context(db: Session) -> dict:
     # Últimos 5 partidos
     recent_matches = (
         db.query(Match)
-        .order_by(Match.match_date.desc())
+        .order_by(Match.date.desc())
         .limit(5)
         .all()
     )
     match_list = [
         {
-            "date": str(m.match_date),
+            "date": str(m.date),
             "opponent": m.opponent,
-            "score": f"{m.goals_scored}-{m.goals_conceded}",
-            "result": "V" if m.goals_scored > m.goals_conceded else ("E" if m.goals_scored == m.goals_conceded else "D"),
+            "score": f"{m.goals_for}-{m.goals_against}",
+            "result": "V" if m.goals_for > m.goals_against else ("E" if m.goals_for == m.goals_against else "D"),
         }
         for m in recent_matches
     ]

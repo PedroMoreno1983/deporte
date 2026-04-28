@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: var(--surface-base); display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.row { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }
+.item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border-subtle); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.label { font-family: var(--font-sans); font-size: 11px; font-weight: 600; }
+.desc { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+.section-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; width: 100%; margin-top: 4px; }
+</style>
+</head><body>
+<div class="section-label">Text</div>
+<div class="row">
+  <div class="item"><div class="dot" style="background:#f1f5f9"></div><span class="label" style="color:#f1f5f9">Primary</span><span class="desc">f1f5f9</span></div>
+  <div class="item"><div class="dot" style="background:#94a3b8"></div><span class="label" style="color:#94a3b8">Secondary</span><span class="desc">94a3b8</span></div>
+  <div class="item"><div class="dot" style="background:#64748b"></div><span class="label" style="color:#64748b">Muted</span><span class="desc">64748b</span></div>
+</div>
+<div class="section-label">Positions</div>
+<div class="row">
+  <div class="item"><div class="dot" style="background:#f59e0b"></div><span class="label" style="color:#f59e0b">GK — Portero</span></div>
+  <div class="item"><div class="dot" style="background:#0ea5e9"></div><span class="label" style="color:#0ea5e9">DEF — Defensa</span></div>
+  <div class="item"><div class="dot" style="background:#00ff87"></div><span class="label" style="color:#00ff87">MED — Mediocampista</span></div>
+  <div class="item"><div class="dot" style="background:#ff3b30"></div><span class="label" style="color:#ff3b30">DEL — Delantero</span></div>
+</div>
+<div class="section-label">Risk</div>
+<div class="row">
+  <div class="item badge-low badge"><span>● Bajo</span></div>
+  <div class="item badge-medium badge"><span>● Moderado</span></div>
+  <div class="item badge-high badge"><span>● Alto</span></div>
+  <div class="item badge-critical badge"><span>● Crítico</span></div>
+</div>
+</body></html>

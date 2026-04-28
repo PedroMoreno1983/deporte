@@ -6,3 +6,4 @@ from .injury import InjuryCreate, InjuryUpdate, InjuryOut
 from .match import MatchCreate, MatchOut, MatchStatCreate, MatchStatOut
 from .training import TrainingSessionCreate, TrainingSessionOut
 from .prediction import PredictionScoreOut
+from .wellness import WellnessCreate, WellnessOut, WellnessTeamSummary, WellnessTeamEntry

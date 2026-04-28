@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 import base64
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
@@ -16,6 +16,8 @@ def list_players(
     category_id: Optional[int] = None,
     status: Optional[PlayerStatus] = None,
     search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
@@ -28,7 +30,7 @@ def list_players(
         q = q.filter(
             (Player.first_name.ilike(f"%{search}%")) | (Player.last_name.ilike(f"%{search}%"))
         )
-    return q.order_by(Player.last_name).all()
+    return q.order_by(Player.last_name).offset(skip).limit(limit).all()
 
 
 @router.get("/{player_id}", response_model=PlayerOut)
