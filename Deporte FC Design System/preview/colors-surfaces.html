@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #010410; display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.swatch { display: flex; flex-direction: column; gap: 4px; }
+.color-box { width: 90px; height: 56px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: flex-end; padding: 6px; }
+.name { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+.hex  { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); font-weight: 600; }
+.layer { font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.25); }
+</style>
+</head><body>
+<div class="swatch"><div class="color-box" style="background:#020817"><span class="layer">base</span></div><div class="name">surface-base</div><div class="hex">#020817</div></div>
+<div class="swatch"><div class="color-box" style="background:#080f20"><span class="layer">1</span></div><div class="name">surface-1</div><div class="hex">#080f20</div></div>
+<div class="swatch"><div class="color-box" style="background:#0d1528"><span class="layer">2</span></div><div class="name">surface-2</div><div class="hex">#0d1528</div></div>
+<div class="swatch"><div class="color-box" style="background:#162032"><span class="layer">3</span></div><div class="name">surface-3</div><div class="hex">#162032</div></div>
+<div class="swatch"><div class="color-box" style="background:#1e2d40"><span class="layer">4</span></div><div class="name">surface-4</div><div class="hex">#1e2d40</div></div>
+<div class="swatch"><div class="color-box" style="background:rgba(255,255,255,0.08)"><span class="layer">border</span></div><div class="name">border-subtle</div><div class="hex">rgba 8%</div></div>
+<div class="swatch"><div class="color-box" style="background:rgba(255,255,255,0.14)"><span class="layer">border</span></div><div class="name">border-medium</div><div class="hex">rgba 14%</div></div>
+</body></html>

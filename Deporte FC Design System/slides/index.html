@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Deporte FC — Temporada 2025/26</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="../deck-stage.js"></script>
+<style>
+:root {
+  --neon: #00ff87; --sky: #0ea5e9; --danger: #ff3b30; --warning: #f59e0b; --purple: #a855f7;
+  --s0: #020817; --s1: #080f20; --s2: #0d1528; --s3: #162032;
+  --t1: #f1f5f9; --t2: #94a3b8; --t3: #64748b;
+  --font: "Inter", sans-serif; --mono: "JetBrains Mono", monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { color-scheme: dark; }
+body { background: #000; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+section {
+  background: var(--s0);
+  color: var(--t1);
+  font-family: var(--font);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Ambient background shared */
+.amb {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 10% 40%, rgba(0,255,135,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 50% at 90% 15%, rgba(14,165,233,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 55% at 55% 90%, rgba(168,85,247,0.04) 0%, transparent 50%);
+}
+.grid-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.neon-line-top {
+  position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon), transparent);
+  opacity: 0.5;
+}
+
+/* Shared layout */
+.slide-inner {
+  position: relative; z-index: 2;
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  padding: 80px 100px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--neon); background: rgba(0,255,135,0.1); border: 1px solid rgba(0,255,135,0.3);
+  padding: 6px 16px; border-radius: 999px; width: fit-content;
+}
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+.kicker {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--t3); margin-bottom: 20px;
+}
+.display {
+  font-size: 80px; font-weight: 900; letter-spacing: -0.04em; line-height: 0.92;
+  color: var(--t1); font-feature-settings: "ss01" 1;
+}
+.display .accent { color: var(--neon); }
+.subtitle { font-size: 22px; font-weight: 400; color: var(--t2); margin-top: 24px; line-height: 1.5; }
+.card {
+  background: rgba(8,15,32,0.8); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px; padding: 28px 32px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+}
+.card-accent { position: absolute; top: 0; left: 10%; right: 10%; height: 1px; }
+.label { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t3); }
+.stat { font-family: var(--mono); font-size: 52px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; }
+.bar-bg { height: 8px; border-radius: 8px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 8px; transition: width 0.8s cubic-bezier(0.34,1.2,0.64,1); }
+.divider-h { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); }
+
+/* Slide-number chip */
+.slide-num {
+  position: absolute; top: 48px; right: 100px;
+  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--t3);
+  z-index: 3;
+}
+
+/* Logo lockup */
+.logo {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(0,255,135,0.2), rgba(0,255,135,0.07));
+  border: 1px solid rgba(0,255,135,0.4);
+  box-shadow: 0 0 24px rgba(0,255,135,0.25);
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-text { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+
+/* Gradient text */
+.g-text {
+  background: linear-gradient(135deg, var(--neon) 0%, var(--sky) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* Section header decorative line */
+.section-stripe {
+  width: 48px; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--neon), transparent);
+  margin-bottom: 16px;
+}
+</style>
+</head>
+<body>
+<deck-stage width="1920" height="1080">
+
+<!-- ═══ 01 TITLE ═════════════════════════════════════════ -->
+<section data-label="Title">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <!-- Large decorative number background -->
+  <div style="position:absolute;right:-40px;bottom:-120px;font-family:var(--mono);font-size:480px;font-weight:900;color:rgba(0,255,135,0.035);line-height:1;pointer-events:none;user-select:none;z-index:1">FC</div>
+
+  <div class="slide-inner" style="justify-content:center;">
+    <div class="logo" style="margin-bottom:60px;">
+      <div class="logo-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00ff87" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="logo-text"><span style="color:#fff">DEPORTE</span><span style="color:var(--neon)"> FC</span></div>
+    </div>
+
+    <div class="kicker">Informe ejecutivo de temporada</div>
+    <div class="display">Temporada<br><span class="accent">2025/26</span></div>
+    <div class="subtitle" style="max-width:680px;">Rendimiento, disponibilidad, análisis de riesgo<br>y proyecciones del plantel profesional.</div>
+
+    <div style="margin-top:64px;display:flex;gap:32px;align-items:center;">
+      <div class="chip"><div class="chip-dot"></div>Liga Nacional · Jornada 22</div>
+      <div style="font-size:14px;color:var(--t3);">Preparado por Cuerpo Técnico · Abril 2025</div>
+    </div>
+  </div>
+
+  <!-- Bottom neon line -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,135,0.4),transparent);"></div>
+</section>
+
+<!-- ═══ 02 RESUMEN EJECUTIVO ═══════════════════════════════ -->
+<section data-label="Resumen Ejecutivo">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <div class="neon-line-top"></div>
+  <div class="slide-num">02 / 08</div>
+
+  <div class="slide-inner">
+    <div class="kicker">Visión general</div>
+    <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:16px;">Resumen Ejecutivo</div>
+    <div class="divider-h" style="margin-bottom:48px;"></div>
+
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:20px;flex:1;align-items:stretch;">
+      {[
+        {label:"Jugadores",value:"26",sub:"Total plantel",c:"#00ff87"},
+        {label:"Disponibilidad",value:"87%",sub:"Promedio temporada",c:"#0ea5e9"},
+        {label:"Victorias",value:"14",sub:"de 22 partidos",c:"#00ff87"},
+        {label:"Goles a favor",value:"38",sub:"Media 1.7/partido",c:"#a855f7"},
+        {label:"Posición Liga",value:"1°",sub:"Líder con 46 pts",c:"#f59e0b"},
+      ].map((k,i) => `
+        <div class="card" style="position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;">
+          <div class="card-accent" style="background:linear-gradient(90deg,transparent,${k.c},transparent);opacity:0.7;"></div>
+          <div class="label">${k.label}</div>
+          <div class="stat" style="color:${k.c};">${k.value}</div>
+          <div style="font-size:14px;color:var(--t3);">${k.sub}</div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="divider-h" style="margin:40px 0 32px;"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;">
+      {[
+        {title:"Mejor rendimiento",desc:"Diego Herrera · Rating 88 · 10 goles asistidos"},
+        {title:"Mayor disponibilidad",desc:"Pedro García · 100% de presencias · Portero titular"},
+        {title:"Recuperación destacada",desc:"Ricardo Soto · Alta médica en tiempo récord (12 días)"},
+      ].map(i=>`
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="width:3px;height:42px;border-radius:3px;background:var(--neon);flex-shrink:0;margin-top:3px;"></div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:5px;">${i.title}</div>
+            <div style="font-size:13px;color:var(--t2);">${i.desc}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 03 DISPONIBILIDAD ══════════════════════════════════ -->
+<section data-label="Disponibilidad del Plantel">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <div class="neon-line-top"></div>
+  <div class="slide-num">03 / 08</div>
+
+  <div class="slide-inner" style="flex-direction:row;gap:80px;align-items:center;">
+    <div style="flex:1;">
+      <div class="section-stripe"></div>
+      <div class="kicker">Gestión del plantel</div>
+      <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:24px;line-height:1.05;">Disponibilidad<br>del Plantel</div>
+      <div style="font-size:18px;color:var(--t2);line-height:1.6;margin-bottom:40px;">El equipo mantiene una disponibilidad media del <span style="color:var(--neon);font-weight:700;">87%</span> durante la temporada, por encima de la media de la liga (<span style="color:var(--t2)">81%</span>).</div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        {[
+          {pos:"Porteros",avail:2,total:2,c:"#f59e0b"},
+          {pos:"Defensas",avail:6,total:8,c:"#0ea5e9"},
+          {pos:"Mediocampistas",avail:8,total:10,c:"#00ff87"},
+          {pos:"Delanteros",avail:5,total:6,c:"#ff3b30"},
+        ].map(p=>`
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:15px;color:var(--t1);font-weight:500;">${p.pos}</span>
+              <span style="font-family:var(--mono);font-size:15px;color:${p.c};font-weight:700;">${p.avail}/${p.total}</span>
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width:${(p.avail/p.total)*100}%;background:${p.c};box-shadow:0 0 12px ${p.c}60;"></div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <!-- Big stat -->
+    <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:32px;">
+      <div style="text-align:center;padding:48px 56px;border-radius:24px;background:rgba(8,15,32,0.8);border:1px solid rgba(0,255,135,0.25);box-shadow:0 0 60px rgba(0,255,135,0.1),0 8px 48px rgba(0,0,0,0.5);">
+        <div style="font-size:14px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--t3);margin-bottom:20px;">Disponibilidad</div>
+        <div style="font-family:var(--mono);font-size:96px;font-weight:700;letter-spacing:-0.06em;color:var(--neon);line-height:1;text-shadow:0 0 40px rgba(0,255,135,0.5);">87%</div>
+        <div style="font-size:15px;color:var(--t3);margin-top:14px;">21 de 26 jugadores</div>
+        <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,135,0.3),transparent);margin:20px 0;"></div>
+        <div style="font-size:14px;color:var(--t2);">Objetivo temporada: <span style="color:var(--neon);font-weight:700;">90%</span></div>
+      </div>
+      <div style="display:flex;gap:16px;">
+        {[{label:"Lesionados",val:4,c:"#ff3b30"},{label:"Suspendidos",val:1,c:"#f59e0b"}].map(s=>`
+          <div style="text-align:center;padding:16px 24px;border-radius:12px;background:rgba(8,15,32,0.8);border:1px solid ${s.c}30;">
+            <div style="font-family:var(--mono);font-size:32px;font-weight:700;color:${s.c};">${s.val}</div>
+            <div style="font-size:12px;color:var(--t3);margin-top:4px;">${s.label}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 04 LESIONES ════════════════════════════════════════ -->
+<section data-label="Análisis de Lesiones">
+  <div class="amb" style="background:radial-gradient(ellipse 70% 55% at 15% 40%,rgba(255,59,48,0.06) 0%,transparent 60%),radial-gradient(ellipse 55% 50% at 85% 20%,rgba(245,158,11,0.05) 0%,transparent 55%);"></div>
+  <div class="grid-bg"></div>
+  <div class="neon-line-top" style="background:linear-gradient(90deg,transparent,rgba(255,59,48,0.5),transparent);"></div>
+  <div class="slide-num">04 / 08</div>
+
+  <div class="slide-inner">
+    <div class="kicker">Área médica y kinesiología</div>
+    <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:40px;">Análisis de Lesiones</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;">
+      <!-- Table -->
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--t3);margin-bottom:16px;">Lesiones activas</div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:16px;padding:14px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);">
+            ${["Jugador","Diagnóstico","Días"].map(h=>`<span style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--t3);">${h}</span>`).join("")}
+          </div>
+          ${[
+            {p:"Luis Mendoza",   type:"Distensión isquiotibial",d:21,c:"#ff3b30"},
+            {p:"Manuel Torres",  type:"Esguince tobillo",        d:7, c:"#f97316"},
+            {p:"Diego Herrera",  type:"Sobrecarga muscular",     d:3, c:"#f59e0b"},
+            {p:"Ricardo Soto",   type:"Contusión rodilla",       d:2, c:"#f59e0b"},
+          ].map(r=>`
+            <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);">
+              <span style="font-size:14px;font-weight:600;color:var(--t1);">${r.p}</span>
+              <span style="font-size:13px;color:var(--t2);">${r.type}</span>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${r.c};">${r.d}d</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <!-- Stats column -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--t3);margin-bottom:0px;">Estadísticas médicas</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          ${[
+            {label:"Lesiones totales",val:"11",sub:"esta temporada",c:"#ff3b30"},
+            {label:"Días promedio baja",val:"14d",sub:"por lesión",c:"#f59e0b"},
+            {label:"Recaídas",val:"2",sub:"0.2% del plantel",c:"#f97316"},
+            {label:"Alta médica",val:"7",sub:"jugadores curados",c:"#00ff87"},
+          ].map(k=>`
+            <div class="card" style="position:relative;overflow:hidden;">
+              <div style="position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,${k.c},transparent);opacity:0.7;"></div>
+              <div class="label" style="margin-bottom:10px;">${k.label}</div>
+              <div style="font-family:var(--mono);font-size:36px;font-weight:700;color:${k.c};letter-spacing:-0.04em;line-height:1;">${k.val}</div>
+              <div style="font-size:13px;color:var(--t3);margin-top:6px;">${k.sub}</div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="card">
+          <div class="label" style="margin-bottom:14px;">Lesiones por zona muscular</div>
+          ${[
+            {zone:"Isquiotibiales",n:4,c:"#ff3b30"},
+            {zone:"Tobillo / ligamentos",n:3,c:"#f97316"},
+            {zone:"Rodilla",n:2,c:"#f59e0b"},
+            {zone:"Muslo / cuádriceps",n:2,c:"#f59e0b"},
+          ].map(z=>`
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+              <span style="font-size:13px;color:var(--t2);width:200px;">${z.zone}</span>
+              <div style="flex:1;height:6px;border-radius:6px;background:rgba(255,255,255,0.06);">
+                <div style="width:${(z.n/4)*100}%;height:100%;border-radius:6px;background:${z.c};"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:13px;color:${z.c};font-weight:700;width:20px;">${z.n}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 05 RENDIMIENTO EN LIGA ═════════════════════════════ -->
+<section data-label="Rendimiento en Liga">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <div class="neon-line-top"></div>
+  <div class="slide-num">05 / 08</div>
+
+  <div class="slide-inner">
+    <div class="kicker">Liga Nacional 2025/26</div>
+    <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:40px;">Rendimiento en Liga</div>
+
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:40px;flex:1;">
+      <!-- Tabla -->
+      <div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:36px 2fr repeat(6,1fr);gap:12px;padding:12px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);">
+            ${["#","Equipo","PJ","G","E","P","GD","Pts"].map(h=>`<span style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--t3);">${h}</span>`).join("")}
+          </div>
+          ${[
+            {pos:1,team:"Deporte FC",pj:22,g:14,e:4,p:4,gd:"+20",pts:46,us:true},
+            {pos:2,team:"Olimpia",   pj:22,g:12,e:5,p:5,gd:"+14",pts:41},
+            {pos:3,team:"Nacional",  pj:22,g:11,e:6,p:5,gd:"+9", pts:39},
+            {pos:4,team:"Cerro",     pj:22,g:9, e:7,p:6,gd:"+4", pts:34},
+            {pos:5,team:"Guaraní",   pj:22,g:7, e:8,p:7,gd:"-2", pts:29},
+          ].map(t=>`
+            <div style="display:grid;grid-template-columns:36px 2fr repeat(6,1fr);gap:12px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);background:${t.us?"rgba(0,255,135,0.04)":"transparent"};">
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${t.us?"var(--neon)":"var(--t3)"};">${t.pos}</span>
+              <span style="font-size:15px;font-weight:${t.us?700:500};color:${t.us?"var(--t1)":"var(--t2)"};">${t.us?"<span style='color:var(--neon);margin-right:8px;'>●</span>":""}${t.team}</span>
+              ${[t.pj,t.g,t.e,t.p,t.gd,t.pts].map((v,i)=>`<span style="font-family:var(--mono);font-size:14px;font-weight:${i===5?700:400};color:${i===5?(t.us?"var(--neon)":"var(--t1)"):"var(--t2)"};">${v}</span>`).join("")}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <!-- Resultados + stats -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          ${[{label:"V",val:"14",c:"#00ff87"},{label:"E",val:"4",c:"#f59e0b"},{label:"D",val:"4",c:"#ff3b30"}].map(s=>`
+            <div style="text-align:center;padding:18px 12px;border-radius:12px;background:rgba(8,15,32,0.8);border:1px solid ${s.c}30;">
+              <div style="font-family:var(--mono);font-size:36px;font-weight:700;color:${s.c};line-height:1;">${s.val}</div>
+              <div style="font-size:13px;color:var(--t3);margin-top:6px;">${s.label}</div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="card">
+          <div class="label" style="margin-bottom:14px;">Últimos 5 resultados</div>
+          <div style="display:flex;gap:8px;">
+            ${["V","V","E","V","V"].map(r=>`
+              <div style="width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:15px;font-weight:700;
+                background:${r==="V"?"rgba(0,255,135,0.15)":r==="E"?"rgba(245,158,11,0.12)":"rgba(255,59,48,0.12)"};
+                color:${r==="V"?"#00ff87":r==="E"?"#f59e0b":"#ff3b30"};
+                border:1px solid ${r==="V"?"rgba(0,255,135,0.35)":r==="E"?"rgba(245,158,11,0.3)":"rgba(255,59,48,0.3)"};">
+                ${r}
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="label" style="margin-bottom:14px;">Eficiencia ofensiva</div>
+          ${[{label:"Goles a favor",val:"38",pct:76,c:"#00ff87"},{label:"Goles en contra",val:"18",pct:36,c:"#ff3b30"},{label:"Diferencia de gol",val:"+20",pct:80,c:"#0ea5e9"}].map(s=>`
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:13px;color:var(--t2);">${s.label}</span>
+                <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${s.c};">${s.val}</span>
+              </div>
+              <div class="bar-bg"><div class="bar-fill" style="width:${s.pct}%;background:${s.c};"></div></div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 06 TOP JUGADORES ════════════════════════════════════ -->
+<section data-label="Top Jugadores">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <div class="neon-line-top"></div>
+  <div class="slide-num">06 / 08</div>
+
+  <div class="slide-inner">
+    <div class="kicker">Rendimiento individual</div>
+    <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:40px;">Top Jugadores</div>
+
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:20px;flex:1;align-items:start;">
+      ${[
+        {first:"Diego",last:"Herrera",num:10,pos:"Ext. Der.",posKey:"atk",rating:88,goals:10,assists:7,c:"#ff3b30"},
+        {first:"Carlos",last:"Andrés",num:8, pos:"MC Of.",  posKey:"mid",rating:86,goals:6, assists:12,c:"#00ff87"},
+        {first:"Andrés",last:"Rojas",  num:6, pos:"MC Def.", posKey:"mid",rating:83,goals:2, assists:8,c:"#00ff87"},
+        {first:"Pedro",  last:"García", num:1, pos:"Portero", posKey:"gk", rating:84,goals:0, assists:0,c:"#f59e0b"},
+        {first:"Jorge",  last:"Ramírez",num:4, pos:"Def. Ctral",posKey:"def",rating:81,goals:3,assists:2,c:"#0ea5e9"},
+      ].map((p,i)=>`
+        <div class="card" style="position:relative;overflow:hidden;display:flex;flex-direction:column;gap:16px;border-color:${p.c}30;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 5%,${p.c} 30%,${p.c} 70%,transparent 95%);box-shadow:0 0 12px ${p.c}60;"></div>
+          <!-- Watermark -->
+          <div style="position:absolute;right:-8px;bottom:-16px;font-family:var(--mono);font-size:100px;font-weight:900;color:${p.c};opacity:0.07;line-height:1;pointer-events:none;">${p.num}</div>
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <span style="font-size:10px;font-weight:900;letter-spacing:0.1em;padding:3px 8px;border-radius:5px;color:${p.c};background:${p.c}22;border:1px solid ${p.c}44;">${p.posKey==="gk"?"POR":p.posKey==="def"?"DEF":p.posKey==="mid"?"MED":"DEL"}</span>
+            <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--t3);">#${p.num}</span>
+          </div>
+
+          <div style="width:56px;height:56px;border-radius:14px;background:rgba(8,15,32,0.9);border:2px solid ${p.c}cc;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:18px;font-weight:900;color:${p.c};box-shadow:0 0 20px ${p.c}40;">${p.first[0]}${p.last[0]}</div>
+
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--t1);">${p.first}</div>
+            <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:-0.01em;">${p.last}</div>
+            <div style="font-size:12px;color:var(--t3);margin-top:4px;">${p.pos}</div>
+          </div>
+
+          <div style="padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:11px;color:var(--t3);">Rating</span>
+              <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:${p.c};">${p.rating}</span>
+            </div>
+            ${p.goals > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="font-size:11px;color:var(--t3);">Goles</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t1);">${p.goals}</span></div>` : ""}
+            ${p.assists > 0 ? `<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--t3);">Asistencias</span><span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t1);">${p.assists}</span></div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 07 RIESGO LESIONAL (ML) ════════════════════════════ -->
+<section data-label="Predicciones ML">
+  <div class="amb" style="background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(168,85,247,0.06) 0%,transparent 65%),radial-gradient(ellipse 70% 55% at 10% 30%,rgba(0,255,135,0.05) 0%,transparent 60%);"></div>
+  <div class="grid-bg"></div>
+  <div style="position:absolute;top:0;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,rgba(168,85,247,0.5),transparent);"></div>
+  <div class="slide-num">07 / 08</div>
+
+  <div class="slide-inner">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+      <div class="kicker" style="margin-bottom:0;">Inteligencia artificial</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:0.1em;color:#a855f7;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);padding:4px 12px;border-radius:999px;">⬡ Modelo ML v3.1</div>
+    </div>
+    <div style="font-size:52px;font-weight:800;letter-spacing:-0.03em;margin-bottom:40px;">Predicción de Riesgo Lesional</div>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:48px;flex:1;">
+      <div>
+        <div style="font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--t3);margin-bottom:20px;">Ranking de riesgo · Plantel completo</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          ${[
+            {name:"Luis Mendoza",   pos:"Delantero",   score:91,level:"critical",trend:+8,c:"#ff3b30"},
+            {name:"Diego Herrera",  pos:"Ext. Der.",   score:74,level:"high",    trend:+3,c:"#f97316"},
+            {name:"Andrés Rojas",   pos:"MC Def.",     score:68,level:"high",    trend:-2,c:"#f97316"},
+            {name:"Marcos León",    pos:"MC Central",  score:47,level:"medium",  trend:+1,c:"#f59e0b"},
+            {name:"Felipe Castro",  pos:"Ext. Izq.",   score:41,level:"medium",  trend:-5,c:"#f59e0b"},
+            {name:"Ricardo Soto",   pos:"Lat. Der.",   score:22,level:"low",     trend:-3,c:"#00ff87"},
+          ].map((p,i)=>`
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+              <span style="font-family:var(--mono);font-size:12px;color:var(--t3);width:20px;flex-shrink:0;">${i+1}</span>
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--t1);">${p.name}</span>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:11px;color:${p.trend>0?"#ff3b30":"#00ff87"};font-weight:700;">${p.trend>0?"+":""}${p.trend}</span>
+                    <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${p.c};">${p.score}</span>
+                  </div>
+                </div>
+                <div style="height:5px;border-radius:5px;background:rgba(255,255,255,0.07);overflow:hidden;">
+                  <div style="width:${p.score}%;height:100%;border-radius:5px;background:${p.c};"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                  <span style="font-size:11px;color:var(--t3);">${p.pos}</span>
+                  <span style="font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;color:${p.c};background:${p.c}20;border:1px solid ${p.c}40;">${p.level==="critical"?"Crítico":p.level==="high"?"Alto":p.level==="medium"?"Moderado":"Bajo"}</span>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="card">
+          <div class="label" style="margin-bottom:16px;">Recomendaciones del sistema</div>
+          ${[
+            {p:"Luis Mendoza",r:"Reposo 21+ días. Sin contacto con balón.",c:"#ff3b30"},
+            {p:"Diego Herrera",r:"Reducir carga 40%. Evaluación semanal.",c:"#f97316"},
+            {p:"Andrés Rojas",r:"Evaluación kinesiológica esta semana.",c:"#f59e0b"},
+          ].map(r=>`
+            <div style="padding:12px 14px;border-radius:9px;background:${r.c}0e;border:1px solid ${r.c}2a;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;color:${r.c};margin-bottom:4px;">${r.p}</div>
+              <div style="font-size:12px;color:var(--t2);">${r.r}</div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="card">
+          <div class="label" style="margin-bottom:14px;">Precisión del modelo</div>
+          <div style="font-family:var(--mono);font-size:40px;font-weight:700;color:#a855f7;letter-spacing:-0.04em;">91.3%</div>
+          <div style="font-size:13px;color:var(--t3);margin-top:4px;">precisión en predicción lesional</div>
+          <div style="margin-top:14px;font-size:12px;color:var(--t2);">Entrenado con datos de 847 sesiones · Temporadas 22/23–24/25</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 08 CIERRE ══════════════════════════════════════════ -->
+<section data-label="Cierre y Objetivos">
+  <div class="amb"></div>
+  <div class="grid-bg"></div>
+  <div style="position:absolute;right:-80px;bottom:-160px;font-family:var(--mono);font-size:520px;font-weight:900;color:rgba(0,255,135,0.025);line-height:1;pointer-events:none;user-select:none;z-index:1;">26</div>
+
+  <div class="slide-inner" style="justify-content:center;align-items:flex-start;">
+    <div class="logo" style="margin-bottom:56px;">
+      <div class="logo-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00ff87" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="logo-text"><span style="color:#fff">DEPORTE</span><span style="color:var(--neon)"> FC</span></div>
+    </div>
+
+    <div class="kicker">Próximos objetivos</div>
+    <div class="display" style="font-size:72px;margin-bottom:32px;">Hacia el<br><span class="accent">Campeonato</span></div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;width:100%;max-width:1200px;margin-top:16px;">
+      ${[
+        {num:"01",title:"Disponibilidad 90%",desc:"Alcanzar el objetivo de disponibilidad antes de la jornada 28 mediante protocolos de prevención activa.",c:"#00ff87"},
+        {num:"02",title:"Reducir riesgo crítico",desc:"Llevar los 3 jugadores en riesgo crítico a nivel moderado o bajo antes del próximo partido.",c:"#f59e0b"},
+        {num:"03",title:"Mantener liderato",desc:"Ganar los próximos 3 partidos para consolidar la primera posición de cara a la fase final.",c:"#0ea5e9"},
+      ].map(o=>`
+        <div class="card" style="position:relative;overflow:hidden;border-color:${o.c}25;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${o.c},transparent);opacity:0.7;"></div>
+          <div style="font-family:var(--mono);font-size:32px;font-weight:700;color:${o.c};opacity:0.35;line-height:1;margin-bottom:14px;">${o.num}</div>
+          <div style="font-size:18px;font-weight:700;color:var(--t1);margin-bottom:10px;">${o.title}</div>
+          <div style="font-size:14px;color:var(--t2);line-height:1.6;">${o.desc}</div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div style="margin-top:48px;display:flex;gap:24px;align-items:center;">
+      <div class="chip"><div class="chip-dot"></div>Temporada 2025/26</div>
+      <div style="font-size:14px;color:var(--t3);">Deporte FC · Cuerpo técnico y staff médico</div>
+    </div>
+  </div>
+
+  <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,135,0.4),transparent);"></div>
+</section>
+
+</deck-stage>
+</body>
+</html>

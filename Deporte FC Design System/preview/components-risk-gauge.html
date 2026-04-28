@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 20px; background: var(--surface-base); display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.label { font-size: 9px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+svg text { font-family: "JetBrains Mono", monospace; }
+</style>
+</head><body>
+<script>
+function makeGauge(score, color, label, glowColor) {
+  const R=45, frac=270/360, circ=2*Math.PI*R*frac;
+  const offset = circ - (score/100)*circ;
+  const wrap = document.createElement('div');
+  wrap.className='gauge-wrap';
+  wrap.innerHTML = `
+    <svg viewBox="0 0 120 120" width="100" height="100">
+      <defs><filter id="g${label}"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <circle cx="60" cy="60" r="45" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"
+        stroke-dasharray="${circ} ${2*Math.PI*R - circ}" stroke-linecap="round" transform="rotate(135 60 60)"/>
+      <circle cx="60" cy="60" r="45" fill="none" stroke="${color}" stroke-width="8"
+        stroke-dasharray="${circ} ${2*Math.PI*R - circ}" stroke-dashoffset="${offset}"
+        stroke-linecap="round" transform="rotate(135 60 60)" filter="url(#g${label})"/>
+      <text x="60" y="57" text-anchor="middle" dominant-baseline="middle" fill="${color}" font-size="20" font-weight="700" letter-spacing="-1">${score}</text>
+      <text x="60" y="74" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8" font-weight="500" letter-spacing="0.5">${label.toUpperCase()}</text>
+    </svg>
+    <div class="label">${label}</div>`;
+  document.body.appendChild(wrap);
+}
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  makeGauge(18, '#00ff87', 'Bajo', 'rgba(0,255,135,0.5)');
+  makeGauge(45, '#f59e0b', 'Moderado', 'rgba(245,158,11,0.5)');
+  makeGauge(72, '#f97316', 'Alto', 'rgba(249,115,22,0.5)');
+  makeGauge(91, '#ff3b30', 'Crítico', 'rgba(255,59,48,0.5)');
+});
+</script>
+</body></html>

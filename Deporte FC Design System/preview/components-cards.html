@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: var(--surface-base); display: flex; gap: 12px; align-items: flex-start; }
+.kpi { width: 130px; padding: 16px; border-radius: 12px; background: rgba(8,15,32,0.75); border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
+.kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.kpi-value { font-family: var(--font-mono); font-size: 32px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+.kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.accent-top { position: relative; }
+.accent-top::before { content:""; position:absolute; top:0; left:10%; right:10%; height:1px; background:linear-gradient(90deg,transparent,var(--c),transparent); opacity:0.7; }
+</style>
+</head><body>
+<div class="kpi accent-top" style="--c:#00ff87"><div class="kpi-label">Disponibles</div><div class="kpi-value" style="color:#00ff87">21</div><div class="kpi-sub">+2 esta semana</div></div>
+<div class="kpi accent-top" style="--c:#ff3b30"><div class="kpi-label">Lesionados</div><div class="kpi-value" style="color:#ff3b30">4</div><div class="kpi-sub">−1 vs anterior</div></div>
+<div class="kpi accent-top" style="--c:#0ea5e9"><div class="kpi-label">Disponibilidad</div><div class="kpi-value" style="color:#0ea5e9">87<span style="font-size:18px">%</span></div><div class="kpi-sub">objetivo: 90%</div></div>
+<div class="kpi accent-top" style="--c:#f59e0b"><div class="kpi-label">Riesgo Alto</div><div class="kpi-value" style="color:#f59e0b">3</div><div class="kpi-sub">requieren atención</div></div>
+</body></html>

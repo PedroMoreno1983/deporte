@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from datetime import date, timedelta
 import random
+import secrets
 from app.core.database import SessionLocal, engine
 from app.core.database import Base
 from app.core import security
@@ -26,10 +27,10 @@ def run():
 
     # --- Usuarios ---
     users_data = [
-        {"email": "admin@deportefc.cl", "full_name": "Admin Sistema", "password": "admin123", "role": UserRole.ADMIN},
-        {"email": "entrenador@deportefc.cl", "full_name": "Carlos Rodríguez", "password": "coach123", "role": UserRole.COACH},
-        {"email": "kinesiologo@deportefc.cl", "full_name": "María González", "password": "kinesi123", "role": UserRole.KINESIOLOGIST},
-        {"email": "analista@deportefc.cl", "full_name": "Luis Fernández", "password": "analyst123", "role": UserRole.ANALYST},
+        {"email": "admin@deportefc.cl", "full_name": "Admin Sistema", "password": secrets.token_urlsafe(12), "role": UserRole.ADMIN},
+        {"email": "entrenador@deportefc.cl", "full_name": "Carlos Rodríguez", "password": secrets.token_urlsafe(12), "role": UserRole.COACH},
+        {"email": "kinesiologo@deportefc.cl", "full_name": "María González", "password": secrets.token_urlsafe(12), "role": UserRole.KINESIOLOGIST},
+        {"email": "analista@deportefc.cl", "full_name": "Luis Fernández", "password": secrets.token_urlsafe(12), "role": UserRole.ANALYST},
     ]
     users = []
     for u in users_data:
@@ -265,11 +266,9 @@ def run():
     print(f"  ✅ Registros de wellness (30 días × {len(primera_players)} jugadores) creados")
 
     print("\n✅ Seeding completado exitosamente!")
-    print("\nCredenciales de acceso:")
-    print("  Admin:      admin@deportefc.cl / admin123")
-    print("  Entrenador: entrenador@deportefc.cl / coach123")
-    print("  Kinesiólogo: kinesiologo@deportefc.cl / kinesi123")
-    print("  Analista:   analista@deportefc.cl / analyst123")
+    print("\nCredenciales de acceso (guarda estas contraseñas, no se mostrarán de nuevo):")
+    for u in users_data:
+        print(f"  {u['full_name']}: {u['email']} / {u['password']}")
 
 if __name__ == "__main__":
     try:

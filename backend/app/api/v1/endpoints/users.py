@@ -11,8 +11,8 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[UserOut])
-def list_users(db: Session = Depends(get_db), _=Depends(get_admin)):
-    return db.query(User).all()
+def list_users(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), _=Depends(get_admin)):
+    return db.query(User).offset(skip).limit(limit).all()
 
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)

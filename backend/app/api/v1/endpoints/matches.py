@@ -13,13 +13,15 @@ router = APIRouter()
 @router.get("/", response_model=List[MatchOut])
 def list_matches(
     category_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
     q = db.query(Match)
     if category_id:
         q = q.filter(Match.category_id == category_id)
-    return q.order_by(Match.date.desc()).all()
+    return q.order_by(Match.date.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/", response_model=MatchOut, status_code=status.HTTP_201_CREATED)
