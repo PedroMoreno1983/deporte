@@ -9,23 +9,28 @@ import { Plus, Trophy, Home, Plane, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "var(--surface-3)", border: "1px solid var(--border-medium)" }}>
+      <p className="font-semibold mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.name} className="font-bold" style={{ color: p.color }}>{p.name}: {p.value}</p>
+      ))}
+    </div>
+  );
+};
+
 export default function MatchesPage() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: "", opponent: "", is_home: true, competition: "", goals_for: "", goals_against: "" });
 
-  const { data: matches, isLoading } = useQuery({
-    queryKey: ["matches"],
-    queryFn: () => matchesApi.list(),
-  });
+  const { data: matches, isLoading } = useQuery({ queryKey: ["matches"], queryFn: () => matchesApi.list() });
 
   const createMatch = useMutation({
     mutationFn: (data: typeof form) =>
-      matchesApi.create({
-        ...data,
-        goals_for: data.goals_for ? Number(data.goals_for) : null,
-        goals_against: data.goals_against ? Number(data.goals_against) : null,
-      }),
+      matchesApi.create({ ...data, goals_for: data.goals_for ? Number(data.goals_for) : null, goals_against: data.goals_against ? Number(data.goals_against) : null }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["matches"] });
       setShowForm(false);
@@ -33,6 +38,10 @@ export default function MatchesPage() {
       toast.success("Partido registrado");
     },
   });
+
+  const wins   = (matches as any[] ?? []).filter((m: any) => m.goals_for != null && m.goals_for > m.goals_against).length;
+  const losses = (matches as any[] ?? []).filter((m: any) => m.goals_for != null && m.goals_for < m.goals_against).length;
+  const draws  = (matches as any[] ?? []).filter((m: any) => m.goals_for != null && m.goals_for === m.goals_against).length;
 
   return (
     <div className="space-y-5">
@@ -47,111 +56,134 @@ export default function MatchesPage() {
         }
       />
 
+      {/* Season summary */}
+      {(matches as any[] ?? []).length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Victorias", value: wins,   color: "var(--success)" },
+            { label: "Empates",   value: draws,  color: "var(--warning)" },
+            { label: "Derrotas",  value: losses, color: "var(--danger)"  },
+          ].map(({ label, value, color }) => (
+            <Card key={label} className="p-4 text-center">
+              <p className="text-3xl font-black tabular-nums" style={{ color }}>{value}</p>
+              <p className="text-xs mt-1 font-medium" style={{ color: "var(--text-muted)" }}>{label}</p>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Form */}
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="space-y-4">
-            <h3 className="text-sm font-semibold text-white/80">Registrar partido</h3>
+          <Card variant="brand" className="space-y-4">
+            <h3 className="text-sm font-bold text-white/90">Registrar partido</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Fecha</label>
-                <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="input w-full" />
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Fecha</label>
+                <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="input" />
               </div>
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Rival</label>
-                <input type="text" placeholder="Nombre del rival" value={form.opponent} onChange={e => setForm(f => ({ ...f, opponent: e.target.value }))} className="input w-full" />
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Rival</label>
+                <input type="text" placeholder="Nombre del rival" value={form.opponent} onChange={e => setForm(f => ({ ...f, opponent: e.target.value }))} className="input" />
               </div>
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Competencia</label>
-                <input type="text" placeholder="Liga, Copa..." value={form.competition} onChange={e => setForm(f => ({ ...f, competition: e.target.value }))} className="input w-full" />
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Competencia</label>
+                <input type="text" placeholder="Liga, Copa..." value={form.competition} onChange={e => setForm(f => ({ ...f, competition: e.target.value }))} className="input" />
               </div>
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Goles a favor</label>
-                <input type="number" min={0} max={20} value={form.goals_for} onChange={e => setForm(f => ({ ...f, goals_for: e.target.value }))} className="input w-full" />
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Goles a favor</label>
+                <input type="number" min={0} max={20} value={form.goals_for} onChange={e => setForm(f => ({ ...f, goals_for: e.target.value }))} className="input" />
               </div>
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Goles en contra</label>
-                <input type="number" min={0} max={20} value={form.goals_against} onChange={e => setForm(f => ({ ...f, goals_against: e.target.value }))} className="input w-full" />
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Goles en contra</label>
+                <input type="number" min={0} max={20} value={form.goals_against} onChange={e => setForm(f => ({ ...f, goals_against: e.target.value }))} className="input" />
               </div>
               <div>
-                <label className="text-xs text-white/30 mb-1 block">Condición</label>
-                <select value={form.is_home ? "home" : "away"} onChange={e => setForm(f => ({ ...f, is_home: e.target.value === "home" }))} className="input w-full">
+                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Condición</label>
+                <select value={form.is_home ? "home" : "away"} onChange={e => setForm(f => ({ ...f, is_home: e.target.value === "home" }))} className="input">
                   <option value="home">Local</option>
                   <option value="away">Visitante</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => createMatch.mutate(form)} disabled={!form.date || !form.opponent} className="btn-primary text-sm disabled:opacity-40">
-                Guardar
-              </button>
-              <button onClick={() => setShowForm(false)} className="btn-secondary text-sm">
-                Cancelar
-              </button>
+              <button onClick={() => createMatch.mutate(form)} disabled={!form.date || !form.opponent} className="btn-primary text-sm disabled:opacity-40">Guardar</button>
+              <button onClick={() => setShowForm(false)} className="btn-secondary text-sm">Cancelar</button>
             </div>
           </Card>
         </motion.div>
       )}
 
-      <Card className="overflow-hidden">
+      {/* Table */}
+      <Card className="overflow-hidden" padding="none">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06]">
+              <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "rgba(255,255,255,0.015)" }}>
                 {["Fecha", "Rival", "Cond.", "Resultado", "Competencia", ""].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-white/30">{h}</th>
+                  <th key={h} className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-white/30">Cargando partidos...</td>
-                </tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--text-muted)" }}>Cargando partidos...</td></tr>
               ) : !matches?.length ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-14 text-center">
-                    <div className="inline-flex p-4 rounded-xl mb-3 bg-white/[0.03] border border-white/[0.06]">
-                      <Trophy className="w-6 h-6 text-white/20" />
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="inline-flex p-4 rounded-2xl mb-3" style={{ background: "rgba(79,142,247,0.06)", border: "1px solid rgba(79,142,247,0.12)" }}>
+                      <Trophy className="w-7 h-7" style={{ color: "var(--brand)", opacity: 0.4 }} />
                     </div>
-                    <p className="text-sm font-semibold text-white/40">Sin partidos registrados</p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Sin partidos registrados</p>
                   </td>
                 </tr>
               ) : (
-                matches.map((m: any, i: number) => {
-                  const won = m.goals_for != null && m.goals_against != null && m.goals_for > m.goals_against;
+                (matches as any[]).map((m: any, i: number) => {
+                  const won  = m.goals_for != null && m.goals_against != null && m.goals_for > m.goals_against;
                   const lost = m.goals_for != null && m.goals_against != null && m.goals_for < m.goals_against;
                   return (
                     <motion.tr
                       key={m.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.02 }}
-                      className="hover:bg-white/[0.02] transition-colors"
+                      transition={{ delay: i * 0.025 }}
+                      className="transition-colors"
+                      style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      <td className="px-4 py-3 tabular-nums text-white/30">{m.date}</td>
-                      <td className="px-4 py-3 font-semibold text-white/90">{m.opponent}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-                          m.is_home ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                        }`}>
+                      <td className="px-5 py-3.5 tabular-nums text-sm font-mono" style={{ color: "var(--text-muted)" }}>{m.date}</td>
+                      <td className="px-5 py-3.5 font-semibold text-white/90">{m.opponent}</td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
+                          style={m.is_home
+                            ? { color: "#00D4FF", background: "rgba(0,212,255,0.08)", borderColor: "rgba(0,212,255,0.2)" }
+                            : { color: "#A855F7", background: "rgba(168,85,247,0.08)", borderColor: "rgba(168,85,247,0.2)" }}
+                        >
                           {m.is_home ? <Home className="w-3 h-3" /> : <Plane className="w-3 h-3" />}
                           <span className="hidden sm:inline">{m.is_home ? "Local" : "Visitante"}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         {m.goals_for != null && m.goals_against != null ? (
-                          <span className={`font-bold ${won ? "text-emerald-400" : lost ? "text-red-400" : "text-amber-400"}`}>
+                          <span className="font-bold tabular-nums" style={{ color: won ? "var(--success)" : lost ? "var(--danger)" : "var(--warning)" }}>
                             {m.goals_for} — {m.goals_against}
-                            <span className="text-xs font-normal ml-1 opacity-60">{won ? "G" : lost ? "P" : "E"}</span>
+                            <span className="text-[10px] font-normal ml-1 opacity-60">{won ? "G" : lost ? "P" : "E"}</span>
                           </span>
                         ) : (
-                          <span className="text-white/20">—</span>
+                          <span style={{ color: "var(--text-muted)" }}>Pendiente</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-white/30">{m.competition ?? "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5" style={{ color: "var(--text-muted)" }}>{m.competition ?? "—"}</td>
+                      <td className="px-5 py-3.5">
                         <Link href={`/matches/${m.id}`}>
-                          <button className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/15 text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                          <button
+                            className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg border transition-colors font-semibold"
+                            style={{ color: "var(--brand)", background: "rgba(79,142,247,0.06)", borderColor: "rgba(79,142,247,0.18)" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(79,142,247,0.12)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(79,142,247,0.06)")}
+                          >
                             Stats <ChevronRight className="w-3 h-3" />
                           </button>
                         </Link>
