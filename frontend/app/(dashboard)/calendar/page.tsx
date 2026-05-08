@@ -23,9 +23,9 @@ type CalEvent = {
 };
 
 const TYPE_CFG = {
-  match:    { color: "#f59e0b", bg: "rgba(245,158,11,0.15)",  icon: Trophy    },
-  training: { color: "#00ff87", bg: "rgba(0,255,135,0.12)",   icon: Dumbbell  },
-  injury:   { color: "#ff3b30", bg: "rgba(255,59,48,0.12)",   icon: AlertTriangle },
+  match:    { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  icon: Trophy    },
+  training: { color: "#4F8EF7", bg: "rgba(79,142,247,0.10)",  icon: Dumbbell  },
+  injury:   { color: "#EF4444", bg: "rgba(239,68,68,0.10)",   icon: AlertTriangle },
 };
 
 const SESSION_LABELS: Record<string, string> = {
@@ -80,8 +80,8 @@ export default function CalendarPage() {
         type: "match",
         title: m.opponent,
         subtitle: `${m.is_home ? "Local" : "Visitante"} · ${result}`,
-        color: won ? "#00ff87" : lost ? "#ff3b30" : cfg.color,
-        bg: won ? "rgba(0,255,135,0.12)" : lost ? "rgba(255,59,48,0.12)" : cfg.bg,
+        color: won ? "#22C55E" : lost ? "#EF4444" : cfg.color,
+        bg: won ? "rgba(34,197,94,0.10)" : lost ? "rgba(239,68,68,0.10)" : cfg.bg,
         meta: m,
       });
     });
@@ -160,7 +160,7 @@ export default function CalendarPage() {
         <button
           onClick={goToday}
           className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
-          style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.25)", color: "var(--neon)" }}
+          style={{ background: "rgba(79,142,247,0.1)", border: "1px solid rgba(79,142,247,0.25)", color: "var(--brand)" }}
         >
           Hoy
         </button>
@@ -169,9 +169,9 @@ export default function CalendarPage() {
       {/* Month stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Partidos",       value: totalMatches,   color: "#f59e0b", icon: Trophy       },
-          { label: "Entrenamientos", value: totalTrainings, color: "#00ff87", icon: Dumbbell     },
-          { label: "Lesiones",       value: totalInjuries,  color: "#ff3b30", icon: AlertTriangle },
+          { label: "Partidos",       value: totalMatches,   color: "#F59E0B", icon: Trophy       },
+          { label: "Entrenamientos", value: totalTrainings, color: "#4F8EF7", icon: Dumbbell     },
+          { label: "Lesiones",       value: totalInjuries,  color: "#EF4444", icon: AlertTriangle },
         ].map(({ label, value, color, icon: Icon }, i) => (
           <motion.div key={label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <GlowCard className="p-4 rounded-2xl flex items-center gap-3">
@@ -199,7 +199,7 @@ export default function CalendarPage() {
                 <ChevronLeft className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
               </button>
               <h2 className="text-base font-black">
-                {MONTHS[month]} <span style={{ color: "var(--neon)" }}>{year}</span>
+                {MONTHS[month]} <span style={{ color: "var(--brand)" }}>{year}</span>
               </h2>
               <button onClick={nextMonth} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
                 <ChevronRight className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
@@ -233,14 +233,14 @@ export default function CalendarPage() {
                     className="relative rounded-xl p-1 min-h-[38px] sm:min-h-[52px] flex flex-col transition-all"
                     style={{
                       background: isSelected
-                        ? "rgba(0,255,135,0.1)"
+                        ? "rgba(79,142,247,0.08)"
                         : isToday
-                        ? "rgba(255,255,255,0.05)"
+                        ? "rgba(255,255,255,0.04)"
                         : "transparent",
                       border: isSelected
-                        ? "1px solid rgba(0,255,135,0.35)"
+                        ? "1px solid rgba(79,142,247,0.3)"
                         : isToday
-                        ? "1px solid rgba(0,255,135,0.2)"
+                        ? "1px solid rgba(79,142,247,0.2)"
                         : "1px solid transparent",
                       cursor: isValid ? "pointer" : "default",
                       opacity: isValid ? 1 : 0,
@@ -254,8 +254,8 @@ export default function CalendarPage() {
                         <span
                           className="text-xs font-bold self-end leading-none mb-1 w-5 h-5 flex items-center justify-center rounded-full"
                           style={{
-                            color: isToday ? "#000" : "var(--text-secondary)",
-                            background: isToday ? "var(--neon)" : "transparent",
+                            color: isToday ? "#fff" : "var(--text-secondary)",
+                            background: isToday ? "var(--brand)" : "transparent",
                           }}
                         >
                           {dayNum}
@@ -267,10 +267,10 @@ export default function CalendarPage() {
                             <div className="w-full h-1 rounded-full" style={{ background: "#f59e0b" }} />
                           )}
                           {hasMost("training") && (
-                            <div className="w-full h-1 rounded-full" style={{ background: "#00ff87" }} />
+                            <div className="w-full h-1 rounded-full" style={{ background: "#4F8EF7" }} />
                           )}
                           {hasMost("injury") && (
-                            <div className="w-full h-1 rounded-full" style={{ background: "#ff3b30" }} />
+                            <div className="w-full h-1 rounded-full" style={{ background: "#EF4444" }} />
                           )}
                         </div>
 
@@ -291,9 +291,9 @@ export default function CalendarPage() {
             {/* Legend */}
             <div className="flex items-center gap-4 px-5 pb-4 flex-wrap">
               {[
-                { color: "#f59e0b", label: "Partido" },
-                { color: "#00ff87", label: "Entrenamiento" },
-                { color: "#ff3b30", label: "Lesión" },
+                { color: "#F59E0B", label: "Partido" },
+                { color: "#4F8EF7", label: "Entrenamiento" },
+                { color: "#EF4444", label: "Lesión" },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
                   <div className="w-3 h-1 rounded-full" style={{ background: color }} />
@@ -394,8 +394,8 @@ export default function CalendarPage() {
                 exit={{ opacity: 0 }}
               >
                 <GlowCard className="p-8 rounded-2xl flex flex-col items-center justify-center text-center gap-3 h-full min-h-48">
-                  <div className="p-4 rounded-2xl" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.12)" }}>
-                    <CalendarDays className="w-6 h-6" style={{ color: "var(--neon)", opacity: 0.5 }} />
+                  <div className="p-4 rounded-2xl" style={{ background: "rgba(79,142,247,0.06)", border: "1px solid rgba(79,142,247,0.12)" }}>
+                    <CalendarDays className="w-6 h-6" style={{ color: "var(--brand)", opacity: 0.5 }} />
                   </div>
                   <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
                     {selected ? "Sin eventos este día" : "Selecciona un día"}

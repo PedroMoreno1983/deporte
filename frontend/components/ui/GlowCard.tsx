@@ -34,8 +34,13 @@ export function GlowCard({ children, className, style, as: Tag = "div", onClick 
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className={cn("glow-card rounded-xl", className)}
-      style={style}
+      className={cn("rounded-[14px]", className)}
+      style={{
+        background: "var(--surface-2)",
+        border: "1px solid var(--border-subtle)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+        ...style,
+      }}
     >
       {children}
     </div>

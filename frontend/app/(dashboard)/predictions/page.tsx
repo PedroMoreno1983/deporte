@@ -10,15 +10,15 @@ import { Brain, Shield, AlertTriangle, TrendingUp, Activity, Zap } from "lucide-
 import Link from "next/link";
 
 const RISK_COLOR: Record<string, string> = {
-  low: "#00ff87", medium: "#f59e0b", high: "#f97316", critical: "#ff3b30",
+  low: "#22C55E", medium: "#F59E0B", high: "#F97316", critical: "#EF4444",
 };
 const RISK_BG: Record<string, string> = {
-  low: "rgba(0,255,135,0.08)", medium: "rgba(245,158,11,0.08)",
-  high: "rgba(249,115,22,0.08)", critical: "rgba(255,59,48,0.08)",
+  low: "rgba(34,197,94,0.07)", medium: "rgba(245,158,11,0.07)",
+  high: "rgba(249,115,22,0.07)", critical: "rgba(239,68,68,0.07)",
 };
 const RISK_BORDER: Record<string, string> = {
-  low: "rgba(0,255,135,0.2)", medium: "rgba(245,158,11,0.2)",
-  high: "rgba(249,115,22,0.25)", critical: "rgba(255,59,48,0.3)",
+  low: "rgba(34,197,94,0.18)", medium: "rgba(245,158,11,0.18)",
+  high: "rgba(249,115,22,0.22)", critical: "rgba(239,68,68,0.25)",
 };
 const RISK_LABEL: Record<string, string> = {
   low: "Riesgo bajo", medium: "Riesgo medio", high: "Riesgo alto", critical: "Riesgo crítico",
@@ -52,10 +52,10 @@ export default function PredictionsPage() {
     <div className="p-6 space-y-5 h-full overflow-y-auto">
       {/* ── Background sci-fi grid */}
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.015]"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.012]"
         style={{
-          backgroundImage: "linear-gradient(rgba(0,255,135,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,135,1) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+          backgroundImage: "linear-gradient(rgba(79,142,247,1) 1px, transparent 1px), linear-gradient(90deg, rgba(79,142,247,1) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
       />
 
@@ -116,8 +116,8 @@ export default function PredictionsPage() {
               {criticalAndHigh.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="inline-flex p-4 rounded-2xl mb-3"
-                    style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
-                    <Shield className="w-6 h-6" style={{ color: "var(--neon)" }} />
+                    style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                    <Shield className="w-6 h-6" style={{ color: "var(--success)" }} />
                   </div>
                   <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
                     Sin jugadores en riesgo alto

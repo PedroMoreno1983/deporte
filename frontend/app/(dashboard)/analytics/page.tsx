@@ -23,10 +23,10 @@ const RADAR_LABELS: Record<string, string> = {
 };
 
 const POSITION_COLORS: Record<string, string> = {
-  goalkeeper: "#fbbf24", center_back: "#60a5fa", left_back: "#60a5fa",
-  right_back: "#60a5fa", defensive_mid: "#10b981", central_mid: "#10b981",
-  attacking_mid: "#10b981", left_wing: "#f87171", right_wing: "#f87171",
-  center_forward: "#f87171",
+  goalkeeper: "#F59E0B", center_back: "#4F8EF7", left_back: "#4F8EF7",
+  right_back: "#4F8EF7", defensive_mid: "#22C55E", central_mid: "#22C55E",
+  attacking_mid: "#22C55E", left_wing: "#EF4444", right_wing: "#EF4444",
+  center_forward: "#EF4444",
 };
 
 function RadarTooltip({ active, payload }: any) {
@@ -138,8 +138,8 @@ export default function AnalyticsPage() {
                       </text>
                     )} />
                   <Radar name="Equipo (prom.)" dataKey="Equipo" stroke="rgba(255,255,255,0.2)" fill="rgba(255,255,255,0.04)" strokeWidth={1.5} />
-                  <Radar name="Jugador" dataKey="Jugador" stroke="#10b981" fill="rgba(16,185,129,0.1)" strokeWidth={2} dot={{ fill: "#10b981", r: 3 }} />
-                  {comparePlayer && <Radar name="Comparar" dataKey="Comparar" stroke="#a855f7" fill="rgba(168,85,247,0.08)" strokeWidth={2} dot={{ fill: "#a855f7", r: 3 }} />}
+                  <Radar name="Jugador" dataKey="Jugador" stroke="#4F8EF7" fill="rgba(79,142,247,0.12)" strokeWidth={2} dot={{ fill: "#4F8EF7", r: 3 }} />
+                  {comparePlayer && <Radar name="Comparar" dataKey="Comparar" stroke="#A855F7" fill="rgba(168,85,247,0.08)" strokeWidth={2} dot={{ fill: "#A855F7", r: 3 }} />}
                   <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
                   <Tooltip content={<RadarTooltip />} />
                 </RadarChart>
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
                   {RADAR_KEYS.map(k => {
                     const val = playerRadar.player?.[k] ?? 0;
                     const avg = playerRadar.team_avg?.[k] ?? 0;
-                    const color = val >= avg ? "#10b981" : "#f97316";
+                    const color = val >= avg ? "#4F8EF7" : "#F97316";
                     return (
                       <div key={k}>
                         <div className="flex justify-between mb-0.5">
@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Comparación head-to-head</p>
               <div className="flex items-center gap-3 text-sm font-bold">
-                <span className="text-emerald-400">{(players as any[]).find((p: any) => p.id === selectedPlayer)?.full_name ?? "Jugador A"}</span>
+                <span className="text-brand">{(players as any[]).find((p: any) => p.id === selectedPlayer)?.full_name ?? "Jugador A"}</span>
                 <ArrowRight className="w-4 h-4 text-white/20" />
                 <span className="text-purple-400">{(players as any[]).find((p: any) => p.id === comparePlayer)?.full_name ?? "Jugador B"}</span>
               </div>
@@ -227,13 +227,13 @@ export default function AnalyticsPage() {
                 return (
                   <div key={k}>
                     <div className="flex items-center justify-between mb-1.5 text-xs">
-                      <span className={`font-bold w-10 text-right ${aWins ? "text-emerald-400" : "text-white/30"}`}>{a.toFixed(0)}</span>
+                      <span className={`font-bold w-10 text-right ${aWins ? "text-brand" : "text-white/30"}`}>{a.toFixed(0)}</span>
                       <span className="flex-1 text-center font-medium text-white/30">{RADAR_LABELS[k]}</span>
                       <span className={`font-bold w-10 text-left ${!aWins ? "text-purple-400" : "text-white/30"}`}>{b.toFixed(0)}</span>
                     </div>
                     <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
-                      <div className="rounded-l-full transition-all duration-700" style={{ width: `${(a / total) * 100}%`, background: "#10b981", opacity: aWins ? 1 : 0.4 }} />
-                      <div className="rounded-r-full transition-all duration-700" style={{ width: `${(b / total) * 100}%`, background: "#a855f7", opacity: !aWins ? 1 : 0.4 }} />
+                      <div className="rounded-l-full transition-all duration-700" style={{ width: `${(a / total) * 100}%`, background: "#4F8EF7", opacity: aWins ? 1 : 0.4 }} />
+                      <div className="rounded-r-full transition-all duration-700" style={{ width: `${(b / total) * 100}%`, background: "#A855F7", opacity: !aWins ? 1 : 0.4 }} />
                     </div>
                   </div>
                 );
@@ -246,9 +246,9 @@ export default function AnalyticsPage() {
               const playerB = (players as any[]).find((p: any) => p.id === comparePlayer);
               return (
                 <div className="mt-5 pt-4 flex items-center justify-center gap-6 border-t border-white/[0.06]">
-                  <div className="text-center"><p className="text-2xl font-bold text-emerald-400">{aWins}</p><p className="text-xs text-white/30">{playerA?.first_name ?? "A"}</p></div>
-                  <div className="text-center px-4 border-x border-white/[0.06]"><p className="text-xs font-bold uppercase tracking-widest text-white/20">métricas ganadas</p></div>
-                  <div className="text-center"><p className="text-2xl font-bold text-purple-400">{bWins}</p><p className="text-xs text-white/30">{playerB?.first_name ?? "B"}</p></div>
+                  <div className="text-center"><p className="text-2xl font-bold" style={{ color: "#4F8EF7" }}>{aWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerA?.first_name ?? "A"}</p></div>
+                  <div className="text-center px-4 border-x" style={{ borderColor: "var(--border-subtle)" }}><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>métricas ganadas</p></div>
+                  <div className="text-center"><p className="text-2xl font-bold text-purple-400">{bWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerB?.first_name ?? "B"}</p></div>
                 </div>
               );
             })()}
@@ -264,8 +264,8 @@ export default function AnalyticsPage() {
               <XAxis type="number" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="position" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9 }} width={90} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {positionData.map((_, i) => <Cell key={i} fill={["#60a5fa", "#10b981", "#f87171", "#f59e0b", "#a855f7"][i % 5]} />)}
+              <Bar dataKey="count" radius={[0, 5, 5, 0]}>
+                {positionData.map((_, i) => <Cell key={i} fill={["#4F8EF7", "#22C55E", "#EF4444", "#F59E0B", "#A855F7"][i % 5]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
               <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="injuries" stroke="#ef4444" strokeWidth={2} dot={{ fill: "#ef4444", r: 3, strokeWidth: 0 }} />
+              <Line type="monotone" dataKey="injuries" name="Lesiones" stroke="#EF4444" strokeWidth={2} dot={{ fill: "#EF4444", r: 3, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </Card>

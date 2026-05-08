@@ -16,8 +16,8 @@ const ROLE_CFG: Record<string, { label: string; color: string; bg: string }> = {
   analyst:       { label: "Analista",      color: "#a855f7",  bg: "rgba(168,85,247,0.12)"  },
 };
 
-const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
-const inputStyle = { background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" };
+const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(79,142,247,0.3)]";
+const inputStyle = { background: "var(--surface-3)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" };
 const labelCls = "text-xs font-semibold block mb-1.5";
 
 const stagger = (i: number) => ({
@@ -87,7 +87,7 @@ export default function SettingsPage() {
           <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>Mi cuenta</p>
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shrink-0"
-              style={{ background: "linear-gradient(135deg, rgba(0,255,135,0.2), rgba(0,255,135,0.08))", border: "1px solid rgba(0,255,135,0.35)", color: "var(--neon)" }}>
+              style={{ background: "linear-gradient(135deg, rgba(79,142,247,0.2), rgba(79,142,247,0.08))", border: "1px solid rgba(79,142,247,0.35)", color: "var(--brand)" }}>
               {user?.full_name?.charAt(0) ?? "U"}
             </div>
             <div className="flex-1 min-w-0">
@@ -108,8 +108,8 @@ export default function SettingsPage() {
       <motion.div {...stagger(1)}>
         <GlowCard className="rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-            <div className="p-1.5 rounded-lg" style={{ background: "rgba(0,255,135,0.1)" }}>
-              <Tag className="w-4 h-4" style={{ color: "var(--neon)" }} />
+            <div className="p-1.5 rounded-lg" style={{ background: "rgba(79,142,247,0.1)" }}>
+              <Tag className="w-4 h-4" style={{ color: "var(--brand)" }} />
             </div>
             <h3 className="text-sm font-bold">Categorías</h3>
             <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -123,7 +123,7 @@ export default function SettingsPage() {
             {(categories as any[]).map((c: any) => (
               <div key={c.id} className="flex items-center gap-3 px-5 py-3">
                 <span className="text-xs font-black font-mono px-2 py-0.5 rounded-lg"
-                  style={{ background: "rgba(0,255,135,0.1)", color: "var(--neon)", border: "1px solid rgba(0,255,135,0.2)" }}>
+                  style={{ background: "rgba(79,142,247,0.1)", color: "var(--brand)", border: "1px solid rgba(79,142,247,0.2)" }}>
                   {c.code}
                 </span>
                 <span className="text-sm font-semibold text-white/85 flex-1">{c.name}</span>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
               onClick={() => createCategory.mutate({ ...catForm, min_age: catForm.min_age ? Number(catForm.min_age) : null, max_age: catForm.max_age ? Number(catForm.max_age) : null })}
               disabled={!catForm.name || !catForm.code || createCategory.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.25)", color: "var(--neon)" }}
+              style={{ background: "rgba(79,142,247,0.1)", border: "1px solid rgba(79,142,247,0.25)", color: "var(--brand)" }}
             >
               {createCategory.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               Agregar
@@ -233,9 +233,9 @@ export default function SettingsPage() {
 
               {createdUser && (
                 <div className="flex items-center gap-2 p-3 rounded-xl mb-4 text-sm"
-                  style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)" }}>
-                  <Check className="w-4 h-4 shrink-0" style={{ color: "var(--neon)" }} />
-                  <span style={{ color: "var(--neon)" }}>
+                  style={{ background: "rgba(79,142,247,0.08)", border: "1px solid rgba(79,142,247,0.2)" }}>
+                  <Check className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
+                  <span style={{ color: "var(--brand)" }}>
                     <strong>{createdUser.full_name}</strong> creado como {ROLE_CFG[createdUser.role]?.label}
                   </span>
                   <button onClick={() => setCreatedUser(null)} className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>✕</button>
@@ -289,7 +289,7 @@ export default function SettingsPage() {
                   onClick={() => createUser.mutate(userForm)}
                   disabled={!userForm.email || !userForm.full_name || !userForm.password || createUser.isPending}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 transition-all"
-                  style={{ background: "#0ea5e9", color: "#000" }}
+                  style={{ background: "var(--brand)", color: "#fff" }}
                 >
                   {createUser.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Crear usuario

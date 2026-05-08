@@ -40,12 +40,19 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-4">
-            <Shield className="w-6 h-6 text-emerald-400" />
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
+            style={{
+              background: "linear-gradient(135deg, rgba(79,142,247,0.2) 0%, rgba(0,212,255,0.1) 100%)",
+              border: "1px solid rgba(79,142,247,0.3)",
+              boxShadow: "0 0 16px rgba(79,142,247,0.2)",
+            }}
+          >
+            <Shield className="w-6 h-6" style={{ color: "var(--brand)" }} />
           </div>
           <div className="flex items-baseline justify-center gap-1.5">
             <span className="text-2xl font-black tracking-tight text-white">DEPORTE</span>
-            <span className="text-2xl font-black tracking-tight text-emerald-400">FC</span>
+            <span className="text-2xl font-black tracking-tight" style={{ color: "var(--brand)" }}>FC</span>
           </div>
           <p className="text-sm text-white/40 mt-1">Plataforma de Gestión Deportiva</p>
         </div>

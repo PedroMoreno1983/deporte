@@ -7,7 +7,6 @@ interface PageHeaderProps {
   subtitle?: string;
   action?: ReactNode;
   className?: string;
-  // Legacy props for backward compatibility
   icon?: ComponentType<Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>>;
   iconColor?: string;
   iconBg?: string;
@@ -16,33 +15,68 @@ interface PageHeaderProps {
   description?: string;
 }
 
-export function PageHeader({ title, subtitle, action, className, icon: Icon, iconColor, iconBg, badge, badgeColor, description }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+  className,
+  icon: Icon,
+  iconColor,
+  iconBg,
+  badge,
+  badgeColor,
+  description,
+}: PageHeaderProps) {
   const displaySubtitle = subtitle ?? description;
+
   return (
-    <div className={cn("flex items-start justify-between gap-4", className)}>
-      <div className="flex items-center gap-3">
-        {Icon && (
-          <div className={cn(
-            "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-            iconBg ? iconBg : "bg-white/[0.03] border border-white/[0.06]"
-          )}>
-            <Icon className={cn("w-4 h-4", iconColor ?? "text-white/30")} />
-          </div>
-        )}
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">{title}</h1>
-          {displaySubtitle && <p className="text-sm text-white/40 mt-0.5">{displaySubtitle}</p>}
-          {badge && (
-            <span className={cn(
-              "inline-flex mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border",
-              badgeColor ? badgeColor : "bg-white/[0.03] border-white/[0.06] text-white/30"
-            )}>
-              {badge}
-            </span>
+    <div className={cn("space-y-1", className)}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {Icon && (
+            <div
+              className={cn(
+                "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border",
+                iconBg ?? "bg-surface-3 border-white/[0.07]"
+              )}
+            >
+              <Icon className={cn("w-4 h-4", iconColor ?? "text-white/30")} />
+            </div>
           )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-black tracking-tight text-white leading-tight">
+                {title}
+              </h1>
+              {badge && (
+                <span
+                  className={cn(
+                    "inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                    badgeColor ?? "bg-surface-3 border-white/[0.07] text-white/30"
+                  )}
+                >
+                  {badge}
+                </span>
+              )}
+            </div>
+            {displaySubtitle && (
+              <p className="text-sm mt-0.5 font-medium" style={{ color: "var(--text-muted)" }}>
+                {displaySubtitle}
+              </p>
+            )}
+          </div>
         </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+
+      {/* Decorative underline */}
+      <div
+        className="h-px w-full mt-4"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(79,142,247,0.3) 0%, rgba(0,212,255,0.15) 30%, transparent 70%)",
+        }}
+      />
     </div>
   );
 }
