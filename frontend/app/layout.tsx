@@ -1,11 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "Deporte FC | Plataforma de Gestión",
-  description: "Sistema integral de gestión de jugadores de fútbol",
+  title: {
+    default: "Deporte FC — Sports Platform",
+    template: "%s · Deporte FC",
+  },
+  description:
+    "Plataforma integral de gestión deportiva: jugadores, lesiones, wellness, táctica y predicciones de riesgo en tiempo real.",
+  applicationName: "Deporte FC",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#020817",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

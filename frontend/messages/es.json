@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "general": "General",
+    "analytics_group": "Analytics",
+    "system": "Sistema",
+    "dashboard": "Dashboard",
+    "players": "Jugadores",
+    "injuries": "Lesiones",
+    "matches": "Partidos",
+    "training": "Entrenamiento",
+    "tactical": "Pizarra",
+    "calendar": "Calendario",
+    "wellness": "Wellness",
+    "analytics": "Analytics",
+    "compare": "Comparativa",
+    "predictions": "Predicciones",
+    "cv": "Análisis de video",
+    "settings": "Configuración"
+  },
+  "roles": {
+    "admin": "Administrador",
+    "coach": "Entrenador",
+    "kinesiologist": "Kinesiólogo",
+    "analyst": "Analista"
+  },
+  "status": {
+    "available": "Disponible",
+    "injured": "Lesionado",
+    "recovering": "Recuperando",
+    "suspended": "Suspendido",
+    "inactive": "Inactivo"
+  },
+  "risk": {
+    "low": "Bajo",
+    "medium": "Moderado",
+    "high": "Alto",
+    "critical": "Crítico"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "logout": "Cerrar sesión",
+    "language": "Idioma",
+    "no_data": "Sin datos",
+    "real_time": "En tiempo real"
+  },
+  "logo": {
+    "tagline": "Sports Platform"
+  }
+}

@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsApi, predictionsApi } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import {
   Users, AlertTriangle, Trophy, ShieldCheck,
   HeartPulse, Target, Zap, TrendingUp,
@@ -16,8 +17,8 @@ import {
 import Link from "next/link";
 
 const STATUS_COLORS: Record<string, string> = {
-  available:  "#22C55E",
-  injured:    "#EF4444",
+  available:  "#00ff87",
+  injured:    "#ff3b30",
   recovering: "#F97316",
   suspended:  "#F59E0B",
   inactive:   "#64748b",
@@ -28,7 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const RISK_COLOR: Record<string, string> = {
-  low: "#22C55E", medium: "#F59E0B", high: "#F97316", critical: "#EF4444",
+  low: "#00ff87", medium: "#F59E0B", high: "#F97316", critical: "#ff3b30",
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -99,7 +100,7 @@ export default function DashboardPage() {
     : [];
 
   const availRate  = dash?.availability_rate ?? 0;
-  const availColor = availRate >= 80 ? "#22C55E" : availRate >= 60 ? "#F59E0B" : "#EF4444";
+  const availColor = availRate >= 80 ? "#00ff87" : availRate >= 60 ? "#F59E0B" : "#ff3b30";
 
   return (
     <div className="space-y-6">
@@ -111,8 +112,8 @@ export default function DashboardPage() {
             className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border"
             style={{
               color: "var(--brand)",
-              background: "rgba(79,142,247,0.08)",
-              borderColor: "rgba(79,142,247,0.2)",
+              background: "rgba(0,255,135,0.08)",
+              borderColor: "rgba(0,255,135,0.2)",
             }}
           >
             <span
@@ -125,7 +126,7 @@ export default function DashboardPage() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour-id="kpi-row" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Hero: Disponibilidad */}
         <Card variant="highlight" className="sm:col-span-2 flex items-center gap-5">
           <div
@@ -143,7 +144,12 @@ export default function DashboardPage() {
               Disponibilidad del plantel
             </p>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-black text-white tabular-nums">{availRate.toFixed(1)}%</span>
+              <AnimatedCounter
+                value={availRate}
+                decimals={1}
+                suffix="%"
+                className="text-4xl font-black text-white tabular-nums"
+              />
               <span className="text-sm" style={{ color: "var(--text-muted)" }}>
                 {dash?.available ?? 0} / {dash?.total_players ?? 0} jugadores
               </span>
@@ -157,7 +163,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <StatCard label="Lesiones activas"  value={dash?.active_injuries ?? 0} icon={AlertTriangle} color="#EF4444" />
+        <StatCard label="Lesiones activas"  value={dash?.active_injuries ?? 0} icon={AlertTriangle} color="#ff3b30" />
         <StatCard label="Partidos (30d)"    value={dash?.recent_matches ?? 0}  icon={Trophy}        color="#F59E0B" />
       </div>
 
@@ -203,8 +209,8 @@ export default function DashboardPage() {
             <AreaChart data={monthData}>
               <defs>
                 <linearGradient id="injGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#EF4444" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#EF4444" stopOpacity={0}   />
+                  <stop offset="0%"   stopColor="#ff3b30" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#ff3b30" stopOpacity={0}   />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -213,8 +219,8 @@ export default function DashboardPage() {
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone" dataKey="injuries" name="Lesiones"
-                stroke="#EF4444" strokeWidth={2} fill="url(#injGrad)"
-                dot={{ fill: "#EF4444", r: 3, strokeWidth: 0 }}
+                stroke="#ff3b30" strokeWidth={2} fill="url(#injGrad)"
+                dot={{ fill: "#ff3b30", r: 3, strokeWidth: 0 }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -272,7 +278,7 @@ export default function DashboardPage() {
 
       {/* Bottom stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total jugadores"   value={dash?.total_players ?? 0}              icon={Users}      color="#4F8EF7" />
+        <StatCard label="Total jugadores"   value={dash?.total_players ?? 0}              icon={Users}      color="#00ff87" />
         <StatCard label="En recuperación"   value={dash?.recovering ?? 0}                 icon={HeartPulse} color="#F97316" />
         <StatCard label="Suspendidos"        value={dash?.suspended ?? 0}                  icon={AlertTriangle} color="#F59E0B" />
         <StatCard label="Días prom. de baja" value={injuryStats?.avg_days_out ?? 0}        icon={Target}     color="#A855F7" />

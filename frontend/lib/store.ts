@@ -7,6 +7,8 @@ interface User {
   full_name: string;
   role: "admin" | "coach" | "kinesiologist" | "analyst";
   avatar_url?: string;
+  club_id?: number | null;
+  is_superadmin?: boolean;
 }
 
 interface AuthStore {
@@ -45,6 +47,10 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.removeItem("refresh_token");
         deleteCookie("access_token");
         deleteCookie("refresh_token");
+        // Tear down WebSocket; dynamic import to avoid SSR issues
+        if (typeof window !== "undefined") {
+          import("./ws").then((m) => m.disconnectRealtime()).catch(() => {});
+        }
         set({ user: null, accessToken: null, refreshToken: null });
       },
       isAuthenticated: () => !!get().accessToken,

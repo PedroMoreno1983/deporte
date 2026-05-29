@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
-import { useRef, useEffect, useState } from "react";
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 
 interface StatCardProps {
   label: string;
@@ -10,16 +10,25 @@ interface StatCardProps {
   color?: string;
   trend?: { value: number; label: string } | null;
   className?: string;
+  /** Optional suffix (e.g. "%") rendered after the number when value is numeric */
+  suffix?: string;
 }
 
 export function StatCard({
   label,
   value,
   icon: Icon,
-  color = "#4F8EF7",
+  color = "#00ff87",
   trend,
   className,
+  suffix,
 }: StatCardProps) {
+  const numericValue = typeof value === "number"
+    ? value
+    : typeof value === "string" && /^-?\d+(\.\d+)?%?$/.test(value.trim())
+      ? Number(value.replace("%", ""))
+      : null;
+  const stringHasPercent = typeof value === "string" && value.includes("%");
   return (
     <div
       className={cn(
@@ -55,7 +64,15 @@ export function StatCard({
             className="text-3xl font-black tabular-nums tracking-tight leading-none"
             style={{ color: "var(--text-primary)" }}
           >
-            {value}
+            {numericValue != null ? (
+              <AnimatedCounter
+                value={numericValue}
+                decimals={String(value).includes(".") ? 1 : 0}
+                suffix={suffix ?? (stringHasPercent ? "%" : "")}
+              />
+            ) : (
+              value
+            )}
           </p>
           <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--text-muted)" }}>
             {label}

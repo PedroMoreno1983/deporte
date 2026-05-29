@@ -1,13 +1,14 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Settings, Plus, Tag, Users, Shield, Eye, EyeOff, Loader2, Check, Trash2 } from "lucide-react";
+import { Settings, Plus, Tag, Users, Shield, Eye, EyeOff, Loader2, Check, Trash2, Sparkles } from "lucide-react";
 import { categoriesApi, api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store";
+import { resetOnboarding } from "@/components/onboarding/OnboardingTour";
 
 const ROLE_CFG: Record<string, { label: string; color: string; bg: string }> = {
   admin:         { label: "Administrador", color: "#ff3b30",  bg: "rgba(255,59,48,0.12)"   },
@@ -16,7 +17,7 @@ const ROLE_CFG: Record<string, { label: string; color: string; bg: string }> = {
   analyst:       { label: "Analista",      color: "#a855f7",  bg: "rgba(168,85,247,0.12)"  },
 };
 
-const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(79,142,247,0.3)]";
+const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
 const inputStyle = { background: "var(--surface-3)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" };
 const labelCls = "text-xs font-semibold block mb-1.5";
 
@@ -81,13 +82,44 @@ export default function SettingsPage() {
         className="pl-12 lg:pl-0"
       />
 
-      {/* My account card */}
+      {/* Onboarding reset */}
       <motion.div {...stagger(0)}>
+        <GlowCard className="p-5 rounded-2xl">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div
+                className="p-2 rounded-xl shrink-0"
+                style={{ background: "rgba(0,255,135,0.10)", border: "1px solid rgba(0,255,135,0.25)" }}
+              >
+                <Sparkles className="w-4 h-4" style={{ color: "var(--brand)" }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white/90">Tour de bienvenida</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Revisa los puntos clave de la plataforma. Útil si recién te integras al cuerpo técnico.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={resetOnboarding}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all shrink-0"
+              style={{ background: "rgba(0,255,135,0.10)", border: "1px solid rgba(0,255,135,0.30)", color: "var(--brand)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,255,135,0.18)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,255,135,0.10)")}
+            >
+              Reiniciar tour
+            </button>
+          </div>
+        </GlowCard>
+      </motion.div>
+
+      {/* My account card */}
+      <motion.div {...stagger(1)}>
         <GlowCard className="p-5 rounded-2xl">
           <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>Mi cuenta</p>
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shrink-0"
-              style={{ background: "linear-gradient(135deg, rgba(79,142,247,0.2), rgba(79,142,247,0.08))", border: "1px solid rgba(79,142,247,0.35)", color: "var(--brand)" }}>
+              style={{ background: "linear-gradient(135deg, rgba(0,255,135,0.2), rgba(0,255,135,0.08))", border: "1px solid rgba(0,255,135,0.35)", color: "var(--brand)" }}>
               {user?.full_name?.charAt(0) ?? "U"}
             </div>
             <div className="flex-1 min-w-0">
@@ -108,7 +140,7 @@ export default function SettingsPage() {
       <motion.div {...stagger(1)}>
         <GlowCard className="rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-            <div className="p-1.5 rounded-lg" style={{ background: "rgba(79,142,247,0.1)" }}>
+            <div className="p-1.5 rounded-lg" style={{ background: "rgba(0,255,135,0.1)" }}>
               <Tag className="w-4 h-4" style={{ color: "var(--brand)" }} />
             </div>
             <h3 className="text-sm font-bold">Categorías</h3>
@@ -123,7 +155,7 @@ export default function SettingsPage() {
             {(categories as any[]).map((c: any) => (
               <div key={c.id} className="flex items-center gap-3 px-5 py-3">
                 <span className="text-xs font-black font-mono px-2 py-0.5 rounded-lg"
-                  style={{ background: "rgba(79,142,247,0.1)", color: "var(--brand)", border: "1px solid rgba(79,142,247,0.2)" }}>
+                  style={{ background: "rgba(0,255,135,0.1)", color: "var(--brand)", border: "1px solid rgba(0,255,135,0.2)" }}>
                   {c.code}
                 </span>
                 <span className="text-sm font-semibold text-white/85 flex-1">{c.name}</span>
@@ -154,7 +186,7 @@ export default function SettingsPage() {
               onClick={() => createCategory.mutate({ ...catForm, min_age: catForm.min_age ? Number(catForm.min_age) : null, max_age: catForm.max_age ? Number(catForm.max_age) : null })}
               disabled={!catForm.name || !catForm.code || createCategory.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(79,142,247,0.1)", border: "1px solid rgba(79,142,247,0.25)", color: "var(--brand)" }}
+              style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.25)", color: "var(--brand)" }}
             >
               {createCategory.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               Agregar
@@ -233,7 +265,7 @@ export default function SettingsPage() {
 
               {createdUser && (
                 <div className="flex items-center gap-2 p-3 rounded-xl mb-4 text-sm"
-                  style={{ background: "rgba(79,142,247,0.08)", border: "1px solid rgba(79,142,247,0.2)" }}>
+                  style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)" }}>
                   <Check className="w-4 h-4 shrink-0" style={{ color: "var(--brand)" }} />
                   <span style={{ color: "var(--brand)" }}>
                     <strong>{createdUser.full_name}</strong> creado como {ROLE_CFG[createdUser.role]?.label}

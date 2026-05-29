@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "general": "General",
+    "analytics_group": "Analytics",
+    "system": "System",
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "injuries": "Injuries",
+    "matches": "Matches",
+    "training": "Training",
+    "tactical": "Tactics",
+    "calendar": "Calendar",
+    "wellness": "Wellness",
+    "analytics": "Analytics",
+    "compare": "Compare",
+    "predictions": "Predictions",
+    "cv": "Video analysis",
+    "settings": "Settings"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "coach": "Head coach",
+    "kinesiologist": "Physiotherapist",
+    "analyst": "Analyst"
+  },
+  "status": {
+    "available": "Available",
+    "injured": "Injured",
+    "recovering": "Recovering",
+    "suspended": "Suspended",
+    "inactive": "Inactive"
+  },
+  "risk": {
+    "low": "Low",
+    "medium": "Moderate",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "logout": "Log out",
+    "language": "Language",
+    "no_data": "No data",
+    "real_time": "Real time"
+  },
+  "logo": {
+    "tagline": "Sports Platform"
+  }
+}

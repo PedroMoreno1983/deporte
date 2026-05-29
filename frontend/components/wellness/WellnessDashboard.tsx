@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { wellnessApi, playersApi } from "@/lib/api";
+import { useRealtime } from "@/lib/ws";
 import {
   Moon, Zap, Smile, Activity, Brain,
   AlertTriangle, CheckCircle2, Plus, X, ChevronDown,
@@ -47,7 +48,7 @@ interface TeamSummary {
 const METRICS = [
   { key: "sleep_quality",   label: "Sueño",    icon: Moon,     color: "#818cf8", tip: "1 = muy mal • 10 = excelente" },
   { key: "fatigue",         label: "Energía",  icon: Zap,      color: "#f59e0b", tip: "1 = muy fatigado • 10 = sin fatiga" },
-  { key: "mood",            label: "Ánimo",    icon: Smile,    color: "#34d399", tip: "1 = muy bajo • 10 = excelente" },
+  { key: "mood",            label: "Ánimo",    icon: Smile,    color: "#00ff87", tip: "1 = muy bajo • 10 = excelente" },
   { key: "muscle_soreness", label: "Muscular", icon: Activity, color: "#f87171", tip: "1 = mucho dolor • 10 = sin dolor" },
   { key: "stress",          label: "Estrés",   icon: Brain,    color: "#a78bfa", tip: "1 = muy estresado • 10 = tranquilo" },
 ];
@@ -56,7 +57,7 @@ const SCORE_COLOR = (s: number | null) => {
   if (!s) return "rgba(255,255,255,0.2)";
   if (s >= 7.5) return "#00ff87";
   if (s >= 5)   return "#f59e0b";
-  return "#ef4444";
+  return "#ff3b30";
 };
 
 const SCORE_LABEL = (s: number | null) => {
@@ -314,6 +315,7 @@ function WellnessFormModal({
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export function WellnessDashboard() {
+  const qcMain = useQueryClient();
   const [modalOpen, setModalOpen]         = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<TeamEntry | null>(null);
 
@@ -326,6 +328,11 @@ export function WellnessDashboard() {
   const { data: trend = [] } = useQuery({
     queryKey: ["wellness-trend"],
     queryFn:  () => wellnessApi.teamTrend(14),
+  });
+
+  useRealtime("wellness", () => {
+    qcMain.invalidateQueries({ queryKey: ["wellness-team"] });
+    qcMain.invalidateQueries({ queryKey: ["wellness-trend"] });
   });
 
   const openForm = (player?: TeamEntry) => {
@@ -402,7 +409,7 @@ export function WellnessDashboard() {
               {alerts > 0 ? <AlertTriangle className="w-4 h-4 text-red-400" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">Alertas</p>
             </div>
-            <span className="text-2xl font-black" style={{ color: alerts > 0 ? "#ef4444" : "#00ff87" }}>{alerts}</span>
+            <span className="text-2xl font-black" style={{ color: alerts > 0 ? "#ff3b30" : "#00ff87" }}>{alerts}</span>
             <p className="text-xs text-white/30 mt-1">{alerts > 0 ? "jugadores en riesgo" : "plantel OK"}</p>
           </div>
         </div>

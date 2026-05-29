@@ -6,67 +6,76 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, AlertTriangle, Trophy,
   Dumbbell, Brain, Settings, ChevronLeft, ChevronRight,
-  LogOut, BarChart3, Shield, Map, HeartPulse, Menu, X, CalendarDays,
+  LogOut, BarChart3, Map, HeartPulse, Menu, X, CalendarDays,
+  GitCompare, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { Logo } from "@/components/ui/Logo";
+import { useQuery } from "@tanstack/react-query";
+import { clubsApi } from "@/lib/api";
+import { useTranslations } from "next-intl";
+import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 
 const NAV_GROUPS = [
   {
-    label: "General",
+    labelKey: "nav.general",
     items: [
-      { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard",     roles: ["admin", "coach", "kinesiologist", "analyst"] },
-      { href: "/players",   icon: Users,           label: "Jugadores",     roles: ["admin", "coach", "kinesiologist", "analyst"] },
-      { href: "/injuries",  icon: AlertTriangle,   label: "Lesiones",      roles: ["admin", "coach", "kinesiologist", "analyst"] },
-      { href: "/matches",   icon: Trophy,          label: "Partidos",      roles: ["admin", "coach", "analyst"] },
-      { href: "/training",  icon: Dumbbell,        label: "Entrenamiento", roles: ["admin", "coach", "kinesiologist"] },
-      { href: "/tactical",  icon: Map,             label: "Pizarra",       roles: ["admin", "coach", "analyst"] },
-      { href: "/calendar",  icon: CalendarDays,    label: "Calendario",    roles: ["admin", "coach", "kinesiologist", "analyst"] },
-      { href: "/wellness",  icon: HeartPulse,      label: "Wellness",      roles: ["admin", "coach", "kinesiologist"] },
+      { href: "/dashboard", icon: LayoutDashboard, labelKey: "nav.dashboard",   roles: ["admin", "coach", "kinesiologist", "analyst"] },
+      { href: "/players",   icon: Users,           labelKey: "nav.players",     roles: ["admin", "coach", "kinesiologist", "analyst"] },
+      { href: "/injuries",  icon: AlertTriangle,   labelKey: "nav.injuries",    roles: ["admin", "coach", "kinesiologist", "analyst"] },
+      { href: "/matches",   icon: Trophy,          labelKey: "nav.matches",     roles: ["admin", "coach", "analyst"] },
+      { href: "/training",  icon: Dumbbell,        labelKey: "nav.training",    roles: ["admin", "coach", "kinesiologist"] },
+      { href: "/tactical",  icon: Map,             labelKey: "nav.tactical",    roles: ["admin", "coach", "analyst"] },
+      { href: "/calendar",  icon: CalendarDays,    labelKey: "nav.calendar",    roles: ["admin", "coach", "kinesiologist", "analyst"] },
+      { href: "/wellness",  icon: HeartPulse,      labelKey: "nav.wellness",    roles: ["admin", "coach", "kinesiologist"] },
     ],
   },
   {
-    label: "Analytics",
+    labelKey: "nav.analytics_group",
     items: [
-      { href: "/analytics",   icon: BarChart3, label: "Analytics",    roles: ["admin", "analyst", "coach"] },
-      { href: "/predictions", icon: Brain,     label: "Predicciones", roles: ["admin", "analyst"] },
+      { href: "/analytics",       icon: BarChart3,  labelKey: "nav.analytics",    roles: ["admin", "analyst", "coach"] },
+      { href: "/players/compare", icon: GitCompare, labelKey: "nav.compare",      roles: ["admin", "analyst", "coach"] },
+      { href: "/predictions",     icon: Brain,      labelKey: "nav.predictions",  roles: ["admin", "analyst"] },
+      { href: "/cv",              icon: Video,      labelKey: "nav.cv",           roles: ["admin", "analyst", "coach"] },
     ],
   },
   {
-    label: "Sistema",
+    labelKey: "nav.system",
     items: [
-      { href: "/settings", icon: Settings, label: "Configuración", roles: ["admin"] },
+      { href: "/settings", icon: Settings, labelKey: "nav.settings", roles: ["admin"] },
     ],
   },
 ];
 
-const ROLE_LABELS: Record<string, string> = {
-  admin:         "Administrador",
-  coach:         "Entrenador",
-  kinesiologist: "Kinesiólogo",
-  analyst:       "Analista",
-};
-
 const ROLE_COLORS: Record<string, string> = {
-  admin:         "#EF4444",
-  coach:         "#4F8EF7",
-  kinesiologist: "#00D4FF",
-  analyst:       "#A855F7",
+  admin:         "#A855F7",
+  coach:         "#00FF87",
+  kinesiologist: "#0EA5E9",
+  analyst:       "#F59E0B",
 };
 
 function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
   const { user, logout } = useAuthStore();
+  const t = useTranslations();
+
+  const { data: club } = useQuery({
+    queryKey: ["my-club"],
+    queryFn:  clubsApi.me,
+    enabled:  !!user?.club_id,
+    staleTime: 60 * 60 * 1000,
+  });
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
-  const roleColor = ROLE_COLORS[user?.role ?? ""] ?? "#4F8EF7";
+  const roleColor = ROLE_COLORS[user?.role ?? ""] ?? "#00FF87";
 
   return (
     <div
@@ -78,19 +87,18 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4 py-5 shrink-0"
+        className="flex items-center gap-3 px-4 py-5 shrink-0 relative"
         style={{ borderBottom: "1px solid var(--border-subtle)" }}
       >
+        {/* Neon top accent line */}
         <div
-          className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+          className="absolute top-0 left-0 right-0 h-px pointer-events-none"
           style={{
-            background: "linear-gradient(135deg, rgba(79,142,247,0.2) 0%, rgba(0,212,255,0.1) 100%)",
-            border: "1px solid rgba(79,142,247,0.3)",
-            boxShadow: "0 0 12px rgba(79,142,247,0.2)",
+            background:
+              "linear-gradient(90deg, transparent, rgba(0,255,135,0.6), transparent)",
           }}
-        >
-          <Shield className="w-4 h-4" style={{ color: "var(--brand)" }} />
-        </div>
+        />
+        <Logo variant="mark" size={36} flat />
 
         <AnimatePresence initial={false}>
           {!collapsed && (
@@ -111,10 +119,10 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
                 </span>
               </div>
               <p
-                className="text-[9px] font-bold tracking-[0.15em] uppercase"
-                style={{ color: "var(--text-muted)" }}
+                className="text-[9px] font-bold tracking-[0.18em] uppercase truncate"
+                style={{ color: "rgba(0,255,135,0.55)" }}
               >
-                Sports Platform
+                {(club as any)?.name ?? t("logo.tagline")}
               </p>
             </motion.div>
           )}
@@ -132,7 +140,7 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <nav data-tour-id="sidebar-nav" className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV_GROUPS.map((group, gi) => {
           const visible = group.items.filter(item =>
             user?.role ? item.roles.includes(user.role) : false
@@ -150,48 +158,40 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
                     className="px-2 pb-1.5 text-[9px] font-bold uppercase tracking-[0.12em]"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    {group.label}
+                    {t(group.labelKey as any)}
                   </motion.p>
                 )}
               </AnimatePresence>
 
               {visible.map(item => {
                 const active = isActive(item.href);
+                const label = t(item.labelKey as any);
                 return (
-                  <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined}>
+                  <Link key={item.href} href={item.href} title={collapsed ? label : undefined}>
                     <div
                       className={cn(
                         "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 mb-0.5",
-                        active
-                          ? "text-white font-semibold"
-                          : "font-medium hover:text-white/80"
+                        active ? "font-bold" : "font-medium hover:text-white/80"
                       )}
                       style={
                         active
                           ? {
-                              background: "rgba(79,142,247,0.12)",
-                              color: "white",
+                              background: "var(--color-neon)",
+                              color: "#020817",
+                              boxShadow: "var(--glow-nav-active)",
                             }
                           : { color: "var(--text-muted)" }
                       }
                       onMouseEnter={(e) => {
-                        if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                        if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
                       }}
                       onMouseLeave={(e) => {
                         if (!active) e.currentTarget.style.background = "transparent";
                       }}
                     >
-                      {/* Active indicator */}
-                      {active && (
-                        <div
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-                          style={{ background: "var(--brand)" }}
-                        />
-                      )}
-
                       <item.icon
                         className="w-[18px] h-[18px] shrink-0"
-                        style={{ color: active ? "var(--brand)" : undefined }}
+                        style={{ color: active ? "#020817" : undefined }}
                       />
 
                       <AnimatePresence initial={false}>
@@ -203,7 +203,7 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
                             transition={{ duration: 0.14 }}
                             className="whitespace-nowrap"
                           >
-                            {item.label}
+                            {label}
                           </motion.span>
                         )}
                       </AnimatePresence>
@@ -223,9 +223,12 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
         })}
       </nav>
 
-      {/* Notification bell */}
-      <div className="px-2 pb-1 shrink-0">
-        <NotificationBell collapsed={collapsed} />
+      {/* Notification bell + locale switcher */}
+      <div className="px-2 pb-1 shrink-0 flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <NotificationBell collapsed={collapsed} />
+        </div>
+        {!collapsed && <LocaleSwitcher />}
       </div>
 
       {/* User footer */}
@@ -262,7 +265,7 @@ function SidebarContent({ collapsed, onClose }: { collapsed: boolean; onClose?: 
                   className="text-[10px] font-semibold"
                   style={{ color: roleColor }}
                 >
-                  {ROLE_LABELS[user?.role ?? ""] ?? user?.role}
+                  {user?.role ? t(`roles.${user.role}` as any) : ""}
                 </p>
               </motion.div>
             )}
