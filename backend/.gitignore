@@ -13,3 +13,7 @@ env/
 deporte.db
 alembic/versions/*.py
 !alembic/versions/.gitkeep
+
+# CV runtime data (uploads/outputs) y pesos de modelos
+cv_data/
+*.pt
