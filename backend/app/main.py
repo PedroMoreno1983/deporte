@@ -1,13 +1,15 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from . import models  # noqa: F401  — registra todas las tablas en Base.metadata
 from .api.v1 import api_router
-from .core.database import Base, engine
+from .core.database import Base, engine, ensure_schema
 from .core.audit import AuditMiddleware
 from .websockets import ws_router
 
-# Crear tablas automáticamente
+# Crear tablas automáticamente + reconciliar columnas aditivas en DBs ya existentes
 Base.metadata.create_all(bind=engine)
+ensure_schema()
 
 app = FastAPI(
     title="Deporte FC - Plataforma de Gestión",

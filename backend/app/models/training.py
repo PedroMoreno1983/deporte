@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Date, ForeignKey, DateTime, Text, Enum, Boolean
+from sqlalchemy import Column, Integer, Float, String, Date, ForeignKey, DateTime, Text, Enum, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -38,6 +38,13 @@ class TrainingSession(Base):
     sprints_count = Column(Integer, nullable=True)
     accelerations_count = Column(Integer, nullable=True)
     decelerations_count = Column(Integer, nullable=True)
+
+    # Catapult/STATSports signature load metric (a.u.). Kept first-class because
+    # it feeds ACWR and the injury model alongside RPE-based session_load.
+    player_load = Column(Float, nullable=True)
+    # Vendor-specific extras that don't have a dedicated column
+    # (e.g. STATSports Dynamic Stress Load, metabolic power, HR zones).
+    extra_metrics = Column(JSON, nullable=True)
 
     # Indicadores de carga calculados
     acute_load = Column(Float, nullable=True)    # Promedio últimos 7 días

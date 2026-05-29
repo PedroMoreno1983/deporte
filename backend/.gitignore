@@ -17,3 +17,9 @@ alembic/versions/*.py
 # CV runtime data (uploads/outputs) y pesos de modelos
 cv_data/
 *.pt
+
+# Imported vendor files (Wyscout/Catapult/Polar/Garmin) — datos de club
+import_data/
+
+# Test cache
+.pytest_cache/
