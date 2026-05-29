@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px 20px; background: var(--surface-base); display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.section { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; }
+.badge { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; font-family: var(--font-sans); letter-spacing: 0.08em; padding: 3px 9px; border-radius: 999px; border-width: 1px; border-style: solid; }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+</style>
+</head><body>
+<div class="section">Risk Levels</div>
+<div class="row">
+  <span class="badge" style="color:#00ff87;background:rgba(0,255,135,0.12);border-color:rgba(0,255,135,0.30)">● BAJO</span>
+  <span class="badge" style="color:#f59e0b;background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.30)">● MODERADO</span>
+  <span class="badge" style="color:#f97316;background:rgba(249,115,22,0.12);border-color:rgba(249,115,22,0.30)">● ALTO</span>
+  <span class="badge" style="color:#ff3b30;background:rgba(255,59,48,0.12);border-color:rgba(255,59,48,0.30)">● CRÍTICO</span>
+</div>
+<div class="section">Player Status</div>
+<div class="row">
+  <span class="badge" style="color:#00ff87;background:rgba(0,255,135,0.14);border-color:rgba(0,255,135,0.25)">● Disponible</span>
+  <span class="badge" style="color:#ff3b30;background:rgba(255,59,48,0.14);border-color:rgba(255,59,48,0.25)">● Lesionado</span>
+  <span class="badge" style="color:#f97316;background:rgba(249,115,22,0.14);border-color:rgba(249,115,22,0.25)">● Recuperando</span>
+  <span class="badge" style="color:#f59e0b;background:rgba(245,158,11,0.14);border-color:rgba(245,158,11,0.25)">● Suspendido</span>
+  <span class="badge" style="color:#64748b;background:rgba(100,116,139,0.12);border-color:rgba(100,116,139,0.25)">● Inactivo</span>
+</div>
+<div class="section">Positions</div>
+<div class="row">
+  <span class="badge" style="color:#f59e0b;background:rgba(245,158,11,0.18);border-color:rgba(245,158,11,0.4);letter-spacing:0.1em">POR</span>
+  <span class="badge" style="color:#0ea5e9;background:rgba(14,165,233,0.18);border-color:rgba(14,165,233,0.4);letter-spacing:0.1em">DEF</span>
+  <span class="badge" style="color:#00ff87;background:rgba(0,255,135,0.18);border-color:rgba(0,255,135,0.4);letter-spacing:0.1em">MED</span>
+  <span class="badge" style="color:#ff3b30;background:rgba(255,59,48,0.18);border-color:rgba(255,59,48,0.4);letter-spacing:0.1em">DEL</span>
+</div>
+</body></html>

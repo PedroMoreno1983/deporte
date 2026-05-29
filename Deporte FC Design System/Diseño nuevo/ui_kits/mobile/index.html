@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Deporte FC — Mobile UI Kit</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --neon:#00ff87; --sky:#0ea5e9; --danger:#ff3b30; --warning:#f59e0b;
+  --bg:#070f1a; --s1:#0d1528; --s2:#162032;
+  --t1:#ffffff; --t2:rgba(255,255,255,0.55); --t3:rgba(255,255,255,0.28);
+  --b1:rgba(255,255,255,0.07);
+  --font:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{color-scheme:dark;}
+body{
+  background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(0,255,135,0.04) 0%,transparent 70%),#06091a;
+  font-family:var(--font);-webkit-font-smoothing:antialiased;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:48px 32px;gap:48px;flex-wrap:wrap;
+}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:rgba(0,255,135,0.2);border-radius:9px;}
+input{color-scheme:dark;}
+
+/* ── Phone frame ─────────────────────────────────────── */
+.phone{
+  width:390px;height:844px;border-radius:52px;
+  background:var(--bg);
+  border:1.5px solid rgba(255,255,255,0.13);
+  box-shadow:
+    0 0 0 4px rgba(0,0,0,0.85),
+    0 0 0 5.5px rgba(255,255,255,0.07),
+    0 48px 96px rgba(0,0,0,0.85),
+    0 0 80px rgba(0,255,135,0.05);
+  overflow:hidden;display:flex;flex-direction:column;position:relative;flex-shrink:0;
+}
+/* Notch */
+.notch{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:126px;height:37px;background:#000;
+  border-radius:0 0 22px 22px;z-index:30;
+}
+/* Dynamic island style pill */
+.dynamic-island{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:120px;height:34px;background:#000;
+  border-radius:20px;z-index:30;
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+}
+.camera-dot{width:10px;height:10px;border-radius:50%;background:#1a1a1a;}
+.face-id{width:18px;height:12px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);}
+
+/* Status bar */
+.status-bar{
+  height:52px;padding:14px 28px 0;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;position:relative;z-index:20;
+}
+.status-time{font-size:16px;font-weight:600;color:#fff;letter-spacing:-0.01em;}
+.status-icons{display:flex;align-items:center;gap:7px;}
+
+/* Screen */
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;}
+
+/* Tab bar */
+.tab-bar{
+  height:88px;background:rgba(10,16,32,0.97);
+  border-top:1px solid rgba(255,255,255,0.09);
+  display:flex;align-items:flex-start;padding:10px 8px 0;
+  flex-shrink:0;backdrop-filter:blur(20px);position:relative;
+}
+.tab-bar::before{
+  content:"";position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,135,0.3),transparent);
+}
+.tab-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  cursor:pointer;padding:2px 0;-webkit-tap-highlight-color:transparent;
+}
+.tab-label{font-size:10px;font-weight:600;transition:color 0.15s;}
+
+/* Label below phone */
+.phone-label{
+  font-family:var(--mono);font-size:11px;color:var(--t3);
+  letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-top:16px;
+}
+
+/* Shared screen styles */
+.screen-pad{padding:0 16px 24px;}
+.section-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:10px;}
+.card-m{
+  background:var(--s1);border:1px solid var(--b1);border-radius:14px;
+  overflow:hidden;
+}
+.row{
+  display:flex;align-items:center;gap:12px;padding:13px 14px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.row:last-child{border-bottom:none;}
+.avatar-m{
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;font-weight:900;
+}
+.badge-m{
+  display:inline-flex;align-items:center;font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:999px;letter-spacing:0.04em;
+}
+.progress-m{height:4px;border-radius:4px;background:rgba(255,255,255,0.07);}
+.progress-fill{height:100%;border-radius:4px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ── Constants ─────────────────────────────────────── */
+const RISK_C = {low:"#10b981",medium:"#f59e0b",high:"#f97316",critical:"#ef4444"};
+const RISK_L = {low:"Bajo",medium:"Moderado",high:"Alto",critical:"Crítico"};
+const POS_C  = {goalkeeper:"#f59e0b",center_back:"#0ea5e9",left_back:"#0ea5e9",right_back:"#0ea5e9",
+                defensive_mid:"#00ff87",central_mid:"#00ff87",attacking_mid:"#00ff87",
+                left_wing:"#ff3b30",right_wing:"#ff3b30",center_forward:"#ff3b30"};
+const POS_L  = {goalkeeper:"Portero",center_back:"Def. Central",left_back:"Lat. Izq.",right_back:"Lat. Der.",
+                defensive_mid:"MC Def.",central_mid:"MC",attacking_mid:"MC Of.",
+                left_wing:"Ext. Izq.",right_wing:"Ext. Der.",center_forward:"Delantero"};
+const ST_C   = {available:"#10b981",injured:"#ef4444",recovering:"#f97316",suspended:"#f59e0b",inactive:"#64748b"};
+const ST_L   = {available:"Disponible",injured:"Lesionado",recovering:"Recuperando",suspended:"Suspendido",inactive:"Inactivo"};
+
+const PLAYERS = [
+  {id:1,first:"Pedro",last:"García",num:1,pos:"goalkeeper",status:"available"},
+  {id:2,first:"Jorge",last:"Ramírez",num:4,pos:"center_back",status:"available"},
+  {id:3,first:"Manuel",last:"Torres",num:5,pos:"center_back",status:"injured"},
+  {id:4,first:"Carlos",last:"Andrés",num:8,pos:"attacking_mid",status:"available"},
+  {id:5,first:"Diego",last:"Herrera",num:10,pos:"right_wing",status:"available"},
+  {id:6,first:"Luis",last:"Mendoza",num:9,pos:"center_forward",status:"injured"},
+  {id:7,first:"Felipe",last:"Castro",num:11,pos:"left_wing",status:"suspended"},
+  {id:8,first:"Andrés",last:"Rojas",num:6,pos:"defensive_mid",status:"available"},
+];
+
+const RISK_LIST = [
+  {name:"Luis Mendoza",pos:"Delantero",score:91,level:"critical"},
+  {name:"Diego Herrera",pos:"Ext. Der.",score:74,level:"high"},
+  {name:"Andrés Rojas",pos:"MC Def.",score:68,level:"high"},
+  {name:"Marcos León",pos:"MC Central",score:47,level:"medium"},
+  {name:"Ricardo Soto",pos:"Lat. Der.",score:22,level:"low"},
+];
+
+const INJURIES = [
+  {player:"Luis Mendoza",type:"Distensión isquiotibial",days:21,level:"critical"},
+  {player:"Manuel Torres",type:"Esguince tobillo",days:7,level:"high"},
+  {player:"Diego Herrera",type:"Sobrecarga muscular",days:3,level:"medium"},
+];
+
+const MATCHES = [
+  {id:1,home:"Deporte FC",away:"Olimpia",date:"26 Abr",comp:"Liga Nacional",upcoming:true},
+  {id:2,home:"Nacional",away:"Deporte FC",date:"29 Abr",comp:"Copa",upcoming:true},
+  {id:3,home:"Deporte FC",away:"Olimpia",result:"2-1",date:"12 Abr",upcoming:false,win:true},
+  {id:4,home:"Nacional",away:"Deporte FC",result:"0-3",date:"6 Abr",upcoming:false,win:true},
+  {id:5,home:"Deporte FC",away:"Cerro",result:"1-1",date:"30 Mar",upcoming:false,win:false,draw:true},
+];
+
+/* ── Atoms ─────────────────────────────────────────── */
+function Icon({d, size=20, color="currentColor", sw=2}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      {d}
+    </svg>
+  );
+}
+
+const ICONS = {
+  home:    <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></>,
+  players: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  injuries:<><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+  matches: <><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></>,
+  search:  <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+  chevron: <><polyline points="9 18 15 12 9 6"/></>,
+  shield:  <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>,
+  bell:    <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>,
+  trending:<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+};
+
+function ProgressBar({pct, color}) {
+  return (
+    <div className="progress-m">
+      <div className="progress-fill" style={{width:`${pct}%`,background:color,boxShadow:`0 0 6px ${color}60`}}/>
+    </div>
+  );
+}
+
+/* ── Status Bar ─────────────────────────────────────── */
+function StatusBar() {
+  return (
+    <div className="status-bar">
+      <span className="status-time">9:41</span>
+      <div className="status-icons">
+        {/* Signal bars */}
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="white">
+          <rect x="0" y="4" width="3" height="8" rx="1" opacity="0.4"/>
+          <rect x="4.5" y="2.5" width="3" height="9.5" rx="1" opacity="0.6"/>
+          <rect x="9" y="0.5" width="3" height="11.5" rx="1"/>
+          <rect x="13.5" y="0.5" width="1" height="11" rx="0.5" opacity="0.35"/>
+        </svg>
+        {/* Wifi */}
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+          <path d="M8 2.5C10.5 2.5 12.7 3.5 14.3 5.1L15.5 3.9C13.5 1.9 10.9 0.7 8 0.7C5.1 0.7 2.5 1.9 0.5 3.9L1.7 5.1C3.3 3.5 5.5 2.5 8 2.5Z" fill="white"/>
+          <path d="M8 5C9.9 5 11.6 5.8 12.9 7L14.1 5.8C12.4 4.2 10.3 3.2 8 3.2C5.7 3.2 3.6 4.2 1.9 5.8L3.1 7C4.4 5.8 6.1 5 8 5Z" fill="white" opacity="0.85"/>
+          <circle cx="8" cy="9.5" r="1.5" fill="white"/>
+        </svg>
+        {/* Battery */}
+        <div style={{width:27,height:13,borderRadius:3.5,border:"1.5px solid rgba(255,255,255,0.5)",padding:"1.5px",display:"flex",alignItems:"center",position:"relative"}}>
+          <div style={{flex:1,height:"100%",borderRadius:2,background:"var(--neon)"}}/>
+          <div style={{position:"absolute",right:-5,top:"50%",transform:"translateY(-50%)",width:3,height:6,borderRadius:1,background:"rgba(255,255,255,0.4)"}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Tab Bar ─────────────────────────────────────────── */
+const TABS = [
+  {id:"home",label:"Inicio"},
+  {id:"players",label:"Jugadores"},
+  {id:"injuries",label:"Lesiones"},
+  {id:"matches",label:"Partidos"},
+];
+
+function TabBar({active, onTab}) {
+  return (
+    <div className="tab-bar">
+      {TABS.map(t => {
+        const on = t.id === active;
+        return (
+          <div key={t.id} className="tab-item" onClick={() => onTab(t.id)}>
+            <Icon d={ICONS[t.id==="home"?"home":t.id]} size={22} color={on?"var(--neon)":"rgba(255,255,255,0.3)"}/>
+            <span className="tab-label" style={{color:on?"var(--neon)":"rgba(255,255,255,0.3)"}}>{t.label}</span>
+            {on && <div style={{width:18,height:2,borderRadius:1,background:"var(--neon)",boxShadow:"0 0 8px rgba(0,255,135,0.8)"}}/>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── KPI Card ────────────────────────────────────────── */
+function KpiCard({label, value, icon, color="#00ff87", flex}) {
+  return (
+    <div style={{flex:flex||1,padding:"14px 14px",borderRadius:14,background:"rgba(255,255,255,0.045)",border:`1px solid ${color}18`}}>
+      <Icon d={icon} size={18} color={color}/>
+      <div style={{fontFamily:"var(--mono)",fontSize:26,fontWeight:700,color:"var(--t1)",letterSpacing:"-0.03em",margin:"8px 0 3px",lineHeight:1}}>{value}</div>
+      <div style={{fontSize:11,color:"var(--t2)",fontWeight:600}}>{label}</div>
+    </div>
+  );
+}
+
+/* ── HOME SCREEN ─────────────────────────────────────── */
+function HomeScreen() {
+  return (
+    <div style={{background:"var(--bg)",minHeight:"100%"}}>
+      {/* Hero header */}
+      <div style={{padding:"8px 20px 20px",background:"linear-gradient(180deg,rgba(0,255,135,0.06) 0%,transparent 100%)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{fontSize:26,fontWeight:800,color:"var(--t1)",letterSpacing:"-0.02em",lineHeight:1}}>Deporte <span style={{color:"var(--neon)"}}>FC</span></div>
+            <div style={{fontSize:12,color:"var(--t2)",marginTop:4}}>Resumen del equipo · Hoy</div>
+          </div>
+          <div style={{width:38,height:38,borderRadius:12,background:"rgba(0,255,135,0.1)",border:"1px solid rgba(0,255,135,0.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Icon d={ICONS.bell} size={17} color="var(--neon)"/>
+          </div>
+        </div>
+      </div>
+
+      <div className="screen-pad" style={{paddingTop:0}}>
+        {/* KPI grid */}
+        <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+          <KpiCard label="Jugadores" value="26" color="#94a3b8" icon={ICONS.players}/>
+          <KpiCard label="Disponibles" value="21" color="var(--neon)" icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}/>
+          <KpiCard label="Lesionados" value="4" color="var(--danger)" icon={ICONS.injuries}/>
+          <KpiCard label="Disponib." value="87%" color="var(--sky)" icon={<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>}/>
+        </div>
+
+        {/* Availability bar */}
+        <div className="card-m" style={{padding:"14px 16px",marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:12,fontWeight:700,color:"var(--t1)"}}>Disponibilidad del plantel</span>
+            <span style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:"var(--neon)"}}>87%</span>
+          </div>
+          <ProgressBar pct={87} color="var(--neon)"/>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+            <span style={{fontSize:10,color:"var(--t2)"}}>21 disponibles</span>
+            <span style={{fontSize:10,color:"var(--t3)"}}>objetivo: 90%</span>
+          </div>
+        </div>
+
+        {/* Risk alert */}
+        <div style={{marginBottom:6}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span className="section-title" style={{margin:0}}>Alerta de riesgo</span>
+            <span style={{fontSize:10,color:"var(--neon)",fontWeight:600}}>Ver todos →</span>
+          </div>
+          <div className="card-m">
+            {RISK_LIST.slice(0,4).map(p => (
+              <div key={p.name} className="row">
+                <div style={{width:42,height:42,borderRadius:11,background:`${RISK_C[p.level]}18`,border:`1px solid ${RISK_C[p.level]}35`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <span style={{fontFamily:"var(--mono)",fontSize:14,fontWeight:700,color:RISK_C[p.level]}}>{p.score}</span>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                  <div style={{fontSize:11,color:"var(--t2)",marginTop:1}}>{p.pos}</div>
+                </div>
+                <span className="badge-m" style={{color:RISK_C[p.level],background:`${RISK_C[p.level]}18`,border:`1px solid ${RISK_C[p.level]}35`}}>
+                  {RISK_L[p.level]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Next match */}
+        <div style={{marginTop:16}}>
+          <span className="section-title">Próximo partido</span>
+          <div className="card-m" style={{padding:"16px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{textAlign:"center",flex:1}}>
+                <div style={{width:44,height:44,borderRadius:12,background:"rgba(0,255,135,0.12)",border:"1px solid rgba(0,255,135,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:10,fontWeight:800,color:"var(--neon)",margin:"0 auto 6px"}}>DFC</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--t1)"}}>Deporte FC</div>
+                <span className="badge-m" style={{color:"var(--neon)",background:"rgba(0,255,135,0.12)",border:"1px solid rgba(0,255,135,0.3)",marginTop:4}}>LOCAL</span>
+              </div>
+              <div style={{textAlign:"center",padding:"0 16px"}}>
+                <div style={{fontFamily:"var(--mono)",fontSize:22,fontWeight:700,color:"var(--t1)"}}>vs</div>
+                <div style={{fontSize:10,color:"var(--t3)",marginTop:4}}>26 Abr</div>
+                <div style={{fontSize:10,color:"var(--t3)"}}>21:00</div>
+              </div>
+              <div style={{textAlign:"center",flex:1}}>
+                <div style={{width:44,height:44,borderRadius:12,background:"rgba(14,165,233,0.12)",border:"1px solid rgba(14,165,233,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:10,fontWeight:800,color:"var(--sky)",margin:"0 auto 6px"}}>OLI</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--t1)"}}>Olimpia</div>
+                <span className="badge-m" style={{color:"var(--sky)",background:"rgba(14,165,233,0.12)",border:"1px solid rgba(14,165,233,0.3)",marginTop:4}}>VISITA</span>
+              </div>
+            </div>
+            <div style={{marginTop:14,padding:"10px 0",borderTop:"1px solid var(--b1)",textAlign:"center",fontSize:11,color:"var(--t3)"}}>Liga Nacional · Jornada 23 · Estadio Nacional</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── PLAYERS SCREEN ──────────────────────────────────── */
+function PlayersScreen() {
+  const [search, setSearch] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
+  const filtered = PLAYERS.filter(p => {
+    const ms = filter==="all"||p.status===filter;
+    const mq = !search||`${p.first} ${p.last}`.toLowerCase().includes(search.toLowerCase());
+    return ms&&mq;
+  });
+  return (
+    <div style={{background:"var(--bg)",minHeight:"100%"}}>
+      <div style={{padding:"8px 20px 14px",position:"sticky",top:0,background:"rgba(7,15,26,0.97)",zIndex:10,backdropFilter:"blur(12px)",borderBottom:"1px solid var(--b1)"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--t1)",marginBottom:12}}>Jugadores</div>
+        {/* Search */}
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.07)",borderRadius:12,padding:"9px 14px",border:"1px solid var(--b1)",marginBottom:10}}>
+          <Icon d={ICONS.search} size={14} color="var(--t3)"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar jugadores…"
+            style={{background:"transparent",border:"none",outline:"none",color:"var(--t1)",fontSize:14,fontFamily:"var(--font)",flex:1}}/>
+        </div>
+        {/* Status filter pills */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+          {["all","available","injured","recovering"].map(s=>(
+            <div key={s} onClick={()=>setFilter(s)}
+              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0,transition:"all 0.14s",
+                background:filter===s?"var(--neon)":"rgba(255,255,255,0.06)",
+                color:filter===s?"#000":"rgba(255,255,255,0.55)",
+                boxShadow:filter===s?"0 0 12px rgba(0,255,135,0.35)":"none"}}>
+              {{all:"Todos",available:"Disponible",injured:"Lesionado",recovering:"Recuperando"}[s]}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="screen-pad" style={{paddingTop:12}}>
+        <div className="card-m">
+          {filtered.map(p=>{
+            const c = POS_C[p.pos]||"var(--neon)";
+            const sc = ST_C[p.status]||"#64748b";
+            return (
+              <div key={p.id} className="row" style={{cursor:"pointer"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div className="avatar-m" style={{background:`${c}18`,border:`1px solid ${c}40`,color:c}}>
+                  {p.first[0]}{p.last[0]}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:14,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.first} {p.last}</span>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--t2)",marginTop:2}}>{POS_L[p.pos]}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  <span style={{fontFamily:"var(--mono)",fontSize:11,fontWeight:700,color:c}}>#{p.num}</span>
+                  <span className="badge-m" style={{color:sc,background:`${sc}18`,border:`1px solid ${sc}35`}}>● {ST_L[p.status]}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── INJURIES SCREEN ─────────────────────────────────── */
+function InjuriesScreen() {
+  return (
+    <div style={{background:"var(--bg)",minHeight:"100%"}}>
+      <div style={{padding:"8px 20px 16px",borderBottom:"1px solid var(--b1)"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--t1)"}}>Lesiones</div>
+        <div style={{fontSize:12,color:"var(--t2)",marginTop:4}}>Seguimiento médico activo</div>
+      </div>
+      <div className="screen-pad" style={{paddingTop:16}}>
+        {/* KPIs */}
+        <div style={{display:"flex",gap:10,marginBottom:20}}>
+          <div style={{flex:1,padding:"12px 14px",borderRadius:14,background:"rgba(255,59,48,0.1)",border:"1px solid rgba(255,59,48,0.2)"}}>
+            <div style={{fontFamily:"var(--mono)",fontSize:28,fontWeight:700,color:"var(--danger)"}}>4</div>
+            <div style={{fontSize:11,color:"var(--t2)",fontWeight:600,marginTop:2}}>Lesionados</div>
+          </div>
+          <div style={{flex:1,padding:"12px 14px",borderRadius:14,background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)"}}>
+            <div style={{fontFamily:"var(--mono)",fontSize:28,fontWeight:700,color:"var(--warning)"}}>2</div>
+            <div style={{fontSize:11,color:"var(--t2)",fontWeight:600,marginTop:2}}>Recuperando</div>
+          </div>
+          <div style={{flex:1,padding:"12px 14px",borderRadius:14,background:"rgba(0,255,135,0.08)",border:"1px solid rgba(0,255,135,0.2)"}}>
+            <div style={{fontFamily:"var(--mono)",fontSize:28,fontWeight:700,color:"var(--neon)"}}>14d</div>
+            <div style={{fontSize:11,color:"var(--t2)",fontWeight:600,marginTop:2}}>Prom. baja</div>
+          </div>
+        </div>
+
+        <span className="section-title">Lesiones activas</span>
+        <div className="card-m" style={{marginBottom:20}}>
+          {INJURIES.map(inj=>{
+            const c = RISK_C[inj.level];
+            const prog = {critical:15,high:50,medium:75,low:95}[inj.level];
+            return (
+              <div key={inj.player} style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:600,color:"var(--t1)"}}>{inj.player}</div>
+                    <div style={{fontSize:11,color:"var(--t2)",marginTop:2}}>{inj.type}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span className="badge-m" style={{color:c,background:`${c}18`,border:`1px solid ${c}35`}}>{RISK_L[inj.level]}</span>
+                    <div style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:700,color:c,marginTop:4}}>{inj.days}d restantes</div>
+                  </div>
+                </div>
+                <ProgressBar pct={prog} color={c}/>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:5}}>
+                  <span style={{fontSize:10,color:"var(--t3)"}}>Progreso: {prog}%</span>
+                  <span style={{fontSize:10,color:"var(--t3)"}}>Protocolo activo</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <span className="section-title">Recomendaciones ML</span>
+        {[
+          {p:"Luis Mendoza",r:"Reposo 21+ días.",c:"#ef4444"},
+          {p:"Diego Herrera",r:"Reducir carga 40%.",c:"#f97316"},
+        ].map(r=>(
+          <div key={r.p} style={{padding:"12px 14px",borderRadius:12,background:`${r.c}10`,border:`1px solid ${r.c}28`,marginBottom:8,display:"flex",gap:10}}>
+            <div style={{width:4,borderRadius:2,background:r.c,flexShrink:0}}/>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:r.c,marginBottom:3}}>{r.p}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>{r.r}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── MATCHES SCREEN ──────────────────────────────────── */
+function MatchesScreen() {
+  const [tab, setTab] = React.useState("upcoming");
+  return (
+    <div style={{background:"var(--bg)",minHeight:"100%"}}>
+      <div style={{padding:"8px 20px 14px",borderBottom:"1px solid var(--b1)"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--t1)",marginBottom:16}}>Partidos</div>
+        <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:3}}>
+          {["upcoming","played"].map(t=>(
+            <div key={t} onClick={()=>setTab(t)}
+              style={{flex:1,padding:"7px 0",borderRadius:8,textAlign:"center",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all 0.14s",
+                background:tab===t?"var(--neon)":"transparent",color:tab===t?"#000":"rgba(255,255,255,0.5)"}}>
+              {t==="upcoming"?"Próximos":"Resultados"}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="screen-pad" style={{paddingTop:16}}>
+        {/* Season stats */}
+        <div style={{display:"flex",gap:8,marginBottom:20}}>
+          {[{l:"V",v:14,c:"#00ff87"},{l:"E",v:4,c:"#f59e0b"},{l:"D",v:4,c:"#ff3b30"}].map(s=>(
+            <div key={s.l} style={{flex:1,textAlign:"center",padding:"10px 0",borderRadius:12,background:`${s.c}12`,border:`1px solid ${s.c}30`}}>
+              <div style={{fontFamily:"var(--mono)",fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div>
+              <div style={{fontSize:10,color:"var(--t3)",marginTop:2}}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card-m">
+          {MATCHES.filter(m=>tab==="upcoming"?m.upcoming:!m.upcoming).map(m=>{
+            const fc = m.home==="Deporte FC";
+            const rc = m.win?"#00ff87":m.draw?"#f59e0b":"#ff3b30";
+            return (
+              <div key={m.id} className="row" style={{alignItems:"center"}}>
+                <span className="badge-m" style={{color:fc?"var(--neon)":"var(--sky)",background:fc?"rgba(0,255,135,0.12)":"rgba(14,165,233,0.12)",border:`1px solid ${fc?"rgba(0,255,135,0.3)":"rgba(14,165,233,0.3)"}`,flexShrink:0}}>
+                  {fc?"LOC":"VIS"}
+                </span>
+                <div style={{flex:1,minWidth:0,marginLeft:4}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home} <span style={{color:"var(--t3)"}}>vs</span> {m.away}</div>
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:2}}>{m.date} · {m.comp}</div>
+                </div>
+                {m.result ? (
+                  <span style={{fontFamily:"var(--mono)",fontSize:16,fontWeight:700,color:rc,flexShrink:0}}>{m.result}</span>
+                ) : (
+                  <Icon d={ICONS.chevron} size={14} color="var(--t3)"/>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── PHONE WRAPPER ───────────────────────────────────── */
+function Phone({label}) {
+  const [tab, setTab] = React.useState(
+    ()=>localStorage.getItem("dfc-mobile-tab")||"home"
+  );
+  const navigate = id => {
+    setTab(id);
+    localStorage.setItem("dfc-mobile-tab", id);
+  };
+  const screens = {home:<HomeScreen/>,players:<PlayersScreen/>,injuries:<InjuriesScreen/>,matches:<MatchesScreen/>};
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+      <div className="phone">
+        <div className="dynamic-island">
+          <div className="camera-dot"/>
+          <div className="face-id"/>
+        </div>
+        <StatusBar/>
+        <div className="screen">{screens[tab]}</div>
+        <TabBar active={tab} onTab={navigate}/>
+      </div>
+      {label && <div className="phone-label">{label}</div>}
+    </div>
+  );
+}
+
+/* ── APP ──────────────────────────────────────────────── */
+function App() {
+  return (
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"center",minHeight:"100vh",padding:"48px 32px",gap:48,flexWrap:"wrap"}}>
+      <Phone label="iOS 17 · Deporte FC"/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
