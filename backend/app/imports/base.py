@@ -41,6 +41,12 @@ class BaseImporter:
     # Allowed file extensions. Use lowercase, with the dot.
     accepted_extensions: tuple = (".csv",)
 
+    def __init__(self, options: Optional[Dict[str, Any]] = None):
+        # Upload-time context the file itself can't carry: which player a
+        # per-device Garmin file belongs to, or the date/opponent for a match
+        # export whose header lacks them. Set by the endpoint before parse().
+        self.options: Dict[str, Any] = dict(options or {})
+
     def parse(self, path: Path) -> ImportResult:  # noqa: D401
         raise NotImplementedError
 

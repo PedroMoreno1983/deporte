@@ -17,6 +17,12 @@ class Match(Base):
     goals_for = Column(Integer, nullable=True)
     goals_against = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # Provenance for imported matches (Wyscout/InStat): lets a re-import find the
+    # same match instead of creating a duplicate. Null for manually-created matches.
+    external_ref = Column(String, nullable=True, index=True)
+    source = Column(String, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     stats = relationship("MatchStat", back_populates="match", cascade="all, delete-orphan")

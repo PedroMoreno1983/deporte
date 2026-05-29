@@ -42,6 +42,7 @@ PERMISSIONS_BY_ROLE: dict[UserRole, Set[str]] = {
         "predictions:read",
         "analytics:read",
         "cv:read", "cv:upload", "cv:delete",
+        "imports:read", "imports:write",
         "users:manage",
         "categories:manage",
         "audit:read",
@@ -56,6 +57,7 @@ PERMISSIONS_BY_ROLE: dict[UserRole, Set[str]] = {
         "predictions:read",
         "analytics:read",
         "cv:read", "cv:upload",
+        "imports:read", "imports:write",
     },
     UserRole.KINESIOLOGIST: {
         "players:read",
@@ -63,6 +65,7 @@ PERMISSIONS_BY_ROLE: dict[UserRole, Set[str]] = {
         "wellness:read", "wellness:write",
         "training:read",
         "predictions:read",
+        "imports:read",
     },
     UserRole.ANALYST: {
         "players:read",
@@ -73,6 +76,7 @@ PERMISSIONS_BY_ROLE: dict[UserRole, Set[str]] = {
         "predictions:read",
         "analytics:read",
         "cv:read", "cv:upload",
+        "imports:read", "imports:write",
     },
 }
 

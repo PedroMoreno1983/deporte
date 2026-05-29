@@ -69,6 +69,9 @@ class ImportJob(Base):
 
     notes           = Column(Text,                nullable=True)
     raw_path        = Column(String,              nullable=True)  # uploaded file on disk
+    # Upload-time context the file can't carry (player_id for a Garmin file,
+    # match_date/opponent for an event export). Persisted so a re-run reuses it.
+    options         = Column(JSON,                nullable=True)
 
     created_at      = Column(DateTime, default=datetime.utcnow,           nullable=False)
     started_at      = Column(DateTime, nullable=True)
