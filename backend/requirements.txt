@@ -23,6 +23,9 @@ xgboost==2.1.1                       # gradient-boosted trees; native NaN handli
 shap==0.46.0                         # TreeSHAP per-prediction explanations
 # (falls back to xgboost's built-in pred_contribs if shap is unavailable)
 
+# ── Executive reports ─────────────────────────────────────────────────
+reportlab==4.2.2                     # board-level PDF generation (pure-Python, no native deps)
+
 # ── External-data imports ────────────────────────────────────────────
 openpyxl==3.1.5                      # .xlsx parsing (Catapult/STATSports/Wyscout)
 fitparse==1.2.0                      # Garmin .fit binary decoding
