@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px 20px; background: var(--surface-base); display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.demo { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.tag { font-size: 9px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+/* Scan line demo */
+.scan-host { width: 160px; height: 70px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border-subtle); position: relative; overflow: hidden; }
+.scan { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,255,135,0.5), transparent); animation: scanLine 3s linear infinite; }
+@keyframes scanLine { 0%{top:0;opacity:0} 5%{opacity:1} 95%{opacity:1} 100%{top:100%;opacity:0} }
+/* Status dot */
+.dot-demo { display: flex; align-items: center; gap: 8px; }
+.s-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff87; box-shadow: 0 0 8px #00ff87; position: relative; }
+.s-dot::before { content:""; position: absolute; inset: -3px; border-radius: 50%; background: #00ff87; opacity: 0.35; animation: ping 2s cubic-bezier(0,0,0.2,1) infinite; }
+@keyframes ping { 75%,100%{transform:scale(2.2);opacity:0} }
+/* Float */
+.float-box { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,rgba(0,255,135,0.2),rgba(0,255,135,0.08)); border: 1px solid rgba(0,255,135,0.4); box-shadow: 0 0 16px rgba(0,255,135,0.3); display: flex; align-items: center; justify-content: center; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+/* Skeleton */
+.skeleton-box { width: 160px; height: 48px; border-radius: 10px; background: linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0) 100%); background-size: 200% 100%; animation: shimmer 1.8s linear infinite; border: 1px solid rgba(255,255,255,0.06); }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+/* Glow pulse */
+.pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: #00ff87; box-shadow: 0 0 8px #00ff87; animation: glowPulse 2.5s ease-in-out infinite; }
+@keyframes glowPulse { 0%,100%{opacity:0.5;box-shadow:0 0 8px rgba(0,255,135,0.4)} 50%{opacity:1;box-shadow:0 0 16px rgba(0,255,135,0.8)} }
+</style>
+</head><body>
+<div class="demo"><div class="tag">Scan line</div><div class="scan-host"><div class="scan"></div></div></div>
+<div class="demo"><div class="tag">Status dot (ping)</div><div class="dot-demo"><div class="s-dot"></div><span style="font-size:12px;color:var(--text-secondary)">Sistema activo</span></div></div>
+<div class="demo"><div class="tag">Float</div><div class="float-box"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ff87" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div></div>
+<div class="demo"><div class="tag">Skeleton shimmer</div><div class="skeleton-box"></div></div>
+<div class="demo"><div class="tag">Glow pulse</div><div class="pulse-dot"></div></div>
+</body></html>

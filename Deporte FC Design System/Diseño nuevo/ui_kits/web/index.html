@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deporte FC — Plataforma de Gestión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  /* Refined palette — sophisticated emerald + slate */
+  --neon: #10b981;       /* primary accent — emerald (was neon green) */
+  --neon-soft: #34d399;  /* lighter emerald for hovers */
+  --sky: #38bdf8;        /* secondary — sky */
+  --danger: #f43f5e;     /* rose, not pure red */
+  --warning: #f59e0b;    /* amber */
+  --purple: #8b5cf6;     /* refined violet */
+  /* Surfaces — warmer, layered slate */
+  --s0: #0a0e17;
+  --s1: #0f1521;
+  --s2: #151c2c;
+  --s3: #1c2438;
+  --s4: #252e47;
+  /* Text */
+  --t1: #e2e8f0; --t2: #94a3b8; --t3: #64748b; --t4: #475569;
+  /* Borders */
+  --b1: rgba(148,163,184,0.10);
+  --b2: rgba(148,163,184,0.16);
+  --b3: rgba(148,163,184,0.24);
+  --font: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", monospace;
+  --r: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { color-scheme: dark; }
+body {
+  font-family: var(--font); font-size: 14px;
+  background:
+    radial-gradient(ellipse 70% 50% at 0% 0%, rgba(16,185,129,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(56,189,248,0.025) 0%, transparent 55%),
+    var(--s0);
+  color: var(--t1);
+  -webkit-font-smoothing: antialiased; overflow: hidden; height: 100vh;
+  letter-spacing: -0.005em;
+  font-feature-settings: "ss01" 1, "cv11" 1;
+}
+#root { height: 100vh; display: flex; overflow: hidden; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.14); border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.28); }
+::selection { background: rgba(16,185,129,0.22); color: #e2e8f0; }
+input, button { font-family: var(--font); color-scheme: dark; }
+input::placeholder { color: var(--t3); }
+button { cursor: pointer; border: none; background: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══════════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════════ */
+const PLAYERS = [
+  {id:1, first:"Pedro",   last:"García",    num:1,  pos:"goalkeeper",     status:"available", age:28, nationality:"Uruguay",  rating:84},
+  {id:2, first:"Jorge",   last:"Ramírez",   num:4,  pos:"center_back",    status:"available", age:26, nationality:"Argentina", rating:81},
+  {id:3, first:"Manuel",  last:"Torres",    num:5,  pos:"center_back",    status:"injured",   age:31, nationality:"Chile",     rating:79},
+  {id:4, first:"Luis",    last:"Vargas",    num:3,  pos:"left_back",      status:"available", age:24, nationality:"Paraguay",  rating:77},
+  {id:5, first:"Ricardo", last:"Soto",      num:2,  pos:"right_back",     status:"recovering",age:27, nationality:"Bolivia",   rating:76},
+  {id:6, first:"Andrés",  last:"Rojas",     num:6,  pos:"defensive_mid",  status:"available", age:29, nationality:"Colombia",  rating:83},
+  {id:7, first:"Marcos",  last:"León",      num:14, pos:"central_mid",    status:"available", age:22, nationality:"Ecuador",   rating:78},
+  {id:8, first:"Carlos",  last:"Andrés",    num:8,  pos:"attacking_mid",  status:"available", age:25, nationality:"Argentina", rating:86},
+  {id:9, first:"Felipe",  last:"Castro",    num:11, pos:"left_wing",      status:"suspended", age:23, nationality:"Chile",     rating:80},
+  {id:10,first:"Diego",   last:"Herrera",   num:10, pos:"right_wing",     status:"available", age:28, nationality:"Colombia",  rating:88},
+  {id:11,first:"Luis",    last:"Mendoza",   num:9,  pos:"center_forward", status:"injured",   age:30, nationality:"Argentina", rating:91},
+  {id:12,first:"Pablo",   last:"Núñez",     num:17, pos:"central_mid",    status:"available", age:21, nationality:"Uruguay",   rating:74},
+  {id:13,first:"Sebastián",last:"Mora",     num:21, pos:"goalkeeper",     status:"available", age:33, nationality:"Chile",     rating:78},
+  {id:14,first:"Gabriel", last:"Ríos",      num:15, pos:"center_back",    status:"available", age:25, nationality:"Paraguay",  rating:75},
+  {id:15,first:"Nicolás", last:"Pérez",     num:7,  pos:"right_wing",     status:"available", age:27, nationality:"Argentina", rating:82},
+];
+
+const MATCHES = [
+  {id:1,home:"Deporte FC",away:"Olimpia",    result:"2-1",date:"12 Abr",comp:"Liga Nacional",status:"played",  homeGoals:2,awayGoals:1},
+  {id:2,home:"Nacional",  away:"Deporte FC", result:"0-3",date:"6 Abr", comp:"Liga Nacional",status:"played",  homeGoals:0,awayGoals:3},
+  {id:3,home:"Deporte FC",away:"Cerro",      result:"1-1",date:"30 Mar",comp:"Copa Nacional",status:"played",  homeGoals:1,awayGoals:1},
+  {id:4,home:"Guaraní",   away:"Deporte FC", result:"1-2",date:"23 Mar",comp:"Liga Nacional",status:"played",  homeGoals:1,awayGoals:2},
+  {id:5,home:"Deporte FC",away:"Olimpia",    date:"26 Abr",comp:"Liga Nacional",status:"upcoming"},
+  {id:6,home:"Nacional",  away:"Deporte FC", date:"29 Abr",comp:"Copa",          status:"upcoming"},
+  {id:7,home:"Deporte FC",away:"Cerro",      date:"3 May", comp:"Liga Nacional",status:"upcoming"},
+];
+
+const INJURIES = [
+  {id:1,player:"Luis Mendoza",    pos:"Delantero",   posKey:"atk",type:"Distensión isquiotibial izq.",  date:"18 Abr",severity:"critical",recovery:21,status:"injured",   progress:15},
+  {id:2,player:"Manuel Torres",   pos:"Def. Central",posKey:"def",type:"Esguince tobillo derecho",       date:"10 Abr",severity:"high",    recovery:7, status:"injured",   progress:50},
+  {id:3,player:"Diego Herrera",   pos:"Ext. Izq.",   posKey:"atk",type:"Sobrecarga muscular cuádriceps", date:"2 Abr", severity:"medium",  recovery:3, status:"recovering",progress:75},
+  {id:4,player:"Ricardo Soto",    pos:"Lat. Der.",   posKey:"def",type:"Contusión rodilla izquierda",    date:"28 Mar",severity:"medium",  recovery:2, status:"recovering",progress:85},
+  {id:5,player:"Pedro García",    pos:"Portero",     posKey:"gk", type:"Lesión de muñeca",               date:"15 Mar",severity:"low",     recovery:0, status:"available", progress:100},
+];
+
+const RISK_DATA = [
+  {name:"Luis Mendoza",   pos:"Delantero",    score:91, level:"critical", trend:+8},
+  {name:"Diego Herrera",  pos:"Ext. Der.",    score:74, level:"high",     trend:+3},
+  {name:"Andrés Rojas",   pos:"MC Def.",      score:68, level:"high",     trend:-2},
+  {name:"Marcos León",    pos:"MC Central",   score:47, level:"medium",   trend:+1},
+  {name:"Felipe Castro",  pos:"Ext. Izq.",    score:41, level:"medium",   trend:-5},
+  {name:"Ricardo Soto",   pos:"Lat. Der.",    score:22, level:"low",      trend:-3},
+  {name:"Pablo Núñez",    pos:"MC Central",   score:18, level:"low",      trend:0},
+];
+
+const TRAINING_SESSIONS = [
+  {id:1, date:"Lun 21 Abr",type:"Resistencia",   intensity:"Alta",   duration:"90 min",players:18,coach:"Carlos Vega",    status:"completed"},
+  {id:2, date:"Mar 22 Abr",type:"Táctica",        intensity:"Media",  duration:"75 min",players:20,coach:"Carlos Vega",    status:"completed"},
+  {id:3, date:"Mié 23 Abr",type:"Recuperación",   intensity:"Baja",   duration:"45 min",players:22,coach:"Fisiología",     status:"completed"},
+  {id:4, date:"Jue 24 Abr",type:"Técnica",        intensity:"Media",  duration:"80 min",players:19,coach:"Carlos Vega",    status:"completed"},
+  {id:5, date:"Vie 25 Abr",type:"Precompetencia", intensity:"Media",  duration:"60 min",players:21,coach:"Carlos Vega",    status:"scheduled"},
+  {id:6, date:"Sáb 26 Abr",type:"PARTIDO",        intensity:"Alta",   duration:"90 min",players:18,coach:"—",              status:"match"},
+];
+
+const SPARKLINE_DATA = {
+  available: [19,21,20,22,21,23,21],
+  injured:   [6, 5, 6, 4, 5, 4, 4],
+  wins:      [1, 1, 0, 1, 1, 1, 0],
+  rating:    [81,82,80,83,82,84,83],
+};
+
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════ */
+const POS_MAP = {
+  goalkeeper:"gk",center_back:"def",left_back:"def",right_back:"def",
+  defensive_mid:"mid",central_mid:"mid",attacking_mid:"mid",
+  left_wing:"atk",right_wing:"atk",center_forward:"atk",
+};
+const POS_CFG = {
+  gk: {c:"#f59e0b",label:"POR"},
+  def:{c:"#38bdf8",label:"DEF"},
+  mid:{c:"#10b981",label:"MED"},
+  atk:{c:"#f43f5e",label:"DEL"},
+};
+const POS_LABEL = {
+  goalkeeper:"Portero",center_back:"Def. Central",left_back:"Lat. Izq.",right_back:"Lat. Der.",
+  defensive_mid:"MC Def.",central_mid:"MC",attacking_mid:"MC Of.",
+  left_wing:"Ext. Izq.",right_wing:"Ext. Der.",center_forward:"Delantero",
+};
+const STATUS_CFG = {
+  available: {label:"Disponible", c:"#10b981"},
+  injured:   {label:"Lesionado",  c:"#f43f5e"},
+  recovering:{label:"Recuperando",c:"#f97316"},
+  suspended: {label:"Suspendido", c:"#f59e0b"},
+  inactive:  {label:"Inactivo",   c:"#64748b"},
+};
+const SEV_CFG = {
+  low:     {c:"#10b981",label:"Bajo"},
+  medium:  {c:"#f59e0b",label:"Moderado"},
+  high:    {c:"#f97316",label:"Alto"},
+  critical:{c:"#f43f5e",label:"Crítico"},
+};
+const NAV = [
+  {id:"dashboard",   label:"Dashboard",     group:"General"},
+  {id:"players",     label:"Jugadores",     group:"General"},
+  {id:"injuries",    label:"Lesiones",      group:"General"},
+  {id:"matches",     label:"Partidos",      group:"General"},
+  {id:"training",    label:"Entrenamiento", group:"General"},
+  {id:"tactical",    label:"Pizarra",       group:"General"},
+  {id:"wellness",    label:"Wellness",      group:"General"},
+  {id:"analytics",   label:"Analytics",     group:"Análisis"},
+  {id:"predictions", label:"Predicciones",  group:"Análisis"},
+  {id:"settings",    label:"Configuración", group:"Sistema"},
+];
+
+/* ═══════════════════════════════════════════════════════════
+   ICONS
+═══════════════════════════════════════════════════════════ */
+const PATHS = {
+  dashboard:   <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></>,
+  players:     <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  injuries:    <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+  matches:     <><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></>,
+  training:    <><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></>,
+  tactical:    <><polygon points="3 11 22 2 13 21 11 13 3 11"/></>,
+  wellness:    <><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></>,
+  analytics:   <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+  predictions: <><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></>,
+  settings:    <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+  logout:      <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+  bell:        <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>,
+  search:      <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+  chevron_r:   <><polyline points="9 18 15 12 9 6"/></>,
+  chevron_l:   <><polyline points="15 18 9 12 15 6"/></>,
+  trend_up:    <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+  trend_down:  <><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></>,
+  shield:      <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>,
+  calendar:    <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+  activity:    <><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></>,
+  check:       <><polyline points="20 6 9 17 4 12"/></>,
+};
+
+function Icon({id, size=16, color="currentColor", strokeWidth=2}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+      {PATHS[id]}
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES
+═══════════════════════════════════════════════════════════ */
+function Badge({children, color="#10b981", size="sm"}) {
+  const p = size==="sm" ? "2px 8px" : "4px 12px";
+  const fs = size==="sm" ? 9 : 11;
+  return (
+    <span style={{display:"inline-flex",alignItems:"center",fontSize:fs,fontWeight:700,padding:p,borderRadius:999,
+      color,background:`${color}1f`,border:`1px solid ${color}40`,letterSpacing:"0.04em",whiteSpace:"nowrap",lineHeight:1.4}}>
+      {children}
+    </span>
+  );
+}
+
+function Btn({children,variant="primary",size="md",onClick,style:s}) {
+  const base = {display:"inline-flex",alignItems:"center",gap:6,fontFamily:"var(--font)",fontWeight:600,borderRadius:10,cursor:"pointer",border:"1px solid transparent",transition:"all 0.15s",whiteSpace:"nowrap"};
+  const sizes = {sm:{fontSize:11,padding:"5px 12px"},md:{fontSize:13,padding:"8px 16px"},lg:{fontSize:14,padding:"10px 20px"}};
+  const variants = {
+    primary:{background:"linear-gradient(180deg, #10b981 0%, #059669 100%)",color:"#fff",boxShadow:"0 1px 0 rgba(255,255,255,0.15) inset, 0 1px 2px rgba(0,0,0,0.3)",borderColor:"transparent"},
+    secondary:{background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.85)",borderColor:"rgba(255,255,255,0.12)"},
+    ghost:{background:"transparent",color:"rgba(255,255,255,0.5)",borderColor:"transparent"},
+    danger:{background:"rgba(244,63,94,0.1)",color:"#f43f5e",borderColor:"rgba(244,63,94,0.25)"},
+  };
+  return (
+    <button style={{...base,...sizes[size],...variants[variant],...s}} onClick={onClick}
+      onMouseEnter={e=>{
+        if(variant==="primary"){e.currentTarget.style.boxShadow="0 2px 12px rgba(16,185,129,0.25)";e.currentTarget.style.transform="translateY(-1px)";}
+        if(variant==="secondary"){e.currentTarget.style.background="rgba(255,255,255,0.09)";e.currentTarget.style.borderColor="rgba(255,255,255,0.2)";}
+        if(variant==="ghost"){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="rgba(255,255,255,0.85)";}
+        if(variant==="danger"){e.currentTarget.style.background="rgba(244,63,94,0.18)";}
+      }}
+      onMouseLeave={e=>{
+        if(variant==="primary"){e.currentTarget.style.boxShadow="0 0 20px rgba(16,185,129,0.25)";e.currentTarget.style.transform="";}
+        if(variant==="secondary"){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.borderColor="rgba(255,255,255,0.12)";}
+        if(variant==="ghost"){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.5)";}
+        if(variant==="danger"){e.currentTarget.style.background="rgba(244,63,94,0.1)";}
+      }}>
+      {children}
+    </button>
+  );
+}
+
+function Card({children, style:s, hover=true, glow=false}) {
+  const ref = React.useRef(null);
+  const base = {background:"linear-gradient(180deg, rgba(21,28,44,0.85) 0%, rgba(15,21,33,0.85) 100%)",border:"1px solid var(--b1)",borderRadius:10,boxShadow:"0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 2px rgba(0,0,0,0.3)",overflow:"hidden",transition:"border-color 0.2s,box-shadow 0.2s",...s};
+  if (!hover && !glow) return <div style={base}>{children}</div>;
+  const onMove = e => {
+    if (!ref.current || !glow) return;
+    const r = ref.current.getBoundingClientRect();
+    ref.current.style.setProperty("--mx",`${((e.clientX-r.left)/r.width)*100}%`);
+    ref.current.style.setProperty("--my",`${((e.clientY-r.top)/r.height)*100}%`);
+    ref.current.querySelector(".sp").style.opacity=1;
+  };
+  const onLeave = e => {
+    if(!ref.current) return;
+    if(glow) ref.current.querySelector(".sp").style.opacity=0;
+    if(hover){e.currentTarget.style.borderColor="var(--b1)";}
+  };
+  const onEnter = e => {
+    if(hover){e.currentTarget.style.borderColor="var(--b2)";}
+  };
+  return (
+    <div ref={ref} style={{...base,position:"relative"}} onMouseMove={onMove} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      {glow && <div className="sp" style={{position:"absolute",inset:0,borderRadius:"inherit",pointerEvents:"none",opacity:0,transition:"opacity 0.3s",background:"radial-gradient(500px circle at var(--mx,50%) var(--my,50%),rgba(16,185,129,0.07),transparent 65%)"}}/>}
+      <div style={{position:"relative",zIndex:1}}>{children}</div>
+    </div>
+  );
+}
+
+function Divider({style:s}) {
+  return <div style={{height:1,background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.09),transparent)",...s}}/>;
+}
+
+function SectionLabel({children, style:s}) {
+  return <div style={{fontSize:10.5,fontWeight:600,letterSpacing:"0.05em",color:"var(--t2)",...s}}>{children}</div>;
+}
+
+function Sparkline({data, color="#10b981", width=80, height=28}) {
+  const min = Math.min(...data), max = Math.max(...data), range = max-min||1;
+  const pts = data.map((v,i)=>`${(i/(data.length-1))*width},${height-((v-min)/range)*(height-4)+2}`).join(" ");
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{overflow:"visible"}}>
+      <defs>
+        <linearGradient id={`sg${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polyline points={pts+` ${width},${height} 0,${height}`} fill={`url(#sg${color.replace("#","")})`} stroke="none"/>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={data.length > 1 ? (((data.length-1)/(data.length-1))*width) : width/2} cy={height-((data[data.length-1]-min)/range)*(height-4)+2} r="2.5" fill={color}/>
+    </svg>
+  );
+}
+
+function BarChart({data, color="#10b981", labels, height=60}) {
+  const max = Math.max(...data);
+  return (
+    <div style={{display:"flex",alignItems:"flex-end",gap:4,height}}>
+      {data.map((v,i)=>(
+        <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
+          <div style={{width:"100%",borderRadius:"3px 3px 0 0",background:`${color}cc`,transition:"height 0.4s",height:`${(v/max)*100}%`,minHeight:3,boxShadow:`0 0 8px ${color}40`}}/>
+          {labels && <span style={{fontSize:8,color:"var(--t3)",fontFamily:"var(--mono)"}}>{labels[i]}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProgressBar({pct, color="#10b981", height=4}) {
+  return (
+    <div style={{width:"100%",height,borderRadius:height,background:"rgba(255,255,255,0.07)",overflow:"hidden"}}>
+      <div style={{width:`${pct}%`,height:"100%",borderRadius:height,background:color,boxShadow:`0 0 8px ${color}60`,transition:"width 0.6s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT — SIDEBAR
+═══════════════════════════════════════════════════════════ */
+function Sidebar({page, onNav, collapsed, onCollapse}) {
+  const groups = [...new Set(NAV.map(n=>n.group))];
+  return (
+    <div style={{width:collapsed?64:236,flexShrink:0,height:"100vh",background:"linear-gradient(180deg, #0f1521 0%, #0c1119 100%)",borderRight:"1px solid var(--b1)",display:"flex",flexDirection:"column",transition:"width 0.22s cubic-bezier(0.16,1,0.3,1)",overflow:"hidden",position:"relative",zIndex:20}}>
+
+      {/* Logo */}
+      <div style={{display:"flex",alignItems:"center",gap:11,padding:"18px 16px",borderBottom:"1px solid var(--b1)",flexShrink:0,minHeight:64,overflow:"hidden"}}>
+        <div style={{width:30,height:30,borderRadius:8,background:"linear-gradient(135deg,#10b981 0%, #059669 100%)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(16,185,129,0.25), inset 0 1px 0 rgba(255,255,255,0.15)"}}>
+          <Icon id="shield" size={15} color="#fff" strokeWidth={2.4}/>
+        </div>
+        {!collapsed && (
+          <div style={{overflow:"hidden",flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,letterSpacing:"-0.02em",color:"#f1f5f9",whiteSpace:"nowrap",lineHeight:1.1}}>Deporte FC</div>
+            <div style={{fontSize:9.5,fontWeight:500,letterSpacing:"0.05em",color:"var(--t3)",marginTop:2}}>Plataforma de gestión</div>
+          </div>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"10px 8px",display:"flex",flexDirection:"column",gap:1}}>
+        {groups.map((grp,gi) => (
+          <div key={grp} style={gi>0?{paddingTop:10}:{}}>
+            {!collapsed && <SectionLabel style={{padding:"4px 8px 6px"}}>{grp}</SectionLabel>}
+            {NAV.filter(n=>n.group===grp).map(item => {
+              const active = item.id===page;
+              return (
+                <div key={item.id} onClick={()=>onNav(item.id)}
+                  title={collapsed?item.label:undefined}
+                  style={{position:"relative",display:"flex",alignItems:"center",gap:11,padding:collapsed?"9px 0":"9px 12px",justifyContent:collapsed?"center":"flex-start",borderRadius:8,fontSize:13,fontWeight:active?600:500,cursor:"pointer",marginBottom:2,transition:"background 0.14s, color 0.14s",
+                    background:active?"rgba(16,185,129,0.10)":"transparent",
+                    color:active?"#10b981":"rgba(226,232,240,0.6)"}}
+                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(148,163,184,0.06)";e.currentTarget.style.color="#e2e8f0";}}}
+                  onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(226,232,240,0.6)";}}}
+                >
+                  {active && !collapsed && <div style={{position:"absolute",left:-8,top:8,bottom:8,width:2.5,background:"#10b981",borderRadius:2,boxShadow:"0 0 8px rgba(16,185,129,0.5)"}}/>}
+                  <Icon id={item.id} size={16} color={active?"#10b981":"currentColor"} strokeWidth={active?2.2:1.9}/>
+                  {!collapsed && <span style={{whiteSpace:"nowrap"}}>{item.label}</span>}
+                </div>
+              );
+            })}
+            {gi<groups.length-1 && <Divider style={{margin:"8px 4px 2px"}}/>}
+          </div>
+        ))}
+      </nav>
+
+      {/* User */}
+      <div style={{padding:"8px",borderTop:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:collapsed?"10px 0":"10px 12px",justifyContent:collapsed?"center":"flex-start",borderRadius:10,background:"rgba(255,255,255,0.03)"}}>
+          <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,rgba(16,185,129,0.2),rgba(16,185,129,0.08))",border:"1px solid rgba(16,185,129,0.35)",color:"#10b981",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:900,flexShrink:0}}>EC</div>
+          {!collapsed && (
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.85)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Entrenador Carlos</div>
+              <div style={{fontSize:9,fontWeight:600,color:"rgba(16,185,129,0.7)",marginTop:1}}>Entrenador</div>
+            </div>
+          )}
+          {!collapsed && (
+            <div style={{color:"rgba(255,255,255,0.2)",cursor:"pointer",transition:"color 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.color="#f43f5e"}
+              onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.2)"}>
+              <Icon id="logout" size={13}/>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Collapse button */}
+      <button onClick={onCollapse} style={{position:"absolute",top:52,right:-13,width:26,height:26,borderRadius:"50%",background:"var(--s3)",border:"1px solid rgba(16,185,129,0.25)",boxShadow:"0 2px 12px rgba(0,0,0,0.5),0 0 8px rgba(16,185,129,0.1)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:30,transition:"box-shadow 0.2s, transform 0.15s"}}
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 2px 16px rgba(0,0,0,0.6),0 0 16px rgba(16,185,129,0.25)";e.currentTarget.style.transform="scale(1.12)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.5),0 0 8px rgba(16,185,129,0.1)";e.currentTarget.style.transform="";}}>
+        <Icon id={collapsed?"chevron_r":"chevron_l"} size={12} color="rgba(16,185,129,0.7)"/>
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT — TOPBAR
+═══════════════════════════════════════════════════════════ */
+function TopBar({title, subtitle, children}) {
+  const [notifs, setNotifs] = React.useState(3);
+  return (
+    <div style={{height:64,flexShrink:0,borderBottom:"1px solid var(--b1)",display:"flex",alignItems:"center",padding:"0 32px",gap:16,background:"rgba(10,14,23,0.7)",backdropFilter:"blur(16px)",position:"sticky",top:0,zIndex:10}}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:18,fontWeight:600,letterSpacing:"-0.025em",color:"#f1f5f9"}}>{title}</div>
+        {subtitle && <div style={{fontSize:12,color:"var(--t3)",marginTop:2,letterSpacing:"-0.005em"}}>{subtitle}</div>}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        {children}
+        <div style={{position:"relative"}}>
+          <button style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid var(--b1)",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--t2)",transition:"all 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.09)";e.currentTarget.style.color="#fff";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="var(--t2)";}}>
+            <Icon id="bell" size={15}/>
+          </button>
+          {notifs > 0 && <div onClick={()=>setNotifs(0)} style={{position:"absolute",top:-3,right:-3,width:16,height:16,borderRadius:"50%",background:"#f43f5e",border:"2px solid var(--s1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff",cursor:"pointer"}}>{notifs}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD PAGE
+═══════════════════════════════════════════════════════════ */
+function KPICard({label, value, sub, color, spark, trend}) {
+  const trendUp = trend > 0;
+  return (
+    <Card style={{padding:22,flex:1,minWidth:160}} hover>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+        <SectionLabel>{label}</SectionLabel>
+        {spark && <Sparkline data={spark} color={color} width={64} height={22}/>}
+      </div>
+      <div style={{fontFamily:"var(--font)",fontSize:32,fontWeight:600,letterSpacing:"-0.04em",color:"#f1f5f9",lineHeight:1,marginBottom:8,fontVariantNumeric:"tabular-nums"}}>{value}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        {trend !== undefined && trend !== 0 && (
+          <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11,fontWeight:600,color:trendUp&&color!=="#f43f5e"?"#10b981":trendUp?"#f43f5e":"#10b981",padding:"2px 6px",borderRadius:5,background:trendUp&&color!=="#f43f5e"?"rgba(16,185,129,0.10)":trendUp?"rgba(244,63,94,0.10)":"rgba(16,185,129,0.10)"}}>
+            <Icon id={trendUp?"trend_up":"trend_down"} size={10}/>
+            {trendUp?"+":""}{trend}
+          </span>
+        )}
+        <span style={{fontSize:11.5,color:"var(--t3)",letterSpacing:"-0.005em"}}>{sub}</span>
+      </div>
+    </Card>
+  );
+}
+
+function DashboardPage() {
+  return (
+    <div>
+      <TopBar title="Dashboard" subtitle="Temporada 2025/26 · Jornada 22">
+        <Btn variant="secondary" size="sm"><Icon id="calendar" size={13}/>Abr 2025</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+
+        {/* KPIs */}
+        <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+          <KPICard label="Jugadores" value="26"  sub="Total plantel"      color="var(--neon)"    spark={[23,24,25,24,26,26,26]} trend={0}/>
+          <KPICard label="Disponibles" value="21" sub="esta semana"      color="var(--neon)"    spark={SPARKLINE_DATA.available} trend={+2}/>
+          <KPICard label="Lesionados" value="4"  sub="baja temporal"      color="var(--danger)"  spark={SPARKLINE_DATA.injured}  trend={-1}/>
+          <KPICard label="Disponibilidad" value="87%" sub="obj. 90%"    color="var(--sky)"     spark={[82,84,81,85,84,86,87]}  trend={+3}/>
+          <KPICard label="Riesgo Alto" value="3" sub="requieren atención" color="var(--warning)" spark={[5,4,4,5,3,4,3]}         trend={-1}/>
+        </div>
+
+        {/* Grid principal */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+
+          {/* Disponibilidad por posición */}
+          <Card style={{padding:20}} glow hover>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <SectionLabel>Disponibilidad por posición</SectionLabel>
+              <span style={{fontSize:11,color:"var(--t3)"}}>26 jugadores</span>
+            </div>
+            {[{pos:"Porteros",avail:2,total:2,c:"#f59e0b"},{pos:"Defensas",avail:6,total:8,c:"#38bdf8"},{pos:"Mediocampistas",avail:8,total:10,c:"#10b981"},{pos:"Delanteros",avail:5,total:6,c:"#f43f5e"}].map(p=>(
+              <div key={p.pos} style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+                  <span style={{fontSize:12,color:"rgba(241,245,249,0.8)"}}>{p.pos}</span>
+                  <span style={{fontFamily:"var(--mono)",fontSize:11,color:p.c,fontWeight:700}}>{p.avail}<span style={{color:"var(--t3)",fontWeight:400}}>/{p.total}</span></span>
+                </div>
+                <ProgressBar pct={(p.avail/p.total)*100} color={p.c}/>
+              </div>
+            ))}
+          </Card>
+
+          {/* Alerta de riesgo */}
+          <Card style={{padding:20}} glow hover>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <SectionLabel>Alerta de riesgo — lesión</SectionLabel>
+              <Badge color="#f43f5e">3 altos</Badge>
+            </div>
+            {RISK_DATA.slice(0,5).map(p=>{
+              const sev = SEV_CFG[p.level];
+              return (
+                <div key={p.name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:`${sev.c}18`,border:`1px solid ${sev.c}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:12,fontWeight:700,color:sev.c,flexShrink:0}}>{p.score}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                    <div style={{fontSize:10,color:"var(--t3)",marginTop:1}}>{p.pos}</div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:p.trend>0?"#f43f5e":"#10b981",fontWeight:600}}>
+                    <Icon id={p.trend>0?"trend_up":"trend_down"} size={9} color={p.trend>0?"#f43f5e":"#10b981"}/>
+                    {p.trend>0?"+":""}{p.trend}
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+
+          {/* Próximos partidos */}
+          <Card style={{padding:20}} glow hover>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <SectionLabel>Próximos partidos</SectionLabel>
+              <Badge color="var(--sky)">3 esta semana</Badge>
+            </div>
+            {MATCHES.filter(m=>m.status==="upcoming").map(m=>(
+              <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{width:38,height:38,borderRadius:9,background:m.home==="Deporte FC"?"rgba(16,185,129,0.1)":"rgba(56,189,248,0.1)",border:`1px solid ${m.home==="Deporte FC"?"rgba(16,185,129,0.3)":"rgba(56,189,248,0.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:m.home==="Deporte FC"?"#10b981":"#38bdf8",flexShrink:0,letterSpacing:"0.05em"}}>{m.home==="Deporte FC"?"LOCAL":"VISIT"}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home} <span style={{color:"var(--t3)"}}>vs</span> {m.away}</div>
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:1}}>{m.date} · {m.comp}</div>
+                </div>
+              </div>
+            ))}
+            <Divider style={{margin:"12px 0 10px"}}/>
+            <SectionLabel style={{marginBottom:10}}>Últimos resultados</SectionLabel>
+            {MATCHES.filter(m=>m.status==="played").slice(0,3).map(m=>{
+              const weAreHome = m.home==="Deporte FC";
+              const ourGoals = weAreHome ? m.homeGoals : m.awayGoals;
+              const theirGoals = weAreHome ? m.awayGoals : m.homeGoals;
+              const win = ourGoals > theirGoals, draw = ourGoals === theirGoals;
+              const resultColor = win?"#10b981":draw?"#f59e0b":"#f43f5e";
+              return (
+                <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                  <span style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:resultColor,width:30,flexShrink:0}}>{m.result}</span>
+                  <span style={{fontSize:11,color:"var(--t2)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home} vs {m.away}</span>
+                  <span style={{fontSize:9,color:"var(--t3)"}}>{m.date}</span>
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+
+        {/* Actividad reciente + training */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:14}}>Actividad reciente</SectionLabel>
+            {[
+              {icon:"injuries",text:"Carlos Mendoza — nueva lesión registrada (isquiotibial izq.)",time:"Hace 20 min",c:"#f43f5e"},
+              {icon:"training",text:"Sesión de entrenamiento — 18/22 jugadores presentes",time:"Hace 1h",c:"#10b981"},
+              {icon:"wellness",text:"Diego Herrera — wellness crítico reportado (5.2/10)",time:"Hace 2h",c:"#f59e0b"},
+              {icon:"matches",text:"Partido vs. Olimpia — resultado final 2-1",time:"Ayer, 21:00",c:"#38bdf8"},
+              {icon:"check",text:"Pedro García — alta médica confirmada, disponible",time:"Ayer, 10:30",c:"#10b981"},
+            ].map((a,i)=>(
+              <div key={i} style={{display:"flex",gap:12,padding:"9px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{width:6,height:6,borderRadius:9,background:a.c,boxShadow:`0 0 6px ${a.c}`,flexShrink:0,marginTop:6}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,color:"rgba(241,245,249,0.85)",lineHeight:1.4}}>{a.text}</div>
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:3}}>{a.time}</div>
+                </div>
+              </div>
+            ))}
+          </Card>
+
+          <Card style={{padding:20}} glow hover>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <SectionLabel>Semana de entrenamiento</SectionLabel>
+              <span style={{fontSize:10,color:"var(--t3)"}}>21–26 Abr</span>
+            </div>
+            {TRAINING_SESSIONS.map(s=>(
+              <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{width:36,height:36,borderRadius:9,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                  background:s.status==="match"?"rgba(244,63,94,0.12)":s.status==="scheduled"?"rgba(255,255,255,0.04)":"rgba(16,185,129,0.1)",
+                  border:`1px solid ${s.status==="match"?"rgba(244,63,94,0.3)":s.status==="scheduled"?"rgba(255,255,255,0.1)":"rgba(16,185,129,0.25)"}`}}>
+                  <Icon id={s.status==="match"?"matches":"training"} size={14} color={s.status==="match"?"#f43f5e":s.status==="scheduled"?"var(--t3)":"#10b981"}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--t1)"}}>{s.type}</div>
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:1}}>{s.date} · {s.duration}</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
+                  <span style={{fontSize:10,fontFamily:"var(--mono)",color:"var(--t2)"}}>{s.players}<span style={{color:"var(--t3)"}}>/22</span></span>
+                  <Badge color={s.status==="completed"?"#10b981":s.status==="match"?"#f43f5e":"#64748b"} size="sm">
+                    {s.status==="completed"?"Hecho":s.status==="match"?"Partido":"Pendiente"}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLAYERS PAGE
+═══════════════════════════════════════════════════════════ */
+function PlayersPage() {
+  const [filter, setFilter] = React.useState("all");
+  const [search, setSearch] = React.useState("");
+  const [selected, setSelected] = React.useState(null);
+  const [view, setView] = React.useState("grid");
+
+  const statuses = ["all","available","injured","recovering","suspended"];
+  const slabels = {all:"Todos",available:"Disponible",injured:"Lesionado",recovering:"Recuperando",suspended:"Suspendido"};
+
+  const filtered = PLAYERS.filter(p=>{
+    const ms = filter==="all"||p.status===filter;
+    const mq = !search||`${p.first} ${p.last} ${POS_LABEL[p.pos]}`.toLowerCase().includes(search.toLowerCase());
+    return ms && mq;
+  });
+
+  return (
+    <div>
+      <TopBar title="Jugadores" subtitle={`${PLAYERS.filter(p=>p.status==="available").length} disponibles · ${PLAYERS.filter(p=>p.status==="injured").length} lesionados`}>
+        <Btn variant="primary" size="sm"><Icon id="players" size={13}/>Nuevo jugador</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px"}}>
+        {/* Filters */}
+        <div style={{display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:4,border:"1px solid var(--b1)"}}>
+            {statuses.map(s=>(
+              <div key={s} onClick={()=>setFilter(s)}
+                style={{padding:"5px 13px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all 0.14s",
+                  background:filter===s?"#10b981":"transparent",color:filter===s?"#000":"rgba(255,255,255,0.5)",
+                  boxShadow:filter===s?"0 0 12px rgba(16,185,129,0.35)":"none"}}>
+                {slabels[s]}
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,maxWidth:260,background:"rgba(13,21,40,0.8)",border:"1px solid var(--b1)",borderRadius:10,padding:"7px 13px"}}
+            onFocus={()=>{}} onBlur={()=>{}}>
+            <Icon id="search" size={13} color="var(--t3)"/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nombre o posición…"
+              style={{background:"transparent",border:"none",outline:"none",color:"var(--t1)",fontSize:12,flex:1}}/>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",gap:4}}>
+            {["grid","list"].map(v=>(
+              <button key={v} onClick={()=>setView(v)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.14s",
+                background:view===v?"rgba(16,185,129,0.12)":"rgba(255,255,255,0.04)",
+                border:`1px solid ${view===v?"rgba(16,185,129,0.3)":"var(--b1)"}`,
+                color:view===v?"#10b981":"var(--t3)"}}>
+                {v==="grid"
+                  ? <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/><rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="0" y1="3" x2="12" y2="3"/><line x1="0" y1="6" x2="12" y2="6"/><line x1="0" y1="9" x2="12" y2="9"/></svg>
+                }
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:20,alignItems:"flex-start"}}>
+          {/* Cards/List */}
+          <div style={{flex:1,minWidth:0}}>
+            {view==="grid" ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(152px,1fr))",gap:12}}>
+                {filtered.map(p=>{
+                  const grp = POS_MAP[p.pos]||"mid";
+                  const pos = POS_CFG[grp];
+                  const st  = STATUS_CFG[p.status]||STATUS_CFG.inactive;
+                  const init = `${p.first[0]}${p.last[0]}`;
+                  const isSel = selected?.id===p.id;
+                  return (
+                    <div key={p.id} onClick={()=>setSelected(isSel?null:p)}
+                      style={{position:"relative",borderRadius:16,overflow:"hidden",cursor:"pointer",padding:"16px 14px 14px",
+                        background:"rgba(8,15,32,0.85)",transition:"transform 0.18s,box-shadow 0.18s",
+                        border:`1px solid ${isSel?"rgba(16,185,129,0.55)":pos.c+"40"}`,
+                        boxShadow:isSel?"0 0 0 2px #10b981,0 8px 32px rgba(0,0,0,0.5)":"0 4px 16px rgba(0,0,0,0.35)"}}
+                      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px) scale(1.025)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.transform="";}}>
+                      <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent 5%,${pos.c} 30%,${pos.c} 70%,transparent 95%)`,boxShadow:`0 0 10px ${pos.c}80`}}/>
+                      <div style={{position:"absolute",right:-6,bottom:-10,fontFamily:"var(--mono)",fontWeight:900,fontSize:80,lineHeight:1,letterSpacing:"-0.06em",color:pos.c,opacity:0.09,pointerEvents:"none",userSelect:"none"}}>{p.num}</div>
+                      <div style={{position:"absolute",top:10,right:10}}>
+                        <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:999,color:st.c,background:`${st.c}22`,border:`1px solid ${st.c}44`}}>● {st.label}</span>
+                      </div>
+                      <span style={{fontSize:9,fontWeight:900,letterSpacing:"0.1em",padding:"2px 7px",borderRadius:5,color:pos.c,background:`${pos.c}28`,border:`1px solid ${pos.c}55`,display:"inline-block",marginBottom:10}}>{pos.label}</span>
+                      <div style={{width:46,height:46,borderRadius:12,background:"rgba(8,15,32,0.9)",border:`2px solid ${pos.c}bb`,color:pos.c,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:14,fontWeight:900,marginBottom:10,boxShadow:`0 0 18px ${pos.c}40`}}>{init}</div>
+                      <div style={{fontFamily:"var(--mono)",fontSize:10,fontWeight:700,color:pos.c,opacity:0.55,marginBottom:2}}>#{p.num}</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.95)",lineHeight:1.2}}>{p.first}</div>
+                      <div style={{fontSize:13,fontWeight:900,color:"#fff",lineHeight:1.2,letterSpacing:"-0.01em"}}>{p.last}</div>
+                      <div style={{fontSize:10,color:"rgba(148,163,184,0.65)",marginTop:5}}>{POS_LABEL[p.pos]}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card>
+                <div style={{display:"grid",gridTemplateColumns:"2.5fr 1.5fr 1fr 1fr 1fr",gap:12,padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,0.09)",background:"rgba(255,255,255,0.02)"}}>
+                  {["Jugador","Posición","#","Rating","Estado"].map(h=>(
+                    <SectionLabel key={h}>{h}</SectionLabel>
+                  ))}
+                </div>
+                {filtered.map(p=>{
+                  const grp = POS_MAP[p.pos]||"mid";
+                  const pos = POS_CFG[grp];
+                  const st  = STATUS_CFG[p.status]||STATUS_CFG.inactive;
+                  return (
+                    <div key={p.id} onClick={()=>setSelected(selected?.id===p.id?null:p)}
+                      style={{display:"grid",gridTemplateColumns:"2.5fr 1.5fr 1fr 1fr 1fr",gap:12,padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)",cursor:"pointer",transition:"background 0.14s",alignItems:"center"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.025)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div style={{width:34,height:34,borderRadius:9,background:"rgba(8,15,32,0.85)",border:`1px solid ${pos.c}55`,color:pos.c,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:900,flexShrink:0}}>{p.first[0]}{p.last[0]}</div>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600,color:"var(--t1)"}}>{p.first} {p.last}</div>
+                          <div style={{fontSize:10,color:"var(--t3)"}}>{p.nationality}</div>
+                        </div>
+                      </div>
+                      <span style={{fontSize:9,fontWeight:800,padding:"3px 8px",borderRadius:5,color:pos.c,background:`${pos.c}22`,border:`1px solid ${pos.c}44`,letterSpacing:"0.08em",display:"inline-block"}}>{POS_LABEL[p.pos]}</span>
+                      <span style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:pos.c}}>#{p.num}</span>
+                      <span style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:"var(--t1)"}}>{p.rating}</span>
+                      <Badge color={st.c}>● {st.label}</Badge>
+                    </div>
+                  );
+                })}
+              </Card>
+            )}
+          </div>
+
+          {/* Detail panel */}
+          {selected && (
+            <div style={{width:260,flexShrink:0}}>
+              <Card style={{padding:20}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                  <SectionLabel>Ficha de jugador</SectionLabel>
+                  <button style={{color:"var(--t3)",fontSize:16,lineHeight:1,transition:"color 0.15s"}} onClick={()=>setSelected(null)}
+                    onMouseEnter={e=>e.currentTarget.style.color="#f43f5e"} onMouseLeave={e=>e.currentTarget.style.color="var(--t3)"}>✕</button>
+                </div>
+                {(() => {
+                  const grp = POS_MAP[selected.pos]||"mid";
+                  const pos = POS_CFG[grp];
+                  const st  = STATUS_CFG[selected.status]||STATUS_CFG.inactive;
+                  const riskItem = RISK_DATA.find(r=>r.name===`${selected.first} ${selected.last}`);
+                  return (
+                    <>
+                      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+                        <div style={{width:54,height:54,borderRadius:14,background:"rgba(8,15,32,0.9)",border:`2px solid ${pos.c}cc`,color:pos.c,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:17,fontWeight:900,boxShadow:`0 0 20px ${pos.c}40`}}>{selected.first[0]}{selected.last[0]}</div>
+                        <div>
+                          <div style={{fontSize:15,fontWeight:700,color:"var(--t1)"}}>{selected.first} {selected.last}</div>
+                          <div style={{fontSize:11,color:"var(--t2)",marginTop:2}}>{POS_LABEL[selected.pos]}</div>
+                          <Badge color={st.c} size="sm" style={{marginTop:6}}>● {st.label}</Badge>
+                        </div>
+                      </div>
+                      <Divider style={{marginBottom:14}}/>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                        {[["Dorsal","#"+selected.num],["Edad",selected.age+" años"],["Nac.",selected.nationality],["Rating",selected.rating]].map(([k,v])=>(
+                          <div key={k} style={{padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid var(--b1)"}}>
+                            <SectionLabel style={{marginBottom:3}}>{k}</SectionLabel>
+                            <div style={{fontSize:13,fontWeight:600,color:"var(--t1)",fontFamily:"var(--mono)"}}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {riskItem && (
+                        <>
+                          <SectionLabel style={{marginBottom:8}}>Índice de riesgo</SectionLabel>
+                          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,background:`${SEV_CFG[riskItem.level].c}12`,border:`1px solid ${SEV_CFG[riskItem.level].c}30`}}>
+                            <div style={{fontFamily:"var(--mono)",fontSize:22,fontWeight:700,color:SEV_CFG[riskItem.level].c}}>{riskItem.score}</div>
+                            <div>
+                              <div style={{fontSize:11,fontWeight:600,color:SEV_CFG[riskItem.level].c}}>{SEV_CFG[riskItem.level].label}</div>
+                              <div style={{fontSize:10,color:"var(--t3)"}}>Score de lesión</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INJURIES PAGE
+═══════════════════════════════════════════════════════════ */
+function InjuriesPage() {
+  return (
+    <div>
+      <TopBar title="Lesiones" subtitle="Seguimiento clínico y protocolos de recuperación">
+        <Btn variant="danger" size="sm"><Icon id="injuries" size={13}/>Registrar lesión</Btn>
+        <Btn variant="secondary" size="sm">Exportar informe</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+        {/* KPIs */}
+        <div style={{display:"flex",gap:12}}>
+          {[
+            {label:"Lesiones activas",value:INJURIES.filter(i=>i.status!=="available").length,color:"#f43f5e",sub:"en tratamiento"},
+            {label:"En recuperación",value:INJURIES.filter(i=>i.status==="recovering").length,color:"#f59e0b",sub:"protocolo activo"},
+            {label:"Días promedio baja",value:"14d",color:"#38bdf8",sub:"temporada 25/26"},
+            {label:"Dados de alta",value:INJURIES.filter(i=>i.status==="available").length,color:"#10b981",sub:"este mes"},
+          ].map(k=>(
+            <Card key={k.label} style={{padding:"18px 20px",flex:1}} hover>
+              <SectionLabel style={{marginBottom:10}}>{k.label}</SectionLabel>
+              <div style={{fontFamily:"var(--mono)",fontSize:28,fontWeight:700,letterSpacing:"-0.04em",color:k.color,lineHeight:1,marginBottom:4}}>{k.value}</div>
+              <div style={{fontSize:11,color:"var(--t3)"}}>{k.sub}</div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Table */}
+        <Card>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 2.5fr 1fr 1.2fr 1fr 1fr",gap:12,padding:"11px 18px",borderBottom:"1px solid rgba(255,255,255,0.10)",background:"rgba(255,255,255,0.02)"}}>
+            {["Jugador","Diagnóstico","Fecha baja","Recuperación","Progreso","Severidad"].map(h=>(
+              <SectionLabel key={h}>{h}</SectionLabel>
+            ))}
+          </div>
+          {INJURIES.map(inj=>{
+            const sev = SEV_CFG[inj.severity];
+            const posC = {gk:"#f59e0b",def:"#38bdf8",mid:"#10b981",atk:"#f43f5e"}[inj.posKey];
+            return (
+              <div key={inj.id} style={{display:"grid",gridTemplateColumns:"2fr 2.5fr 1fr 1.2fr 1fr 1fr",gap:12,padding:"13px 18px",borderBottom:"1px solid rgba(255,255,255,0.05)",alignItems:"center",transition:"background 0.14s",cursor:"default"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.025)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:34,height:34,borderRadius:9,background:"rgba(8,15,32,0.85)",border:`1px solid ${posC}50`,color:posC,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:900,flexShrink:0}}>
+                    {inj.player.split(" ").map(w=>w[0]).join("").slice(0,2)}
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:"var(--t1)"}}>{inj.player}</div>
+                    <div style={{fontSize:10,color:"var(--t3)"}}>{inj.pos}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:"rgba(241,245,249,0.75)"}}>{inj.type}</div>
+                <div style={{fontSize:11,color:"var(--t3)",fontFamily:"var(--mono)"}}>{inj.date}</div>
+                <div style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:700,color:inj.recovery===0?"#10b981":sev.c}}>{inj.recovery===0?"Alta médica":`${inj.recovery} días`}</div>
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:9,color:"var(--t3)"}}>{inj.progress}%</span>
+                  </div>
+                  <ProgressBar pct={inj.progress} color={inj.recovery===0?"#10b981":sev.c} height={5}/>
+                </div>
+                <Badge color={sev.c}>● {sev.label}</Badge>
+              </div>
+            );
+          })}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MATCHES PAGE
+═══════════════════════════════════════════════════════════ */
+function MatchesPage() {
+  const [tab, setTab] = React.useState("upcoming");
+  return (
+    <div>
+      <TopBar title="Partidos" subtitle="Gestión de fixtures y resultados">
+        <Btn variant="primary" size="sm"><Icon id="matches" size={13}/>Nuevo partido</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+        {/* Stats */}
+        <div style={{display:"flex",gap:12}}>
+          {[
+            {label:"Partidos jugados",value:"21",color:"var(--sky)"},
+            {label:"Victorias",value:"14",color:"#10b981"},
+            {label:"Empates",value:"4",color:"#f59e0b"},
+            {label:"Derrotas",value:"3",color:"#f43f5e"},
+            {label:"Goles a favor",value:"38",color:"#10b981"},
+            {label:"Goles en contra",value:"18",color:"#f43f5e"},
+          ].map(s=>(
+            <Card key={s.label} style={{flex:1,padding:"14px 16px"}} hover>
+              <SectionLabel style={{marginBottom:6}}>{s.label}</SectionLabel>
+              <div style={{fontFamily:"var(--mono)",fontSize:26,fontWeight:700,letterSpacing:"-0.03em",color:s.color}}>{s.value}</div>
+            </Card>
+          ))}
+        </div>
+        {/* Tabs */}
+        <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:4,border:"1px solid var(--b1)",width:"fit-content"}}>
+          {["upcoming","played"].map(t=>(
+            <div key={t} onClick={()=>setTab(t)}
+              style={{padding:"6px 16px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all 0.14s",
+                background:tab===t?"#10b981":"transparent",color:tab===t?"#000":"rgba(255,255,255,0.5)",
+                boxShadow:tab===t?"0 0 12px rgba(16,185,129,0.35)":"none"}}>
+              {t==="upcoming"?"Próximos":"Resultados"}
+            </div>
+          ))}
+        </div>
+        <Card>
+          {MATCHES.filter(m=>m.status===tab).map(m=>{
+            const wfc = m.home==="Deporte FC";
+            const ourGoals = wfc?m.homeGoals:m.awayGoals;
+            const theirGoals = wfc?m.awayGoals:m.homeGoals;
+            const win = m.status==="played"&&ourGoals>theirGoals;
+            const draw = m.status==="played"&&ourGoals===theirGoals;
+            return (
+              <div key={m.id} style={{display:"flex",alignItems:"center",gap:20,padding:"18px 20px",borderBottom:"1px solid rgba(255,255,255,0.06)",transition:"background 0.14s",cursor:"pointer"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.025)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <Badge color={wfc?"#10b981":"#38bdf8"}>{wfc?"LOCAL":"VISIT"}</Badge>
+                </div>
+                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"space-between",gap:20}}>
+                  <span style={{fontSize:15,fontWeight:700,color:"var(--t1)",minWidth:140,textAlign:"right"}}>{m.home}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.05)",borderRadius:10,padding:"8px 16px",border:"1px solid var(--b1)"}}>
+                    {m.status==="played"
+                      ? <span style={{fontFamily:"var(--mono)",fontSize:20,fontWeight:700,letterSpacing:"0.08em",color:win?"#10b981":draw?"#f59e0b":"#f43f5e"}}>{m.result}</span>
+                      : <span style={{fontFamily:"var(--mono)",fontSize:14,fontWeight:500,color:"var(--t3)",letterSpacing:"0.08em"}}>vs</span>
+                    }
+                  </div>
+                  <span style={{fontSize:15,fontWeight:700,color:"var(--t1)",minWidth:140}}>{m.away}</span>
+                </div>
+                <div style={{textAlign:"right",minWidth:120}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--t2)"}}>{m.date}</div>
+                  <div style={{fontSize:10,color:"var(--t3)",marginTop:2}}>{m.comp}</div>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANALYTICS PAGE
+═══════════════════════════════════════════════════════════ */
+function AnalyticsPage() {
+  const weekLabels = ["L","M","X","J","V","S","D"];
+  return (
+    <div>
+      <TopBar title="Analytics" subtitle="Rendimiento colectivo e individual — Temporada 25/26">
+        <Btn variant="secondary" size="sm">Exportar PDF</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:16}}>Disponibilidad semanal</SectionLabel>
+            <BarChart data={SPARKLINE_DATA.available} color="#10b981" labels={weekLabels} height={80}/>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:12,alignItems:"baseline"}}>
+              <span style={{fontSize:11,color:"var(--t3)"}}>Esta semana</span>
+              <span style={{fontFamily:"var(--mono)",fontSize:18,fontWeight:700,color:"#10b981"}}>21<span style={{fontSize:12,color:"var(--t3)"}}>/26</span></span>
+            </div>
+          </Card>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:16}}>Carga de entrenamiento</SectionLabel>
+            <BarChart data={[72,85,58,79,81,90,65]} color="#38bdf8" labels={weekLabels} height={80}/>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:12,alignItems:"baseline"}}>
+              <span style={{fontSize:11,color:"var(--t3)"}}>UA promedio</span>
+              <span style={{fontFamily:"var(--mono)",fontSize:18,fontWeight:700,color:"#38bdf8"}}>75.7</span>
+            </div>
+          </Card>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:16}}>Índice de forma general</SectionLabel>
+            <BarChart data={[78,80,79,82,81,84,83]} color="#8b5cf6" labels={weekLabels} height={80}/>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:12,alignItems:"baseline"}}>
+              <span style={{fontSize:11,color:"var(--t3)"}}>Rating equipo</span>
+              <span style={{fontFamily:"var(--mono)",fontSize:18,fontWeight:700,color:"#8b5cf6"}}>83.2</span>
+            </div>
+          </Card>
+        </div>
+
+        {/* Top performers */}
+        <Card style={{padding:20}} glow hover>
+          <SectionLabel style={{marginBottom:16}}>Rendimiento individual — Top 8</SectionLabel>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+            {PLAYERS.sort((a,b)=>b.rating-a.rating).slice(0,8).map(p=>{
+              const grp = POS_MAP[p.pos]||"mid";
+              const pos = POS_CFG[grp];
+              return (
+                <div key={p.id} style={{padding:"12px 14px",borderRadius:10,background:"rgba(255,255,255,0.03)",border:"1px solid var(--b1)",display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:32,height:32,borderRadius:8,background:`${pos.c}18`,border:`1px solid ${pos.c}44`,color:pos.c,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:900,flexShrink:0}}>{p.first[0]}{p.last[0]}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--t1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.first} {p.last}</div>
+                    <div style={{fontSize:9,color:"var(--t3)"}}>{POS_LABEL[p.pos]}</div>
+                  </div>
+                  <div style={{fontFamily:"var(--mono)",fontSize:16,fontWeight:700,color:pos.c}}>{p.rating}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Tabla posiciones liga */}
+        <Card style={{padding:20}} glow hover>
+          <SectionLabel style={{marginBottom:14}}>Tabla de posiciones — Liga Nacional</SectionLabel>
+          <div style={{display:"grid",gridTemplateColumns:"30px 2fr 1fr 1fr 1fr 1fr 1fr 1fr",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.09)"}}>
+            {["#","Equipo","PJ","G","E","P","GD","Pts"].map(h=>(
+              <SectionLabel key={h}>{h}</SectionLabel>
+            ))}
+          </div>
+          {[
+            {pos:1,team:"Deporte FC",pj:22,g:14,e:4,p:4,gd:"+20",pts:46,us:true},
+            {pos:2,team:"Olimpia",   pj:22,g:12,e:5,p:5,gd:"+14",pts:41,us:false},
+            {pos:3,team:"Nacional",  pj:22,g:11,e:6,p:5,gd:"+9", pts:39,us:false},
+            {pos:4,team:"Cerro",     pj:22,g:9, e:7,p:6,gd:"+4", pts:34,us:false},
+            {pos:5,team:"Guaraní",   pj:22,g:7, e:8,p:7,gd:"-2", pts:29,us:false},
+          ].map(t=>(
+            <div key={t.pos} style={{display:"grid",gridTemplateColumns:"30px 2fr 1fr 1fr 1fr 1fr 1fr 1fr",gap:10,padding:"11px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",alignItems:"center",background:t.us?"rgba(16,185,129,0.04)":"transparent",borderRadius:t.us?6:0}}>
+              <span style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:700,color:t.us?"#10b981":"var(--t3)"}}>{t.pos}</span>
+              <span style={{fontSize:13,fontWeight:t.us?700:500,color:t.us?"var(--t1)":"var(--t2)"}}>{t.us&&<span style={{color:"#10b981",marginRight:6}}>●</span>}{t.team}</span>
+              {[t.pj,t.g,t.e,t.p,t.gd,t.pts].map((v,i)=>(
+                <span key={i} style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:i===5?700:400,color:i===5?(t.us?"#10b981":"var(--t1)"):"var(--t2)"}}>{v}</span>
+              ))}
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PREDICTIONS PAGE
+═══════════════════════════════════════════════════════════ */
+function PredictionsPage() {
+  return (
+    <div>
+      <TopBar title="Predicciones" subtitle="Modelos ML de riesgo lesional e índice de forma">
+        <Badge color="#8b5cf6">IA activa</Badge>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card style={{padding:20}} glow hover>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <SectionLabel>Ranking de riesgo lesional</SectionLabel>
+              <Badge color="#8b5cf6">Modelo v3.1</Badge>
+            </div>
+            {RISK_DATA.map((p,i)=>{
+              const sev = SEV_CFG[p.level];
+              return (
+                <div key={p.name} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <span style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--t3)",width:18,flexShrink:0}}>{i+1}</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <span style={{fontSize:12,fontWeight:600,color:"var(--t1)"}}>{p.name}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{display:"flex",alignItems:"center",gap:2,fontSize:10,color:p.trend>0?"#f43f5e":"#10b981",fontWeight:600}}>
+                          <Icon id={p.trend>0?"trend_up":"trend_down"} size={9} color={p.trend>0?"#f43f5e":"#10b981"}/>
+                          {p.trend>0?"+":""}{p.trend}
+                        </span>
+                        <span style={{fontFamily:"var(--mono)",fontSize:14,fontWeight:700,color:sev.c}}>{p.score}</span>
+                      </div>
+                    </div>
+                    <ProgressBar pct={p.score} color={sev.c} height={4}/>
+                    <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
+                      <span style={{fontSize:10,color:"var(--t3)"}}>{p.pos}</span>
+                      <Badge color={sev.c} size="sm">{sev.label}</Badge>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <Card style={{padding:20}} glow hover>
+              <SectionLabel style={{marginBottom:14}}>Recomendaciones del sistema</SectionLabel>
+              {[
+                {player:"Luis Mendoza",   rec:"Reposo inmediato. No entrenar 21+ días.",    level:"critical"},
+                {player:"Diego Herrera",  rec:"Reducir carga de entrenamiento 40%.",         level:"high"},
+                {player:"Andrés Rojas",   rec:"Evaluación kinesiológica esta semana.",        level:"high"},
+                {player:"Marcos León",    rec:"Monitorear wellness diario.",                  level:"medium"},
+              ].map(r=>{
+                const sev = SEV_CFG[r.level];
+                return (
+                  <div key={r.player} style={{padding:"10px 12px",borderRadius:9,background:`${sev.c}0e`,border:`1px solid ${sev.c}28`,marginBottom:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                      <Icon id="activity" size={11} color={sev.c}/>
+                      <span style={{fontSize:11,fontWeight:700,color:sev.c}}>{r.player}</span>
+                    </div>
+                    <div style={{fontSize:11,color:"rgba(241,245,249,0.75)"}}>{r.rec}</div>
+                  </div>
+                );
+              })}
+            </Card>
+
+            <Card style={{padding:20}} glow hover>
+              <SectionLabel style={{marginBottom:14}}>Predicción próximo partido</SectionLabel>
+              <div style={{textAlign:"center",padding:"16px 0"}}>
+                <div style={{fontSize:13,color:"var(--t3)",marginBottom:6}}>Deporte FC vs Olimpia · 26 Abr</div>
+                <div style={{display:"flex",justifyContent:"center",gap:24,marginBottom:16}}>
+                  {[{label:"Victoria",pct:64,c:"#10b981"},{label:"Empate",pct:21,c:"#f59e0b"},{label:"Derrota",pct:15,c:"#f43f5e"}].map(r=>(
+                    <div key={r.label} style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"var(--mono)",fontSize:26,fontWeight:700,color:r.c,lineHeight:1}}>{r.pct}%</div>
+                      <div style={{fontSize:10,color:"var(--t3)",marginTop:4}}>{r.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 12px",border:"1px solid var(--b1)"}}>
+                  <div style={{fontSize:11,color:"rgba(241,245,249,0.7)"}}>Disponibilidad proyectada: <span style={{color:"#10b981",fontWeight:700}}>19/22</span> jugadores</div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLACEHOLDER PAGES (TRAINING, TACTICAL, WELLNESS, SETTINGS)
+═══════════════════════════════════════════════════════════ */
+function TrainingPage() {
+  return (
+    <div>
+      <TopBar title="Entrenamiento" subtitle="Planificación y control de sesiones">
+        <Btn variant="primary" size="sm"><Icon id="training" size={13}/>Nueva sesión</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{display:"flex",gap:12}}>
+          {[{label:"Sesiones esta semana",value:"5",c:"#10b981"},{label:"Asistencia promedio",value:"90%",c:"#38bdf8"},{label:"Carga semanal (UA)",value:"376",c:"#8b5cf6"},{label:"Próxima sesión",value:"Hoy 16:00",c:"#f59e0b"}].map(k=>(
+            <Card key={k.label} style={{flex:1,padding:"16px 18px"}} hover>
+              <SectionLabel style={{marginBottom:8}}>{k.label}</SectionLabel>
+              <div style={{fontFamily:"var(--mono)",fontSize:22,fontWeight:700,color:k.c,letterSpacing:"-0.03em"}}>{k.value}</div>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <div style={{display:"grid",gridTemplateColumns:"1.5fr 1.5fr 1fr 1fr 1fr 1fr",gap:12,padding:"10px 18px",borderBottom:"1px solid rgba(255,255,255,0.09)",background:"rgba(255,255,255,0.02)"}}>
+            {["Sesión","Tipo","Intensidad","Duración","Asistencia","Estado"].map(h=><SectionLabel key={h}>{h}</SectionLabel>)}
+          </div>
+          {TRAINING_SESSIONS.map(s=>{
+            const intC = {Alta:"#f43f5e",Media:"#f59e0b",Baja:"#10b981"}[s.intensity]||"#64748b";
+            const stC  = {completed:"#10b981",scheduled:"#38bdf8",match:"#f43f5e"}[s.status]||"#64748b";
+            const stL  = {completed:"Completada",scheduled:"Programada",match:"PARTIDO"}[s.status]||s.status;
+            return (
+              <div key={s.id} style={{display:"grid",gridTemplateColumns:"1.5fr 1.5fr 1fr 1fr 1fr 1fr",gap:12,padding:"13px 18px",borderBottom:"1px solid rgba(255,255,255,0.05)",alignItems:"center",transition:"background 0.14s"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.025)"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <span style={{fontSize:12,fontWeight:600,color:"var(--t1)"}}>{s.date}</span>
+                <span style={{fontSize:12,color:"var(--t2)"}}>{s.type}</span>
+                <Badge color={intC}>{s.intensity}</Badge>
+                <span style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--t2)"}}>{s.duration}</span>
+                <span style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--t1)"}}>{s.players}<span style={{color:"var(--t3)"}}>/22</span></span>
+                <Badge color={stC}>{stL}</Badge>
+              </div>
+            );
+          })}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function WellnessPage() {
+  return (
+    <div>
+      <TopBar title="Wellness" subtitle="Bienestar y estado físico del plantel"/>
+      <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:20}}>
+        <div style={{display:"flex",gap:12}}>
+          {[{label:"Wellness promedio",value:"7.4",c:"#10b981",sub:"/10"},{label:"Alertas hoy",value:"2",c:"#f43f5e",sub:"bajo umbral"},{label:"Completaron chequeo",value:"19/22",c:"#38bdf8",sub:"hoy"},{label:"Tendencia",value:"↑ +0.3",c:"#10b981",sub:"vs. semana pasada"}].map(k=>(
+            <Card key={k.label} style={{flex:1,padding:"16px 18px"}} hover>
+              <SectionLabel style={{marginBottom:8}}>{k.label}</SectionLabel>
+              <div style={{fontFamily:"var(--mono)",fontSize:22,fontWeight:700,color:k.c,letterSpacing:"-0.03em"}}>{k.value} <span style={{fontSize:12,color:"var(--t3)",fontWeight:400}}>{k.sub}</span></div>
+            </Card>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:14}}>Estado wellness por jugador</SectionLabel>
+            {PLAYERS.slice(0,8).map(p=>{
+              const score = Math.round(6 + Math.random()*4);
+              const c = score>=8?"#10b981":score>=6?"#f59e0b":"#f43f5e";
+              return (
+                <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <span style={{fontSize:12,color:"var(--t1)",flex:1}}>{p.first} {p.last}</span>
+                  <div style={{width:120}}>
+                    <ProgressBar pct={score*10} color={c} height={5}/>
+                  </div>
+                  <span style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:700,color:c,width:30,textAlign:"right"}}>{score}</span>
+                </div>
+              );
+            })}
+          </Card>
+          <Card style={{padding:20}} glow hover>
+            <SectionLabel style={{marginBottom:14}}>Dimensiones de bienestar</SectionLabel>
+            {[{label:"Calidad del sueño",val:74,c:"#8b5cf6"},{label:"Nivel de fatiga",val:38,c:"#f43f5e"},{label:"Estrés percibido",val:42,c:"#f59e0b"},{label:"Humor general",val:78,c:"#10b981"},{label:"Dolor muscular",val:31,c:"#38bdf8"}].map(d=>(
+              <div key={d.label} style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <span style={{fontSize:12,color:"var(--t2)"}}>{d.label}</span>
+                  <span style={{fontFamily:"var(--mono)",fontSize:11,fontWeight:700,color:d.c}}>{d.val}%</span>
+                </div>
+                <ProgressBar pct={d.val} color={d.c}/>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TacticalPage() {
+  const positions = [
+    {x:47,y:85,label:"GK",num:1},{x:15,y:65,label:"LB",num:3},{x:33,y:65,label:"CB",num:5},{x:60,y:65,label:"CB",num:4},{x:80,y:65,label:"RB",num:2},
+    {x:20,y:45,label:"LM",num:11},{x:40,y:42,label:"CM",num:6},{x:55,y:42,label:"CM",num:14},{x:75,y:45,label:"RM",num:10},
+    {x:33,y:22,label:"SS",num:8},{x:62,y:22,label:"CF",num:9},
+  ];
+  return (
+    <div>
+      <TopBar title="Pizarra Táctica" subtitle="Disposición y análisis de formación">
+        <Btn variant="secondary" size="sm">4-4-2</Btn>
+        <Btn variant="secondary" size="sm">4-3-3</Btn>
+        <Btn variant="primary" size="sm">Guardar</Btn>
+      </TopBar>
+      <div style={{padding:"24px 28px"}}>
+        <Card style={{padding:0,overflow:"hidden"}} hover={false}>
+          <div style={{position:"relative",background:"linear-gradient(180deg,rgba(0,80,30,0.9),rgba(0,60,20,0.9))",minHeight:480,overflow:"hidden"}}>
+            {/* Field lines */}
+            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%"}} viewBox="0 0 100 100" preserveAspectRatio="none">
+              <rect x="5" y="5" width="90" height="90" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <line x1="5" y1="50" x2="95" y2="50" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <circle cx="50" cy="50" r="12" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.4)"/>
+              {/* Penalty areas */}
+              <rect x="25" y="5" width="50" height="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <rect x="25" y="79" width="50" height="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <rect x="38" y="5" width="24" height="7" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              <rect x="38" y="88" width="24" height="7" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
+              {/* Grass stripes */}
+              {[0,1,2,3,4,5,6,7,8].map(i=>(
+                <rect key={i} x={5+i*10} y="5" width="10" height="90" fill={i%2===0?"rgba(0,0,0,0.08)":"transparent"}/>
+              ))}
+            </svg>
+            {/* Players */}
+            {positions.map(p=>(
+              <div key={p.num} style={{position:"absolute",left:`${p.x}%`,top:`${p.y}%`,transform:"translate(-50%,-50%)",display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer",zIndex:10}}>
+                <div style={{width:34,height:34,borderRadius:"50%",background:"rgba(16,185,129,0.85)",border:"2px solid rgba(16,185,129,1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:12,fontWeight:900,color:"#000",boxShadow:"0 0 12px rgba(16,185,129,0.6),0 2px 8px rgba(0,0,0,0.5)"}}>
+                  {p.num}
+                </div>
+                <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.9)",background:"rgba(0,0,0,0.6)",padding:"1px 5px",borderRadius:4,letterSpacing:"0.06em"}}>{p.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:"14px 20px",display:"flex",alignItems:"center",gap:12,background:"rgba(8,15,32,0.8)"}}>
+            <SectionLabel>Formación activa:</SectionLabel>
+            <Badge color="#10b981">4-2-3-1</Badge>
+            <span style={{fontSize:11,color:"var(--t3)",marginLeft:4}}>Jornada 23 · vs Olimpia</span>
+            <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+              <Btn variant="ghost" size="sm">Editar</Btn>
+              <Btn variant="secondary" size="sm">Comparar formaciones</Btn>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage() {
+  return (
+    <div>
+      <TopBar title="Configuración" subtitle="Gestión del sistema y usuarios"/>
+      <div style={{padding:"24px 28px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+        {[
+          {title:"Perfil del club",fields:[{l:"Nombre del club",v:"Deporte FC"},{l:"País",v:"Paraguay"},{l:"Liga",v:"División de Honor"},{l:"Temporada activa",v:"2025/26"}]},
+          {title:"Cuenta de usuario",fields:[{l:"Nombre",v:"Carlos Vega"},{l:"Rol",v:"Entrenador Principal"},{l:"Email",v:"c.vega@deportefc.com"},{l:"Último acceso",v:"Hoy, 09:14"}]},
+          {title:"Notificaciones",fields:[{l:"Alertas de lesión",v:"Activado"},{l:"Alerta de riesgo alto",v:"Activado"},{l:"Resumen diario",v:"07:00"},{l:"Reporte semanal",v:"Lunes 08:00"}]},
+          {title:"Integraciones",fields:[{l:"API de rendimiento",v:"Conectado"},{l:"Exportación PDF",v:"Habilitado"},{l:"Wearables",v:"3 dispositivos"},{l:"Backup automático",v:"Diario"}]},
+        ].map(section=>(
+          <Card key={section.title} style={{padding:20}} glow hover>
+            <div style={{fontSize:14,fontWeight:700,color:"var(--t1)",marginBottom:14}}>{section.title}</div>
+            {section.fields.map(f=>(
+              <div key={f.l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontSize:12,color:"var(--t2)"}}>{f.l}</span>
+                <span style={{fontSize:12,fontWeight:600,color:"var(--t1)"}}>{f.v}</span>
+              </div>
+            ))}
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════════════════════ */
+function App() {
+  const [page, setPage] = React.useState(
+    ()=>localStorage.getItem("dfc-page")||"dashboard"
+  );
+  const [collapsed, setCollapsed] = React.useState(false);
+
+  const navigate = id => {
+    setPage(id);
+    localStorage.setItem("dfc-page",id);
+  };
+
+  const pages = {
+    dashboard:   <DashboardPage/>,
+    players:     <PlayersPage/>,
+    injuries:    <InjuriesPage/>,
+    matches:     <MatchesPage/>,
+    training:    <TrainingPage/>,
+    tactical:    <TacticalPage/>,
+    wellness:    <WellnessPage/>,
+    analytics:   <AnalyticsPage/>,
+    predictions: <PredictionsPage/>,
+    settings:    <SettingsPage/>,
+  };
+
+  return (
+    <div style={{display:"flex",height:"100vh",overflow:"hidden",position:"relative"}}>
+      {/* Ambient background */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,
+        background:"radial-gradient(ellipse 80% 60% at 10% 40%,rgba(16,185,129,0.05) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 90% 10%,rgba(56,189,248,0.04) 0%,transparent 55%),radial-gradient(ellipse 50% 60% at 60% 90%,rgba(139,92,246,0.025) 0%,transparent 50%)"}}/>
+      {/* Grid */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,
+        backgroundImage:"linear-gradient(rgba(255,255,255,0.016) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.016) 1px,transparent 1px)",
+        backgroundSize:"48px 48px"}}/>
+
+      <div style={{position:"relative",zIndex:10,display:"flex",width:"100%",height:"100%",overflow:"hidden"}}>
+        <Sidebar page={page} onNav={navigate} collapsed={collapsed} onCollapse={()=>setCollapsed(v=>!v)}/>
+        <main style={{flex:1,overflowY:"auto",overflowX:"hidden",minWidth:0,display:"flex",flexDirection:"column"}}>
+          {pages[page] || pages.dashboard}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TWEAKS PANEL
+═══════════════════════════════════════════════════════════ */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#10b981",
+  "clubName": "Deporte FC",
+  "density": "normal",
+  "showRiskBadges": true
+}/*EDITMODE-END*/;
+
+function applyTweaks(t) {
+  document.documentElement.style.setProperty("--neon", t.accentColor);
+  document.documentElement.style.setProperty("--color-neon", t.accentColor);
+}
+
+function TweaksPanel({ visible, onClose }) {
+  const [tweaks, setTweaks] = React.useState(() => {
+    try { return { ...TWEAK_DEFAULTS, ...JSON.parse(localStorage.getItem("dfc-tweaks") || "{}") }; }
+    catch { return TWEAK_DEFAULTS; }
+  });
+
+  React.useEffect(() => { applyTweaks(tweaks); }, [tweaks]);
+
+  const update = (key, val) => {
+    const next = { ...tweaks, [key]: val };
+    setTweaks(next);
+    localStorage.setItem("dfc-tweaks", JSON.stringify(next));
+    window.parent.postMessage({ type: "__edit_mode_set_keys", edits: next }, "*");
+    applyTweaks(next);
+  };
+
+  const ACCENT_PRESETS = [
+    { label: "Neon", c: "#10b981" }, { label: "Sky", c: "#38bdf8" },
+    { label: "Purple", c: "#8b5cf6" }, { label: "Amber", c: "#f59e0b" },
+    { label: "Red", c: "#f43f5e" }, { label: "White", c: "#f1f5f9" },
+  ];
+
+  if (!visible) return null;
+  return (
+    <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,width:280,borderRadius:16,
+      background:"rgba(8,15,32,0.97)",border:"1px solid rgba(255,255,255,0.14)",
+      boxShadow:"0 8px 48px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.05)",
+      backdropFilter:"blur(20px)",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{padding:"14px 18px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"var(--neon)",boxShadow:"0 0 8px var(--neon)"}}/>
+          <span style={{fontSize:13,fontWeight:700,color:"var(--t1)"}}>Tweaks</span>
+        </div>
+        <button onClick={onClose} style={{color:"var(--t3)",fontSize:16,transition:"color 0.15s",background:"none",border:"none",cursor:"pointer"}}
+          onMouseEnter={e=>e.target.style.color="#f43f5e"} onMouseLeave={e=>e.target.style.color="var(--t3)"}>✕</button>
+      </div>
+
+      <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:18}}>
+        {/* Accent color */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--t3)",marginBottom:10}}>Color de acento</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {ACCENT_PRESETS.map(p => (
+              <div key={p.c} onClick={() => update("accentColor", p.c)} title={p.label}
+                style={{width:28,height:28,borderRadius:"50%",background:p.c,cursor:"pointer",transition:"transform 0.15s, box-shadow 0.15s",
+                  border: tweaks.accentColor===p.c ? "2px solid #fff" : "2px solid transparent",
+                  boxShadow: tweaks.accentColor===p.c ? `0 0 12px ${p.c}` : "none"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.2)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="";}}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Club name */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--t3)",marginBottom:8}}>Nombre del club</div>
+          <input value={tweaks.clubName} onChange={e=>update("clubName",e.target.value)}
+            style={{width:"100%",padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,0.06)",
+              border:"1px solid rgba(255,255,255,0.12)",color:"var(--t1)",fontSize:13,
+              fontFamily:"var(--font)",outline:"none"}}
+            onFocus={e=>{e.target.style.borderColor="rgba(16,185,129,0.4)";}}
+            onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,0.12)";}}/>
+        </div>
+
+        {/* Density */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--t3)",marginBottom:8}}>Densidad de interfaz</div>
+          <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.04)",borderRadius:8,padding:3}}>
+            {["compact","normal","comfortable"].map(d=>(
+              <div key={d} onClick={()=>update("density",d)}
+                style={{flex:1,padding:"5px 8px",borderRadius:6,textAlign:"center",fontSize:11,fontWeight:600,cursor:"pointer",transition:"all 0.14s",
+                  background:tweaks.density===d?"rgba(16,185,129,0.15)":"transparent",
+                  color:tweaks.density===d?"var(--neon)":"var(--t3)",
+                  border:tweaks.density===d?"1px solid rgba(16,185,129,0.3)":"1px solid transparent"}}>
+                {d==="compact"?"Compact":d==="normal"?"Normal":"Amplia"}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Risk badges toggle */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:500,color:"var(--t1)"}}>Badges de riesgo</div>
+            <div style={{fontSize:11,color:"var(--t3)"}}>Mostrar indicadores ML</div>
+          </div>
+          <div onClick={()=>update("showRiskBadges",!tweaks.showRiskBadges)}
+            style={{width:40,height:22,borderRadius:11,cursor:"pointer",transition:"background 0.2s",position:"relative",
+              background:tweaks.showRiskBadges?"var(--neon)":"rgba(255,255,255,0.12)"}}>
+            <div style={{position:"absolute",top:3,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s",
+              left:tweaks.showRiskBadges?20:3,boxShadow:"0 1px 4px rgba(0,0,0,0.4)"}}/>
+          </div>
+        </div>
+
+        {/* PDF Export */}
+        <div style={{borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:14}}>
+          <button onClick={()=>window.print()}
+            style={{width:"100%",padding:"9px 16px",borderRadius:9,background:"rgba(255,255,255,0.05)",
+              border:"1px solid rgba(255,255,255,0.12)",color:"var(--t2)",fontSize:12,fontWeight:600,
+              fontFamily:"var(--font)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.09)";e.currentTarget.style.color="#fff";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="var(--t2)";}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Exportar como PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppWithTweaks() {
+  const [tweaksVisible, setTweaksVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    // Register tweaks mode availability
+    window.addEventListener("message", (e) => {
+      if (e.data?.type === "__activate_edit_mode")   setTweaksVisible(true);
+      if (e.data?.type === "__deactivate_edit_mode") setTweaksVisible(false);
+    });
+    window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+    // Apply saved tweaks on load
+    try {
+      const saved = JSON.parse(localStorage.getItem("dfc-tweaks") || "{}");
+      applyTweaks({ ...TWEAK_DEFAULTS, ...saved });
+    } catch {}
+  }, []);
+
+  return (
+    <>
+      <App />
+      <TweaksPanel visible={tweaksVisible} onClose={() => setTweaksVisible(false)} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<AppWithTweaks/>);
+</script>
+</body>
+</html>
