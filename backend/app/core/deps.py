@@ -35,3 +35,36 @@ def get_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere rol de administrador")
     return current_user
+
+
+def get_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Se requiere super-administrador")
+    return current_user
+
+
+def get_current_club_id(current_user: User = Depends(get_current_user)) -> int:
+    """Resolve the active club for the current request.
+
+    Regular users are scoped to their assigned `club_id`. Super-admins can pass
+    `X-Club-Id` header (not implemented here yet) — for now they must also have
+    a `club_id` set, otherwise we 400. This keeps the data layer simple.
+    """
+    if current_user.club_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario sin club asignado",
+        )
+    return current_user.club_id
+
+
+def scoped_query(query, model, current_user: User):
+    """Apply tenant scoping to `query` filtering `model.club_id` when present.
+
+    Super-admins skip scoping (cross-club view).
+    """
+    if current_user.is_superadmin:
+        return query
+    if hasattr(model, "club_id"):
+        return query.filter(model.club_id == current_user.club_id)
+    return query

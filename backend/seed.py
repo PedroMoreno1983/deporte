@@ -10,7 +10,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from datetime import date, timedelta
 import random
-import secrets
 from app.core.database import SessionLocal, engine
 from app.core.database import Base
 from app.core import security
@@ -25,12 +24,25 @@ db = SessionLocal()
 def run():
     print("🌱 Iniciando seeding...")
 
+    # --- Club default (multi-tenant) ---
+    club = db.query(Club).filter(Club.slug == "deporte-fc").first()
+    if not club:
+        club = Club(name="Deporte FC", slug="deporte-fc", country="Chile", league="Primera División")
+        db.add(club)
+        db.commit()
+        db.refresh(club)
+    CLUB_ID = club.id
+    print(f"  ✅ Club '{club.name}' (id={CLUB_ID})")
+
     # --- Usuarios ---
+    # Emails alineados con DEMO_ACCOUNTS del login (frontend) y password fijo "demo"
+    # para que los botones demo del login autocompleten y funcionen directo.
+    DEMO_PASSWORD = "demo"
     users_data = [
-        {"email": "admin@deportefc.cl", "full_name": "Admin Sistema", "password": secrets.token_urlsafe(12), "role": UserRole.ADMIN},
-        {"email": "entrenador@deportefc.cl", "full_name": "Carlos Rodríguez", "password": secrets.token_urlsafe(12), "role": UserRole.COACH},
-        {"email": "kinesiologo@deportefc.cl", "full_name": "María González", "password": secrets.token_urlsafe(12), "role": UserRole.KINESIOLOGIST},
-        {"email": "analista@deportefc.cl", "full_name": "Luis Fernández", "password": secrets.token_urlsafe(12), "role": UserRole.ANALYST},
+        {"email": "admin@deporte.fc",   "full_name": "Admin Sistema",    "password": DEMO_PASSWORD, "role": UserRole.ADMIN},
+        {"email": "coach@deporte.fc",   "full_name": "Carlos Rodríguez", "password": DEMO_PASSWORD, "role": UserRole.COACH},
+        {"email": "kine@deporte.fc",    "full_name": "María González",   "password": DEMO_PASSWORD, "role": UserRole.KINESIOLOGIST},
+        {"email": "analyst@deporte.fc", "full_name": "Luis Fernández",   "password": DEMO_PASSWORD, "role": UserRole.ANALYST},
     ]
     users = []
     for u in users_data:
@@ -39,10 +51,16 @@ def run():
             user = User(
                 email=u["email"], full_name=u["full_name"],
                 hashed_password=security.get_password_hash(u["password"]),
-                role=u["role"]
+                role=u["role"],
+                club_id=CLUB_ID,
             )
             db.add(user)
             users.append(user)
+        else:
+            # Re-hashear password e idempotencia de club
+            existing.hashed_password = security.get_password_hash(u["password"])
+            if existing.club_id is None:
+                existing.club_id = CLUB_ID
     db.commit()
     print(f"  ✅ {len(users_data)} usuarios creados")
 
@@ -56,9 +74,9 @@ def run():
     ]
     categories = []
     for c in cats_data:
-        existing = db.query(Category).filter(Category.code == c["code"]).first()
+        existing = db.query(Category).filter(Category.club_id == CLUB_ID, Category.code == c["code"]).first()
         if not existing:
-            cat = Category(**c)
+            cat = Category(**c, club_id=CLUB_ID)
             db.add(cat)
             db.flush()
             categories.append(cat)
@@ -88,6 +106,7 @@ def run():
                 position=positions[i % len(positions)],
                 dominant_foot=random.choice(list(DominantFoot)),
                 category_id=cat.id,
+                club_id=CLUB_ID,
                 height_cm=random.uniform(165, 195),
                 weight_kg=random.uniform(62, 88),
                 status=random.choices(
@@ -162,6 +181,7 @@ def run():
             is_home=random.random() > 0.5,
             competition=random.choice(["Liga Nacional", "Copa", "Amistoso"]),
             category_id=primera_cat.id,
+            club_id=CLUB_ID,
             goals_for=random.randint(0, 4),
             goals_against=random.randint(0, 3),
         )
@@ -218,6 +238,7 @@ def run():
 
             session = TrainingSession(
                 player_id=player.id,
+                club_id=CLUB_ID,
                 session_date=session_date,
                 session_type=SessionType.TRAINING if session_date.weekday() < 5 else SessionType.MATCH,
                 duration_minutes=duration,
@@ -266,9 +287,10 @@ def run():
     print(f"  ✅ Registros de wellness (30 días × {len(primera_players)} jugadores) creados")
 
     print("\n✅ Seeding completado exitosamente!")
-    print("\nCredenciales de acceso (guarda estas contraseñas, no se mostrarán de nuevo):")
+    print("\n🔑 Cuentas demo (password fijo = 'demo'):")
     for u in users_data:
-        print(f"  {u['full_name']}: {u['email']} / {u['password']}")
+        print(f"  · {u['role'].value:14s} {u['email']:25s} demo")
+    print("\n👉 En el login los 4 botones de cuenta demo ya están conectados a estos emails.\n")
 
 if __name__ == "__main__":
     try:

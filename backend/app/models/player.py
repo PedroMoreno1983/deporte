@@ -57,6 +57,9 @@ class Player(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     category = relationship("Category", back_populates="players")
 
+    # Multi-tenant: denormalised for fast scoping
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False, index=True)
+
     # Physical baseline
     height_cm = Column(Float, nullable=True)
     weight_kg = Column(Float, nullable=True)

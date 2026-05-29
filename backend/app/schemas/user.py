@@ -21,6 +21,7 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     role: UserRole = UserRole.COACH
+    club_id: Optional[int] = None  # Resolved server-side if omitted
 
 
 class UserUpdate(BaseModel):
@@ -28,6 +29,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    club_id: Optional[int] = None
 
 
 class UserOut(BaseModel):
@@ -36,7 +38,9 @@ class UserOut(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool
+    is_superadmin: bool = False
     avatar_url: Optional[str] = None
+    club_id: Optional[int] = None
     created_at: datetime
 
     class Config:

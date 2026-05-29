@@ -9,8 +9,29 @@ from app.models.prediction import PredictionScore
 from app.models.wellness import WellnessEntry
 from datetime import date, timedelta
 from typing import Any, Dict, List
+from pydantic import BaseModel
 
 router = APIRouter()
+
+
+class DeviceTokenIn(BaseModel):
+    token:    str
+    platform: str  # "ios" | "android" | "web"
+
+
+@router.post("/device-token")
+def register_device_token(
+    body: DeviceTokenIn,
+    current_user=Depends(get_current_user),
+):
+    """Register the current device for push notifications.
+    Currently logs the token in memory; persist to a DeviceToken model when ready."""
+    import logging
+    logging.getLogger("push").info(
+        "device token registered user=%s platform=%s token=%s",
+        current_user.id, body.platform, body.token[:32] + "...",
+    )
+    return {"ok": True, "user_id": current_user.id, "platform": body.platform}
 
 
 def _wellness_score(w: WellnessEntry) -> int:

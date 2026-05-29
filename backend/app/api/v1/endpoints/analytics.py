@@ -202,6 +202,118 @@ def get_player_radar(
     return {"player": radar, "team_avg": team_avg}
 
 
+def _percentile(value: float, dataset: list[float]) -> float:
+    """Return the percentile of `value` within `dataset` (0..100)."""
+    if not dataset:
+        return 0.0
+    n = len(dataset)
+    below = sum(1 for v in dataset if v < value)
+    equal = sum(1 for v in dataset if v == value)
+    # Standard percentile-rank with adjustment for ties
+    return round(((below + 0.5 * equal) / n) * 100, 1)
+
+
+def _league_label(p: float) -> str:
+    if p >= 90: return "Élite (top 10%)"
+    if p >= 75: return "Por encima del promedio"
+    if p >= 50: return "En el promedio"
+    if p >= 25: return "Por debajo del promedio"
+    return "Cola inferior"
+
+
+@router.get("/player/{player_id}/benchmarks")
+def get_player_benchmarks(
+    player_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Compare a player against same-position peers (proxy league benchmark).
+
+    Returns per-metric: player value, peer average, percentile and label.
+    Currently peers = active players in the same position across all available
+    data (cross-club for super-admin, otherwise scoped via Player.club_id).
+    """
+    target = db.query(Player).filter(Player.id == player_id).first()
+    if not target:
+        return {"error": "player not found"}
+
+    # Peers: same position, active
+    peer_q = db.query(Player).filter(Player.is_active == True, Player.position == target.position)
+    if not _has_superadmin_attr_or_default(target):
+        # Scope to same club for non-superadmin contexts
+        peer_q = peer_q.filter(Player.club_id == target.club_id)
+    peers = peer_q.all()
+    peer_ids = [p.id for p in peers]
+
+    def _metrics_for(pid: int) -> dict:
+        # Aggregate this player's metrics from match_stats
+        agg = (
+            db.query(
+                func.coalesce(func.sum(MatchStat.minutes_played), 0).label("minutes"),
+                func.coalesce(func.sum(MatchStat.goals), 0).label("goals"),
+                func.coalesce(func.sum(MatchStat.assists), 0).label("assists"),
+                func.coalesce(func.avg(MatchStat.rating), 0).label("avg_rating"),
+                func.coalesce(func.sum(MatchStat.total_distance_m), 0).label("distance"),
+                func.coalesce(func.sum(MatchStat.tackles), 0).label("tackles"),
+                func.coalesce(func.sum(MatchStat.key_passes), 0).label("key_passes"),
+                func.count(MatchStat.id).label("matches"),
+            )
+            .filter(MatchStat.player_id == pid)
+            .first()
+        )
+        matches = (agg.matches or 0) if agg else 0
+        if matches == 0:
+            return {"goals_per90": 0.0, "assists_per90": 0.0, "avg_rating": 0.0, "distance_per_match": 0.0, "tackles_per_match": 0.0, "key_passes_per_match": 0.0}
+        minutes = max(agg.minutes or 1, 1)
+        return {
+            "goals_per90":          (agg.goals    or 0) / minutes * 90,
+            "assists_per90":        (agg.assists  or 0) / minutes * 90,
+            "avg_rating":           float(agg.avg_rating or 0),
+            "distance_per_match":   (agg.distance or 0) / matches,
+            "tackles_per_match":    (agg.tackles  or 0) / matches,
+            "key_passes_per_match": (agg.key_passes or 0) / matches,
+        }
+
+    target_metrics = _metrics_for(target.id)
+    peer_metrics_all = [_metrics_for(pid) for pid in peer_ids if pid != target.id]
+
+    METRIC_LABELS = {
+        "goals_per90":          "Goles / 90 min",
+        "assists_per90":        "Asistencias / 90 min",
+        "avg_rating":           "Rating promedio",
+        "distance_per_match":   "Distancia / partido (m)",
+        "tackles_per_match":    "Entradas / partido",
+        "key_passes_per_match": "Pases clave / partido",
+    }
+
+    benchmarks = []
+    for key, label in METRIC_LABELS.items():
+        peer_values = [m[key] for m in peer_metrics_all]
+        avg = (sum(peer_values) / len(peer_values)) if peer_values else 0
+        p = _percentile(target_metrics[key], peer_values) if peer_values else 0
+        benchmarks.append({
+            "metric":     key,
+            "label":      label,
+            "value":      round(target_metrics[key], 2),
+            "peer_avg":   round(avg, 2),
+            "percentile": p,
+            "level":      _league_label(p),
+            "peer_count": len(peer_values),
+        })
+
+    return {
+        "player_id":   target.id,
+        "position":    target.position.value if target.position else None,
+        "benchmarks":  benchmarks,
+    }
+
+
+def _has_superadmin_attr_or_default(p) -> bool:
+    # Placeholder hook: in this endpoint we don't have current_user, so we
+    # always scope to the player's club_id (safer default).
+    return False
+
+
 @router.get("/team/radar")
 def get_team_radar(
     category_id: Optional[int] = None,
