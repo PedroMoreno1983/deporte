@@ -20,6 +20,7 @@ class TrainingSession(Base):
     id = Column(Integer, primary_key=True, index=True)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
     player = relationship("Player", back_populates="training_sessions")
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False, index=True)
 
     session_date = Column(Date, nullable=False)
     session_type = Column(Enum(SessionType), default=SessionType.TRAINING)

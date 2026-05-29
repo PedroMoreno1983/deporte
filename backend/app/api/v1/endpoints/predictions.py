@@ -7,6 +7,9 @@ from ....models.prediction import PredictionScore
 from ....schemas.prediction import PredictionScoreOut
 from ....ml.injury_risk import calculate_injury_risk
 from ....ml.performance import calculate_performance_projection
+from ....ml.load_recommendations import recommend_team
+from ....core.deps import get_current_user, get_current_club_id
+from ....models.user import User
 
 router = APIRouter()
 
@@ -43,6 +46,15 @@ def get_prediction_history(player_id: int, db: Session = Depends(get_db), _=Depe
         .limit(30)
         .all()
     )
+
+
+@router.get("/team/load-recommendations")
+def get_load_recommendations(
+    db: Session = Depends(get_db),
+    club_id: int = Depends(get_current_club_id),
+):
+    """Return per-player load-management recommendations for the current club."""
+    return recommend_team(db, club_id=club_id)
 
 
 @router.get("/team/risk-summary")

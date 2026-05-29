@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 import base64
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from ....core.database import get_db
-from ....core.deps import get_current_user, require_roles
+from ....core.deps import get_current_user, require_roles, get_current_club_id, scoped_query
 from ....models.player import Player, PlayerStatus
-from ....models.user import UserRole
+from ....models.category import Category
+from ....models.user import UserRole, User
 from ....schemas.player import PlayerCreate, PlayerUpdate, PlayerOut, PlayerSummary
 
 router = APIRouter()
@@ -19,9 +20,10 @@ def list_players(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     q = db.query(Player).filter(Player.is_active == True)
+    q = scoped_query(q, Player, current_user)
     if category_id:
         q = q.filter(Player.category_id == category_id)
     if status:
@@ -34,8 +36,10 @@ def list_players(
 
 
 @router.get("/{player_id}", response_model=PlayerOut)
-def get_player(player_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    player = db.query(Player).options(joinedload(Player.category)).filter(Player.id == player_id).first()
+def get_player(player_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Player).options(joinedload(Player.category)).filter(Player.id == player_id)
+    q = scoped_query(q, Player, current_user)
+    player = q.first()
     if not player:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return player
@@ -45,9 +49,16 @@ def get_player(player_id: int, db: Session = Depends(get_db), _=Depends(get_curr
 def create_player(
     data: PlayerCreate,
     db: Session = Depends(get_db),
+    club_id: int = Depends(get_current_club_id),
     _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH)),
 ):
-    player = Player(**data.model_dump())
+    # Verify category belongs to current club
+    cat = db.query(Category).filter(Category.id == data.category_id, Category.club_id == club_id).first()
+    if not cat:
+        raise HTTPException(status_code=400, detail="Categoría inválida para este club")
+    payload = data.model_dump()
+    payload["club_id"] = club_id
+    player = Player(**payload)
     db.add(player)
     db.commit()
     db.refresh(player)
@@ -59,12 +70,18 @@ def update_player(
     player_id: int,
     data: PlayerUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH, UserRole.KINESIOLOGIST)),
 ):
-    player = db.query(Player).filter(Player.id == player_id).first()
+    q = db.query(Player).filter(Player.id == player_id)
+    q = scoped_query(q, Player, current_user)
+    player = q.first()
     if not player:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     for field, value in data.model_dump(exclude_none=True).items():
+        # Block tenant escalation
+        if field == "club_id":
+            continue
         setattr(player, field, value)
     db.commit()
     db.refresh(player)
@@ -76,9 +93,12 @@ def upload_player_photo(
     player_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH)),
 ):
-    player = db.query(Player).filter(Player.id == player_id).first()
+    q = db.query(Player).filter(Player.id == player_id)
+    q = scoped_query(q, Player, current_user)
+    player = q.first()
     if not player:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
@@ -97,9 +117,12 @@ def upload_player_photo(
 def delete_player(
     player_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_roles(UserRole.ADMIN)),
 ):
-    player = db.query(Player).filter(Player.id == player_id).first()
+    q = db.query(Player).filter(Player.id == player_id)
+    q = scoped_query(q, Player, current_user)
+    player = q.first()
     if not player:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     player.is_active = False

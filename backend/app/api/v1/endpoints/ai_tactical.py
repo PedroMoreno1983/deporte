@@ -111,6 +111,75 @@ def _build_team_context(db: Session) -> dict:
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
+# ── Chat (conversational) ─────────────────────────────────────────────
+
+class ChatMessage(BaseModel):
+    role:    str  # "user" | "assistant" | "system"
+    content: str
+
+
+class TacticalChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    include_team_context: bool = True
+
+
+class TacticalChatResponse(BaseModel):
+    reply: str
+
+
+@router.post("/chat", response_model=TacticalChatResponse)
+def tactical_chat(
+    body: TacticalChatRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Free-form conversation with the tactical assistant.
+
+    Always grounds the model with current team context (wellness, injuries,
+    last matches) so coaches don't have to repeat themselves.
+    """
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
+    try:
+        from groq import Groq
+    except ImportError:
+        raise HTTPException(status_code=503, detail="groq package no instalado")
+    if not body.messages:
+        raise HTTPException(status_code=400, detail="Enviar al menos un mensaje")
+
+    ctx_block = ""
+    if body.include_team_context:
+        team_ctx = _build_team_context(db)
+        ctx_block = (
+            "\n\nCONTEXTO DEL EQUIPO (úsalo solo si es relevante a la pregunta):\n"
+            f"Wellness últimos 3 días: {json.dumps(team_ctx['wellness'], ensure_ascii=False)}\n"
+            f"Lesiones activas: {json.dumps(team_ctx['injuries'], ensure_ascii=False)}\n"
+            f"Últimos 5 partidos: {json.dumps(team_ctx['recent_matches'], ensure_ascii=False)}"
+        )
+
+    system_prompt = (
+        "Eres un asistente táctico experto en fútbol latinoamericano para el cuerpo "
+        "técnico de Deporte FC. Respondes en español neutro, breve y accionable. "
+        "Si no tienes datos suficientes, lo dices honestamente. "
+        "No inventes nombres de jugadores ni partidos."
+        + ctx_block
+    )
+
+    chat_messages = [{"role": "system", "content": system_prompt}]
+    for m in body.messages[-10:]:  # last 10 turns to bound tokens
+        role = m.role if m.role in ("user", "assistant") else "user"
+        chat_messages.append({"role": role, "content": m.content})
+
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=chat_messages,
+        temperature=0.6,
+        max_tokens=700,
+    )
+    return TacticalChatResponse(reply=response.choices[0].message.content or "")
+
+
 @router.post("/recommend", response_model=AIRecommendResponse)
 def get_recommendation(
     body: AIRecommendRequest,

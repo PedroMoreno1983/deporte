@@ -10,6 +10,7 @@ from ....models.wellness import WellnessEntry
 from ....models.player import Player, PlayerStatus
 from ....models.user import UserRole
 from ....schemas.wellness import WellnessCreate, WellnessOut, WellnessTeamSummary, WellnessTeamEntry
+from ....websockets import manager, RealtimeEvent
 
 router = APIRouter()
 
@@ -49,13 +50,35 @@ def create_wellness(
         existing.wellness_score = score
         db.commit()
         db.refresh(existing)
+        _broadcast_wellness(existing, score, updated=True)
         return existing
 
     entry = WellnessEntry(**data.model_dump(), wellness_score=score)
     db.add(entry)
     db.commit()
     db.refresh(entry)
+    _broadcast_wellness(entry, score, updated=False)
     return entry
+
+
+def _broadcast_wellness(entry: "WellnessEntry", score: float, *, updated: bool) -> None:
+    """Push wellness update + alert if below threshold."""
+    manager.publish_sync(RealtimeEvent(
+        topic="wellness",
+        type="wellness.updated" if updated else "wellness.created",
+        payload={
+            "entry_id":   entry.id,
+            "player_id":  entry.player_id,
+            "entry_date": str(entry.entry_date),
+            "score":      score,
+        },
+    ))
+    if score <= ALERT_THRESHOLD:
+        manager.publish_sync(RealtimeEvent(
+            topic="notifications",
+            type="notification.new",
+            payload={"kind": "wellness_bajo", "player_id": entry.player_id, "score": score},
+        ))
 
 
 # ── Historial de un jugador ────────────────────────────────────────────────────

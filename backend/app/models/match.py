@@ -13,6 +13,7 @@ class Match(Base):
     is_home = Column(Boolean, default=True)
     competition = Column(String, nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    club_id     = Column(Integer, ForeignKey("clubs.id"), nullable=False, index=True)
     goals_for = Column(Integer, nullable=True)
     goals_against = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
