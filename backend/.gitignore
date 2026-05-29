@@ -18,6 +18,9 @@ alembic/versions/*.py
 cv_data/
 *.pt
 
+# Trained ML models (XGBoost injury-risk, etc.) — artefactos, no fuente
+ml_models/
+
 # Imported vendor files (Wyscout/Catapult/Polar/Garmin) — datos de club
 import_data/
 

@@ -1,18 +1,37 @@
 """
 Injury Risk Model
-Calcula el riesgo de lesión basado en:
+=================
+
+Two-tier risk engine with a single public entry point, :func:`calculate_injury_risk`:
+
+1. **Trained model (preferred).** A real XGBoost classifier over an ingested
+   feature set (training load, ACWR, wellness, objective recovery, injury
+   history, match minutes), explained per-prediction with SHAP. Lives in the
+   :mod:`app.ml.injury` package.
+2. **Heuristic fallback (cold start).** The transparent rule-based scoring below
+   — used on a brand-new deployment with no trained model yet, when the ML
+   extras aren't installed, or if the model errors. It is intentionally kept,
+   not deleted: it guarantees the endpoint always returns a sane answer.
+
+Both tiers return the exact same shape — ``{"score", "level", "factors"}`` — so
+the prediction endpoint, the ``PredictionScore`` row and the frontend are
+agnostic to which produced the number.
+
+The heuristic factors:
 - ACWR (Acute:Chronic Workload Ratio)
 - Historial de lesiones
 - Edad del jugador
 - Carga acumulada reciente
 - Días desde última lesión
 """
-import numpy as np
+import logging
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from ..models.training import TrainingSession
 from ..models.injury import Injury
 from ..models.player import Player
+
+logger = logging.getLogger(__name__)
 
 
 RISK_THRESHOLDS = {
@@ -31,6 +50,24 @@ def get_risk_level(score: float) -> str:
 
 
 def calculate_injury_risk(player_id: int, db: Session) -> dict:
+    """Public entry point: trained model first, heuristic fallback.
+
+    Never raises on the ML path — any failure (missing model, missing extras,
+    explainer error) is logged and degrades gracefully to the heuristic so the
+    API contract is always honoured.
+    """
+    try:
+        from .injury.predictor import predict_risk
+
+        result = predict_risk(player_id, db)
+        if result is not None:
+            return result
+    except Exception:  # pragma: no cover - defensive: ML must never break serving
+        logger.exception("Trained injury model failed; falling back to heuristic")
+    return rule_based_injury_risk(player_id, db)
+
+
+def rule_based_injury_risk(player_id: int, db: Session) -> dict:
     player = db.query(Player).filter(Player.id == player_id).first()
     if not player:
         return {"score": 0, "level": "low", "factors": {}}
