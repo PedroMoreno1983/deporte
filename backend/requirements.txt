@@ -26,6 +26,10 @@ shap==0.46.0                         # TreeSHAP per-prediction explanations
 # ── Executive reports ─────────────────────────────────────────────────
 reportlab==4.2.2                     # board-level PDF generation (pure-Python, no native deps)
 
+# ── Async task queue ──────────────────────────────────────────────────
+celery==5.4.0                        # distributed task queue (CV analysis, ML retrain, maintenance)
+redis==5.0.8                         # broker + result backend client
+
 # ── External-data imports ────────────────────────────────────────────
 openpyxl==3.1.5                      # .xlsx parsing (Catapult/STATSports/Wyscout)
 fitparse==1.2.0                      # Garmin .fit binary decoding

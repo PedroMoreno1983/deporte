@@ -26,7 +26,6 @@ from ....core.database import get_db
 from ....core.deps import get_current_user, get_current_club_id, scoped_query
 from ....core.permissions import require_permission
 from ....core.audit import audit
-from ....cv.runner import process_video
 from ....models.user import User
 from ....models.video_analysis import VideoAnalysis, CVStatus
 from ....schemas.video_analysis import VideoAnalysisOut, VideoAnalysisSummary
@@ -109,8 +108,17 @@ def upload_video(
         delta={"size_bytes": written, "filename": file.filename},
     )
 
-    # Kick off pipeline async
-    background.add_task(process_video, analysis.id, str(final_path), str(output_dir))
+    # Kick off the pipeline on the Celery queue when a broker is reachable,
+    # else fall back to the in-process FastAPI BackgroundTask (dev / no Redis).
+    from ....worker.dispatch import dispatch_video_analysis
+
+    dispatched = dispatch_video_analysis(
+        analysis.id, str(final_path), str(output_dir), background=background
+    )
+    if dispatched.get("task_id"):
+        analysis.task_id = dispatched["task_id"]
+        db.commit()
+        db.refresh(analysis)
     return analysis
 
 
