@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
+﻿import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { playersApi } from "../../lib/api";
@@ -10,7 +10,7 @@ const POSITION_LABELS: Record<string, string> = {
   attacking_mid: "MC Of.", left_wing: "Ext. Izq.", right_wing: "Ext. Der.", center_forward: "Delantero",
 };
 const STATUS_COLORS: Record<string, string> = {
-  available: "#10b981", injured: "#ef4444", recovering: "#f97316",
+  available: "#00ff87", injured: "#ff3b30", recovering: "#f97316",
   suspended: "#f59e0b", inactive: "#6b7280",
 };
 
@@ -67,7 +67,7 @@ export default function PlayersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#070f1a", paddingHorizontal: 16, paddingTop: 56 },
+  container: { flex: 1, backgroundColor: "#020817", paddingHorizontal: 16, paddingTop: 56 },
   header: { marginBottom: 16 },
   title: { fontSize: 24, fontWeight: "800", color: "#fff" },
   count: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 },
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16,185,129,0.15)", borderWidth: 1,
     borderColor: "rgba(16,185,129,0.3)", alignItems: "center", justifyContent: "center",
   },
-  avatarText: { color: "#10b981", fontWeight: "700", fontSize: 13 },
+  avatarText: { color: "#00ff87", fontWeight: "700", fontSize: 13 },
   playerName: { color: "#fff", fontWeight: "600", fontSize: 14 },
   playerPos: { color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 1 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
