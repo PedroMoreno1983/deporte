@@ -10,6 +10,7 @@ class VideoAnalysisOut(BaseModel):
     name:         str
     status:       CVStatus
     progress:     float
+    task_id:      Optional[str] = None
     error:        Optional[str] = None
     duration_s:   Optional[float] = None
     fps:          Optional[float] = None

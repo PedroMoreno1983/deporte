@@ -27,6 +27,7 @@ class VideoAnalysis(Base):
     status      = Column(Enum(CVStatus), nullable=False, default=CVStatus.PENDING, index=True)
     progress    = Column(Float, nullable=False, default=0.0)  # 0..1
     error       = Column(String, nullable=True)
+    task_id     = Column(String, nullable=True, index=True)   # Celery task id, when queued async
 
     # JSON blob with: tracks, team_assignments, stats per player, formation, possession
     results     = Column(JSON, nullable=True)
