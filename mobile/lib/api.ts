@@ -31,3 +31,7 @@ export const predictionsApi = {
   getForPlayer: (playerId: number) =>
     api.get(`/predictions/player/${playerId}`).then((r) => r.data),
 };
+
+export const wellnessApi = {
+  teamSummary: () => api.get("/wellness/team/summary").then((r) => r.data),
+};

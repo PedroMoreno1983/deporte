@@ -1,19 +1,19 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+﻿import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsApi, predictionsApi } from "../../lib/api";
 import { Ionicons } from "@expo/vector-icons";
 
 const RISK_COLORS: Record<string, string> = {
-  low: "#10b981",
+  low: "#00ff87",
   medium: "#f59e0b",
   high: "#f97316",
-  critical: "#ef4444",
+  critical: "#ff3b30",
 };
 const RISK_LABELS: Record<string, string> = {
   low: "Bajo", medium: "Moderado", high: "Alto", critical: "Crítico"
 };
 
-function KpiCard({ label, value, icon, color = "#10b981" }: {
+function KpiCard({ label, value, icon, color = "#00ff87" }: {
   label: string; value: string | number; icon: string; color?: string
 }) {
   return (
@@ -39,7 +39,7 @@ export default function DashboardScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#00ff87" />
         <Text style={styles.loadingText}>Cargando dashboard...</Text>
       </View>
     );
@@ -56,8 +56,8 @@ export default function DashboardScreen() {
 
       <View style={styles.kpiGrid}>
         <KpiCard label="Jugadores" value={dash?.total_players ?? 0} icon="people-outline" />
-        <KpiCard label="Disponibles" value={dash?.available ?? 0} icon="checkmark-circle-outline" color="#10b981" />
-        <KpiCard label="Lesionados" value={dash?.injured ?? 0} icon="medkit-outline" color="#ef4444" />
+        <KpiCard label="Disponibles" value={dash?.available ?? 0} icon="checkmark-circle-outline" color="#00ff87" />
+        <KpiCard label="Lesionados" value={dash?.injured ?? 0} icon="medkit-outline" color="#ff3b30" />
         <KpiCard label="Disponibilidad" value={`${dash?.availability_rate ?? 0}%`} icon="stats-chart-outline" color="#3b82f6" />
       </View>
 
@@ -84,7 +84,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#070f1a", padding: 16 },
+  container: { flex: 1, backgroundColor: "#020817", padding: 16 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   loadingText: { color: "rgba(255,255,255,0.4)", fontSize: 13 },
   header: { marginTop: 48, marginBottom: 20 },
