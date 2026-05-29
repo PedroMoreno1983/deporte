@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { matchesApi } from "@/lib/api";
@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useState } from "react";
 import { Plus, Trophy, Home, Plane, ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -127,14 +128,26 @@ export default function MatchesPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--text-muted)" }}>Cargando partidos...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <td key={j} className="px-5 py-3.5">
+                        <div
+                          className="skeleton h-4 rounded"
+                          style={{ width: j === 0 ? 64 : j === 1 ? 120 : j === 2 ? 100 : 60, animationDelay: `${(i * 6 + j) * 0.03}s` }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : !matches?.length ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center">
-                    <div className="inline-flex p-4 rounded-2xl mb-3" style={{ background: "rgba(79,142,247,0.06)", border: "1px solid rgba(79,142,247,0.12)" }}>
-                      <Trophy className="w-7 h-7" style={{ color: "var(--brand)", opacity: 0.4 }} />
-                    </div>
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Sin partidos registrados</p>
+                  <td colSpan={6}>
+                    <EmptyState
+                      illustration="matches"
+                      title="Sin partidos registrados"
+                      description="Cuando registres un partido aparecerá acá con su resultado y stats."
+                    />
                   </td>
                 </tr>
               ) : (
@@ -158,7 +171,7 @@ export default function MatchesPage() {
                         <span
                           className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
                           style={m.is_home
-                            ? { color: "#00D4FF", background: "rgba(0,212,255,0.08)", borderColor: "rgba(0,212,255,0.2)" }
+                            ? { color: "#0ea5e9", background: "rgba(14,165,233,0.08)", borderColor: "rgba(14,165,233,0.2)" }
                             : { color: "#A855F7", background: "rgba(168,85,247,0.08)", borderColor: "rgba(168,85,247,0.2)" }}
                         >
                           {m.is_home ? <Home className="w-3 h-3" /> : <Plane className="w-3 h-3" />}
@@ -180,9 +193,9 @@ export default function MatchesPage() {
                         <Link href={`/matches/${m.id}`}>
                           <button
                             className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg border transition-colors font-semibold"
-                            style={{ color: "var(--brand)", background: "rgba(79,142,247,0.06)", borderColor: "rgba(79,142,247,0.18)" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(79,142,247,0.12)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(79,142,247,0.06)")}
+                            style={{ color: "var(--brand)", background: "rgba(0,255,135,0.06)", borderColor: "rgba(0,255,135,0.18)" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,255,135,0.12)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,255,135,0.06)")}
                           >
                             Stats <ChevronRight className="w-3 h-3" />
                           </button>

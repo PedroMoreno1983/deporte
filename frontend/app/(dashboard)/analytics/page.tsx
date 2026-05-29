@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -23,10 +23,10 @@ const RADAR_LABELS: Record<string, string> = {
 };
 
 const POSITION_COLORS: Record<string, string> = {
-  goalkeeper: "#F59E0B", center_back: "#4F8EF7", left_back: "#4F8EF7",
-  right_back: "#4F8EF7", defensive_mid: "#22C55E", central_mid: "#22C55E",
-  attacking_mid: "#22C55E", left_wing: "#EF4444", right_wing: "#EF4444",
-  center_forward: "#EF4444",
+  goalkeeper: "#f59e0b", center_back: "#0ea5e9", left_back: "#0ea5e9",
+  right_back: "#0ea5e9", defensive_mid: "#00ff87", central_mid: "#00ff87",
+  attacking_mid: "#00ff87", left_wing: "#ff3b30", right_wing: "#ff3b30",
+  center_forward: "#ff3b30",
 };
 
 function RadarTooltip({ active, payload }: any) {
@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Jugadores" value={dash?.total_players ?? 0} icon={Users} color="#0ea5e9" />
-        <StatCard label="Disponibilidad" value={`${dash?.availability_rate ?? 0}%`} icon={Shield} color="#10b981" />
+        <StatCard label="Disponibilidad" value={`${dash?.availability_rate ?? 0}%`} icon={Shield} color="#00ff87" />
         <StatCard label="Rating promedio" value={dash?.avg_team_rating ? `${dash.avg_team_rating}/10` : "—"} icon={TrendingUp} color="#f59e0b" />
         <StatCard label="Partidos (30d)" value={dash?.recent_matches ?? 0} icon={BarChart3} color="#a855f7" />
       </div>
@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
                       </text>
                     )} />
                   <Radar name="Equipo (prom.)" dataKey="Equipo" stroke="rgba(255,255,255,0.2)" fill="rgba(255,255,255,0.04)" strokeWidth={1.5} />
-                  <Radar name="Jugador" dataKey="Jugador" stroke="#4F8EF7" fill="rgba(79,142,247,0.12)" strokeWidth={2} dot={{ fill: "#4F8EF7", r: 3 }} />
+                  <Radar name="Jugador" dataKey="Jugador" stroke="#00ff87" fill="rgba(0,255,135,0.12)" strokeWidth={2} dot={{ fill: "#00ff87", r: 3 }} />
                   {comparePlayer && <Radar name="Comparar" dataKey="Comparar" stroke="#A855F7" fill="rgba(168,85,247,0.08)" strokeWidth={2} dot={{ fill: "#A855F7", r: 3 }} />}
                   <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
                   <Tooltip content={<RadarTooltip />} />
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
                   {RADAR_KEYS.map(k => {
                     const val = playerRadar.player?.[k] ?? 0;
                     const avg = playerRadar.team_avg?.[k] ?? 0;
-                    const color = val >= avg ? "#4F8EF7" : "#F97316";
+                    const color = val >= avg ? "#00ff87" : "#F97316";
                     return (
                       <div key={k}>
                         <div className="flex justify-between mb-0.5">
@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
                       <span className={`font-bold w-10 text-left ${!aWins ? "text-purple-400" : "text-white/30"}`}>{b.toFixed(0)}</span>
                     </div>
                     <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
-                      <div className="rounded-l-full transition-all duration-700" style={{ width: `${(a / total) * 100}%`, background: "#4F8EF7", opacity: aWins ? 1 : 0.4 }} />
+                      <div className="rounded-l-full transition-all duration-700" style={{ width: `${(a / total) * 100}%`, background: "#00ff87", opacity: aWins ? 1 : 0.4 }} />
                       <div className="rounded-r-full transition-all duration-700" style={{ width: `${(b / total) * 100}%`, background: "#A855F7", opacity: !aWins ? 1 : 0.4 }} />
                     </div>
                   </div>
@@ -246,7 +246,7 @@ export default function AnalyticsPage() {
               const playerB = (players as any[]).find((p: any) => p.id === comparePlayer);
               return (
                 <div className="mt-5 pt-4 flex items-center justify-center gap-6 border-t border-white/[0.06]">
-                  <div className="text-center"><p className="text-2xl font-bold" style={{ color: "#4F8EF7" }}>{aWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerA?.first_name ?? "A"}</p></div>
+                  <div className="text-center"><p className="text-2xl font-bold" style={{ color: "#00ff87" }}>{aWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerA?.first_name ?? "A"}</p></div>
                   <div className="text-center px-4 border-x" style={{ borderColor: "var(--border-subtle)" }}><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>métricas ganadas</p></div>
                   <div className="text-center"><p className="text-2xl font-bold text-purple-400">{bWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerB?.first_name ?? "B"}</p></div>
                 </div>
@@ -265,7 +265,7 @@ export default function AnalyticsPage() {
               <YAxis type="category" dataKey="position" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9 }} width={90} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
               <Bar dataKey="count" radius={[0, 5, 5, 0]}>
-                {positionData.map((_, i) => <Cell key={i} fill={["#4F8EF7", "#22C55E", "#EF4444", "#F59E0B", "#A855F7"][i % 5]} />)}
+                {positionData.map((_, i) => <Cell key={i} fill={["#00ff87", "#00ff87", "#ff3b30", "#F59E0B", "#A855F7"][i % 5]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
               <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="injuries" name="Lesiones" stroke="#EF4444" strokeWidth={2} dot={{ fill: "#EF4444", r: 3, strokeWidth: 0 }} />
+              <Line type="monotone" dataKey="injuries" name="Lesiones" stroke="#ff3b30" strokeWidth={2} dot={{ fill: "#ff3b30", r: 3, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </Card>

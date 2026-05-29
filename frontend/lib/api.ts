@@ -44,7 +44,8 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string) =>
     api.post("/auth/login", { email, password }).then((r) => r.data),
-  me: () => api.get("/auth/me").then((r) => r.data),
+  me:          () => api.get("/auth/me").then((r) => r.data),
+  permissions: () => api.get("/auth/me/permissions").then((r) => r.data as { permissions: string[] }),
 };
 
 export const playersApi = {
@@ -63,6 +64,11 @@ export const playersApi = {
 
 export const categoriesApi = {
   list: () => api.get("/categories").then((r) => r.data),
+};
+
+export const clubsApi = {
+  me:   () => api.get("/clubs/me").then((r) => r.data),
+  list: () => api.get("/clubs").then((r) => r.data),
 };
 
 export const kinesiologyApi = {
@@ -102,6 +108,8 @@ export const trainingApi = {
 };
 
 export const analyticsApi = {
+  playerBenchmarks: (playerId: number) =>
+    api.get(`/analytics/player/${playerId}/benchmarks`).then((r) => r.data),
   dashboard:     (categoryId?: number) =>
     api.get("/analytics/dashboard", { params: { category_id: categoryId } }).then((r) => r.data),
   playerSummary: (playerId: number) =>
@@ -130,6 +138,7 @@ export const tacticalApi = {
 };
 
 export const predictionsApi = {
+  loadRecommendations: () => api.get("/predictions/team/load-recommendations").then((r) => r.data),
   getForPlayer: (playerId: number) =>
     api.get(`/predictions/player/${playerId}`).then((r) => r.data),
   teamRisk: () => api.get("/predictions/team/risk-summary").then((r) => r.data),
@@ -137,11 +146,32 @@ export const predictionsApi = {
 
 // --- AI Tactical ---
 export const aiTacticalApi = {
+  chat: (messages: { role: "user" | "assistant"; content: string }[]) =>
+    api.post("/tactical/chat", { messages }).then((r) => r.data as { reply: string }),
   recommend: (data: unknown) => api.post("/tactical/recommend", data).then((r) => r.data),
 };
 
 export const notificationsApi = {
   list: () => api.get("/notifications").then((r) => r.data),
+};
+
+export const cvApi = {
+  list: () => api.get("/cv").then((r) => r.data),
+  get:  (id: number) => api.get(`/cv/${id}`).then((r) => r.data),
+  upload: (file: File, opts?: { match_id?: number; notes?: string }) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (opts?.match_id) fd.append("match_id", String(opts.match_id));
+    if (opts?.notes)    fd.append("notes", opts.notes);
+    return api.post("/cv/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data);
+  },
+  remove: (id: number) => api.delete(`/cv/${id}`).then((r) => r.data),
+  sampleUrl: (id: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    return `${API_BASE}/cv/${id}/sample.jpg${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  },
 };
 
 export const alertsApi = {

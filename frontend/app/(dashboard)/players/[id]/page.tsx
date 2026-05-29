@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +13,9 @@ import { RiskGauge } from "@/components/ui/RiskGauge";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PitchHeatmap } from "@/components/tactical/PitchHeatmap";
+import { RiskExplanation } from "@/components/ui/RiskExplanation";
+import { PlayerBenchmarks } from "@/components/ui/PlayerBenchmarks";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid
@@ -53,6 +56,7 @@ export default function PlayerDetailPage() {
   const [wellnessDays, setWellnessDays] = useState(30);
   const { data: wellnessHistory } = useQuery({ queryKey: ["wellness-player", playerId, wellnessDays], queryFn: () => wellnessApi.getByPlayer(playerId, wellnessDays) });
   const { data: playerRadar } = useQuery({ queryKey: ["player-radar", playerId], queryFn: () => analyticsApi.playerRadar(playerId) });
+  const { data: benchmarks } = useQuery({ queryKey: ["player-benchmarks", playerId], queryFn: () => analyticsApi.playerBenchmarks(playerId) });
 
   // Injury form
   const [showInjuryForm, setShowInjuryForm] = useState(false);
@@ -119,11 +123,14 @@ export default function PlayerDetailPage() {
   };
 
   if (!player) return (
-    <div className="flex items-center justify-center h-96">
-      <div className="flex flex-col items-center gap-3">
-        <Activity className="w-8 h-8 animate-pulse text-emerald-400" />
-        <p className="text-sm text-white/40">Cargando jugador...</p>
+    <div className="space-y-4">
+      <div className="skeleton h-24 rounded-2xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="skeleton h-24 rounded-xl" style={{ animationDelay: `${i * 0.06}s` }} />
+        ))}
       </div>
+      <div className="skeleton h-64 rounded-2xl" style={{ animationDelay: "0.25s" }} />
     </div>
   );
 
@@ -144,7 +151,7 @@ export default function PlayerDetailPage() {
   const forecastData = prediction?.performance_forecast_4w?.map((v: number, i: number) => ({ week: `Sem ${i + 1}`, value: v })) ?? [];
 
   const TrendIcon = prediction?.performance_trend === "improving" ? TrendingUp : prediction?.performance_trend === "declining" ? TrendingDown : Minus;
-  const trendColor = prediction?.performance_trend === "improving" ? "#10b981" : prediction?.performance_trend === "declining" ? "#ef4444" : "#f59e0b";
+  const trendColor = prediction?.performance_trend === "improving" ? "#00ff87" : prediction?.performance_trend === "declining" ? "#ff3b30" : "#f59e0b";
 
   return (
     <div className="space-y-6">
@@ -349,7 +356,7 @@ export default function PlayerDetailPage() {
                     { key: "cmj_height_cm", label: "CMJ (cm)", color: posConfig.color },
                     { key: "sprint_30m_sec", label: "Sprint 30m (s)", color: "#0ea5e9" },
                     { key: "vo2_max", label: "VO₂ máx", color: "#a855f7" },
-                    { key: "body_fat_percentage", label: "% Grasa", color: "#ef4444" },
+                    { key: "body_fat_percentage", label: "% Grasa", color: "#ff3b30" },
                   ];
                   return (
                     <Card>
@@ -449,7 +456,7 @@ export default function PlayerDetailPage() {
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${val}%` }} transition={{ duration: 0.7, delay: 0.2 }} className="h-full rounded-full" style={{ background: above ? "#10b981" : "#f97316" }} />
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${val}%` }} transition={{ duration: 0.7, delay: 0.2 }} className="h-full rounded-full" style={{ background: above ? "#00ff87" : "#f97316" }} />
                           </div>
                         </div>
                       );
@@ -462,6 +469,28 @@ export default function PlayerDetailPage() {
                 </div>
               </Card>
             )}
+
+            {/* Benchmarks vs peers */}
+            <Card>
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Benchmarks vs liga</p>
+                <p className="text-xs text-white/40 mt-0.5">Percentiles vs jugadores de la misma posición</p>
+              </div>
+              <PlayerBenchmarks data={benchmarks} />
+            </Card>
+
+            {/* Heatmap */}
+            <Card>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Mapa de calor</p>
+                  <p className="text-xs text-white/40 mt-0.5">Zonas de actividad — últimos partidos</p>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <PitchHeatmap playerPosition={player?.position} width={420} />
+              </div>
+            </Card>
 
             {forecastData.length > 0 && (
               <Card>
@@ -581,7 +610,7 @@ export default function PlayerDetailPage() {
                     <motion.div key={inj.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
                       className={`flex items-start gap-4 p-4 rounded-xl border ${isActive ? "bg-red-500/[0.03] border-red-500/10" : "bg-white/[0.02] border-white/[0.06]"}`}>
                       <div className="flex flex-col items-center gap-1 shrink-0 mt-1">
-                        <div className="w-3 h-3 rounded-full" style={{ background: isActive ? "#ef4444" : "#475569" }} />
+                        <div className="w-3 h-3 rounded-full" style={{ background: isActive ? "#ff3b30" : "#475569" }} />
                         {i < allInjuries.length - 1 && <div className="w-px flex-1 min-h-4 bg-white/[0.06]" />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -646,7 +675,7 @@ export default function PlayerDetailPage() {
                       { k: "stress", label: "Estrés", icon: Activity, help: "1 = muy estresado · 10 = sin estrés" },
                     ] as const).map(({ k, label, icon: Icon, help }) => {
                       const val = wellnessForm[k as keyof typeof wellnessForm] as number;
-                      const color = val >= 7 ? "#10b981" : val >= 5 ? "#f59e0b" : "#ef4444";
+                      const color = val >= 7 ? "#00ff87" : val >= 5 ? "#f59e0b" : "#ff3b30";
                       return (
                         <div key={k}>
                           <div className="flex items-center justify-between mb-2">
@@ -713,7 +742,7 @@ export default function PlayerDetailPage() {
                         {metrics.map(({ label, value, icon: Icon, invert }) => {
                           const pct = (value / 10) * 100;
                           const normalized = invert ? 100 - pct : pct;
-                          const color = normalized >= 70 ? "#10b981" : normalized >= 40 ? "#f59e0b" : "#ef4444";
+                          const color = normalized >= 70 ? "#00ff87" : normalized >= 40 ? "#f59e0b" : "#ff3b30";
                           return (
                             <div key={label}>
                               <div className="flex items-center justify-between text-xs mb-1.5">
@@ -737,7 +766,7 @@ export default function PlayerDetailPage() {
                   <div className="divide-y divide-white/[0.04]">
                     {wellnessHistory.slice(0, 10).map((w: any, i: number) => {
                       const score = w.overall_score ?? Math.round(((w.sleep_quality ?? 5) + (w.energy_level ?? 5) + (w.mood ?? 5) + (10 - (w.stress_level ?? 5)) + (w.hydration ?? 5) + (10 - (w.muscle_soreness ?? 5))) / 6 * 10);
-                      const color = score >= 70 ? "#10b981" : score >= 50 ? "#f59e0b" : "#ef4444";
+                      const color = score >= 70 ? "#00ff87" : score >= 50 ? "#f59e0b" : "#ff3b30";
                       return (
                         <motion.div key={w.id ?? i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }} className="flex items-center justify-between px-5 py-3">
                           <span className="text-xs text-white/30">{w.date ?? w.created_at?.slice(0, 10)}</span>
@@ -770,21 +799,15 @@ export default function PlayerDetailPage() {
                   </Card>
 
                   <Card>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/30 mb-4">Factores de riesgo</p>
-                    {prediction.risk_factors && Object.entries(prediction.risk_factors).length > 0 ? (
-                      <div className="space-y-3">
-                        {Object.entries(prediction.risk_factors).map(([key, value]: [string, any]) => (
-                          <div key={key}>
-                            <div className="flex justify-between text-xs mb-1"><span className="text-white/50">{key.replace(/_/g, " ")}</span><span className="font-bold text-emerald-400">{typeof value === "number" ? value.toFixed(0) : String(value)}</span></div>
-                            {typeof value === "number" && (
-                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(value, 100)}%` }} transition={{ duration: 0.8, delay: 0.3 }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400" />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : <p className="text-sm text-white/30">Sin desglose disponible</p>}
+                    {prediction.injury_risk_factors && Object.keys(prediction.injury_risk_factors).length > 0 ? (
+                      <RiskExplanation
+                        score={prediction.injury_risk_score ?? 0}
+                        level={prediction.injury_risk_level ?? "low"}
+                        factors={prediction.injury_risk_factors}
+                      />
+                    ) : (
+                      <p className="text-sm text-white/30">Sin desglose disponible</p>
+                    )}
                   </Card>
                 </div>
 

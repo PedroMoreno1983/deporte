@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { trainingApi, playersApi } from "@/lib/api";
@@ -14,17 +14,17 @@ import {
 } from "recharts";
 
 const SESSION_TYPES = [
-  { value: "training",  label: "Entrenamiento", color: "#4F8EF7" },
+  { value: "training",  label: "Entrenamiento", color: "#00ff87" },
   { value: "match",     label: "Partido",       color: "#F59E0B" },
   { value: "gym",       label: "Gimnasio",       color: "#A855F7" },
-  { value: "recovery",  label: "Recuperación",   color: "#00D4FF" },
+  { value: "recovery",  label: "Recuperación",   color: "#0ea5e9" },
 ];
 
 const ACWR_ZONES = [
-  { min: 0,    max: 0.8,  label: "Sub-carga",    color: "#00D4FF" },
-  { min: 0.8,  max: 1.3,  label: "Zona óptima",  color: "#22C55E" },
+  { min: 0,    max: 0.8,  label: "Sub-carga",    color: "#0ea5e9" },
+  { min: 0.8,  max: 1.3,  label: "Zona óptima",  color: "#00ff87" },
   { min: 1.3,  max: 1.5,  label: "Precaución",   color: "#F59E0B" },
-  { min: 1.5,  max: 99,   label: "Zona de riesgo", color: "#EF4444" },
+  { min: 1.5,  max: 99,   label: "Zona de riesgo", color: "#ff3b30" },
 ];
 
 function getZone(acwr?: number | null) {
@@ -32,7 +32,7 @@ function getZone(acwr?: number | null) {
   return ACWR_ZONES.find(z => acwr >= z.min && acwr < z.max) ?? ACWR_ZONES[3];
 }
 
-const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(79,142,247,0.3)]";
+const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
 const inputStyle = { background: "var(--surface-3)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -112,7 +112,7 @@ export default function TrainingPage() {
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={() => setShowForm(v => !v)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 16px rgba(79,142,247,0.4)" }}
+            style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 16px rgba(0,255,135,0.4)" }}
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Registrar sesión</span>
@@ -139,7 +139,7 @@ export default function TrainingPage() {
             </select>
             {selectedPlayerData && (
               <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
-                style={{ background: "rgba(79,142,247,0.1)", border: "1px solid rgba(79,142,247,0.2)", color: "var(--brand)" }}>
+                style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.2)", color: "var(--brand)" }}>
                 {(sessions as any[]).length} sesiones
               </span>
             )}
@@ -151,7 +151,7 @@ export default function TrainingPage() {
       <AnimatePresence>
         {showForm && selectedPlayer && (
           <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={{ opacity: 0, y: -10, height: 0 }}>
-            <GlowCard className="p-5 rounded-2xl" style={{ border: "1px solid rgba(79,142,247,0.2)" }}>
+            <GlowCard className="p-5 rounded-2xl" style={{ border: "1px solid rgba(0,255,135,0.2)" }}>
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-bold">Nueva sesión</p>
                 <button onClick={() => setShowForm(false)}>
@@ -289,15 +289,15 @@ export default function TrainingPage() {
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="loadGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#4F8EF7" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#4F8EF7" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#00ff87" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#00ff87" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                       <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="load" stroke="#4F8EF7" fill="url(#loadGrad)" strokeWidth={2} name="Carga" />
+                      <Area type="monotone" dataKey="load" stroke="#00ff87" fill="url(#loadGrad)" strokeWidth={2} name="Carga" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </GlowCard>
@@ -392,7 +392,7 @@ export default function TrainingPage() {
       {/* Empty state */}
       {!selectedPlayer && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="inline-flex p-5 rounded-2xl mb-4" style={{ background: "rgba(79,142,247,0.06)", border: "1px solid rgba(79,142,247,0.15)" }}>
+          <div className="inline-flex p-5 rounded-2xl mb-4" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
             <Dumbbell className="w-8 h-8 text-orange-400 opacity-50" />
           </div>
           <p className="font-semibold text-white/50">Selecciona un jugador</p>
@@ -402,7 +402,7 @@ export default function TrainingPage() {
 
       {selectedPlayer && (sessions as any[]).length === 0 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="inline-flex p-4 rounded-2xl mb-4" style={{ background: "rgba(79,142,247,0.06)", border: "1px solid rgba(79,142,247,0.15)" }}>
+          <div className="inline-flex p-4 rounded-2xl mb-4" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
             <Dumbbell className="w-7 h-7" style={{ color: "var(--brand)", opacity: 0.5 }} />
           </div>
           <p className="font-semibold text-white/50">Sin sesiones registradas</p>

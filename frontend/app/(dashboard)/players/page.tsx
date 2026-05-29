@@ -7,6 +7,8 @@ import { PlayerCard } from "@/components/ui/PlayerCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Search, Plus, Users, X } from "lucide-react";
 import Link from "next/link";
+import { ExportButton } from "@/components/ui/ExportButton";
+import { getPositionConfig, getStatusConfig } from "@/lib/design-system";
 
 const STATUS_OPTS = [
   { value: "", label: "Todos" },
@@ -37,10 +39,28 @@ export default function PlayersPage() {
         title="Jugadores"
         subtitle={`${players?.length ?? 0} jugadores registrados`}
         action={
-          <Link href="/players/new" className="btn-primary text-sm">
-            <Plus className="w-4 h-4" />
-            Nuevo jugador
-          </Link>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              filename="plantel"
+              sheets={{
+                Plantel: (players ?? []).map((p: any) => ({
+                  Numero:      p.jersey_number ?? "",
+                  Nombre:      p.first_name,
+                  Apellido:    p.last_name,
+                  Posicion:    getPositionConfig(p.position).label,
+                  Estado:      getStatusConfig(p.status).label,
+                  Pie:         p.dominant_foot ?? "",
+                  Altura_cm:   p.height_cm ?? "",
+                  Peso_kg:     p.weight_kg ?? "",
+                  Nacionalidad: p.nationality ?? "",
+                })),
+              }}
+            />
+            <Link href="/players/new" className="btn-primary text-sm">
+              <Plus className="w-4 h-4" />
+              Nuevo jugador
+            </Link>
+          </div>
         }
       />
 

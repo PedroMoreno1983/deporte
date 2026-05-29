@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -116,13 +116,13 @@ const TYPE_COLORS: Record<PosType, { bg: string; border: string; text: string; g
 
 const STATUS_DOT: Record<string, string> = {
   available:  "#00ff87",
-  injured:    "#ef4444",
+  injured:    "#ff3b30",
   recovering: "#f97316",
   suspended:  "#f59e0b",
   inactive:   "#475569",
 };
 
-const DRAW_COLORS = ["#00ff87", "#ffffff", "#3b82f6", "#f59e0b", "#ef4444", "#a78bfa"];
+const DRAW_COLORS = ["#00ff87", "#ffffff", "#3b82f6", "#f59e0b", "#ff3b30", "#a78bfa"];
 
 // ─── SVG Pitch ────────────────────────────────────────────────────────────────
 function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
@@ -585,7 +585,7 @@ export function TacticalBoard() {
               onClick={() => { setPaths([]); setActivePath([]); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
               style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
+              onMouseEnter={e => (e.currentTarget.style.color = "#ff3b30")}
               onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}>
               <Trash2 className="w-3.5 h-3.5" /> Limpiar
             </motion.button>
@@ -731,7 +731,7 @@ export function TacticalBoard() {
                           </button>
                           <button onClick={e => { e.stopPropagation(); deleteMutation.mutate(play.id); }}
                             style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0, lineHeight: 0 }}
-                            onMouseEnter={el => (el.currentTarget.style.color = "#ef4444")}
+                            onMouseEnter={el => (el.currentTarget.style.color = "#ff3b30")}
                             onMouseLeave={el => (el.currentTarget.style.color = "rgba(255,255,255,0.2)")}>
                             <X className="w-3 h-3" />
                           </button>
@@ -1028,8 +1028,8 @@ export function TacticalBoard() {
                   <div className="px-3 py-2 flex items-center justify-between"
                     style={{ background: ({ baja: "rgba(0,255,135,0.08)", media: "rgba(245,158,11,0.08)", alta: "rgba(249,115,22,0.08)", critica: "rgba(239,68,68,0.10)" } as any)[aiRec.urgency] ?? "rgba(167,139,250,0.08)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3" style={{ color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ef4444" } as any)[aiRec.urgency] }} />
-                      <span style={{ fontSize: 10, fontWeight: 800, color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ef4444" } as any)[aiRec.urgency], textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                      <AlertTriangle className="w-3 h-3" style={{ color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency] }} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency], textTransform: "uppercase", letterSpacing: "0.1em" }}>
                         Urgencia {aiRec.urgency}
                       </span>
                     </div>

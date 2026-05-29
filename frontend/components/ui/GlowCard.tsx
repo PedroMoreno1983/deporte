@@ -6,11 +6,16 @@ interface GlowCardProps {
   children: React.ReactNode;
   className?: string;
   style?: CSSProperties;
-  as?: "div" | "article" | "section";
   onClick?: () => void;
 }
 
-export function GlowCard({ children, className, style, as: Tag = "div", onClick }: GlowCardProps) {
+/**
+ * Card with mouse-tracking neon-green spotlight + lift on hover.
+ * Visual rules live in `.glow-card` (globals.css). Here we only
+ * wire the mouse position into the --mouse-x / --mouse-y vars
+ * that the CSS radial-gradient reads.
+ */
+export function GlowCard({ children, className, style, onClick }: GlowCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -22,27 +27,15 @@ export function GlowCard({ children, className, style, as: Tag = "div", onClick 
     ref.current.style.setProperty("--mouse-y", `${y}%`);
   };
 
-  const handleMouseLeave = () => {
-    if (!ref.current) return;
-    ref.current.style.setProperty("--mouse-x", "50%");
-    ref.current.style.setProperty("--mouse-y", "50%");
-  };
-
   return (
     <div
       ref={ref}
       onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className={cn("rounded-[14px]", className)}
-      style={{
-        background: "var(--surface-2)",
-        border: "1px solid var(--border-subtle)",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-        ...style,
-      }}
+      className={cn("glow-card", className)}
+      style={style}
     >
-      {children}
+      <div className="relative z-[1]">{children}</div>
     </div>
   );
 }

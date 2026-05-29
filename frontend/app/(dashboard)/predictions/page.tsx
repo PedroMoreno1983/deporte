@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { predictionsApi } from "@/lib/api";
@@ -6,11 +6,12 @@ import { GlowCard } from "@/components/ui/GlowCard";
 import { RiskGauge } from "@/components/ui/RiskGauge";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Brain, Shield, AlertTriangle, TrendingUp, Activity, Zap } from "lucide-react";
+import { Brain, Shield, AlertTriangle, TrendingUp, Activity, Zap, Dumbbell, Clock } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const RISK_COLOR: Record<string, string> = {
-  low: "#22C55E", medium: "#F59E0B", high: "#F97316", critical: "#EF4444",
+  low: "#00ff87", medium: "#F59E0B", high: "#F97316", critical: "#ff3b30",
 };
 const RISK_BG: Record<string, string> = {
   low: "rgba(34,197,94,0.07)", medium: "rgba(245,158,11,0.07)",
@@ -35,6 +36,11 @@ export default function PredictionsPage() {
     queryKey: ["team-risk"],
     queryFn: () => predictionsApi.teamRisk(),
   });
+  const { data: loadRecs = [] } = useQuery({
+    queryKey: ["load-recommendations"],
+    queryFn: () => predictionsApi.loadRecommendations(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const levels = ["low", "medium", "high", "critical"];
   const levelCounts = levels.reduce((acc, l) => {
@@ -54,7 +60,7 @@ export default function PredictionsPage() {
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.012]"
         style={{
-          backgroundImage: "linear-gradient(rgba(79,142,247,1) 1px, transparent 1px), linear-gradient(90deg, rgba(79,142,247,1) 1px, transparent 1px)",
+          backgroundImage: "linear-gradient(rgba(0,255,135,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,135,1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }}
       />
@@ -296,6 +302,96 @@ export default function PredictionsPage() {
                 </tbody>
               </table>
             </div>
+          </GlowCard>
+        </motion.div>
+
+        {/* ── Load recommendations ──────────────────────────────── */}
+        <motion.div {...stagger(7)}>
+          <GlowCard className="p-5 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Dumbbell className="w-4 h-4 text-[#0ea5e9]" />
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                Recomendaciones de carga
+              </p>
+              {loadRecs.length > 0 && (
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-1"
+                  style={{ background: "rgba(14,165,233,0.10)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.25)" }}
+                >
+                  {loadRecs.length} jugador{loadRecs.length === 1 ? "" : "es"}
+                </span>
+              )}
+            </div>
+
+            {(loadRecs as any[]).length === 0 ? (
+              <EmptyState
+                illustration="training"
+                title="Todo el plantel en zona segura"
+                description="No hay ajustes de carga sugeridos. Los ACWR y volúmenes están dentro de rango."
+                size="compact"
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(loadRecs as any[]).map((rec, i) => {
+                  const prio = rec.priority as "high" | "medium" | "low";
+                  const color = prio === "high" ? "#ff3b30" : prio === "medium" ? "#f59e0b" : "#0ea5e9";
+                  return (
+                    <motion.div
+                      key={rec.player_id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="rounded-xl p-4 relative"
+                      style={{
+                        background: "rgba(255,255,255,0.02)",
+                        border: `1px solid ${color}28`,
+                      }}
+                    >
+                      <div
+                        className="absolute top-0 left-3 right-3 h-px"
+                        style={{ background: `linear-gradient(90deg, transparent, ${color}80, transparent)` }}
+                      />
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <Link href={`/players/${rec.player_id}`}>
+                          <p className="text-sm font-bold text-white/90 hover:underline truncate">
+                            {rec.player_name}
+                          </p>
+                        </Link>
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: `${color}18`, color, border: `1px solid ${color}40` }}
+                        >
+                          {prio === "high" ? "Urgente" : prio === "medium" ? "Atento" : "Sugerido"}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold mb-1.5" style={{ color }}>
+                        {rec.action}
+                      </p>
+                      <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
+                        {rec.reason}
+                      </p>
+                      <div className="flex items-center gap-3 text-[10px] font-mono tabular-nums" style={{ color: "rgba(255,255,255,0.35)" }}>
+                        {rec.metrics?.acwr != null && (
+                          <span className="flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> ACWR {Number(rec.metrics.acwr).toFixed(2)}
+                          </span>
+                        )}
+                        {rec.metrics?.weekly_load != null && (
+                          <span className="flex items-center gap-1">
+                            <Zap className="w-3 h-3" /> {Number(rec.metrics.weekly_load).toFixed(0)} UA
+                          </span>
+                        )}
+                        {rec.metrics?.last_injury_days != null && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {rec.metrics.last_injury_days}d
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </GlowCard>
         </motion.div>
       </div>

@@ -74,7 +74,7 @@ export function PageHeader({
         className="h-px w-full mt-4"
         style={{
           background:
-            "linear-gradient(90deg, rgba(79,142,247,0.3) 0%, rgba(0,212,255,0.15) 30%, transparent 70%)",
+            "linear-gradient(90deg, rgba(0,255,135,0.45) 0%, rgba(14,165,233,0.18) 30%, transparent 70%)",
         }}
       />
     </div>

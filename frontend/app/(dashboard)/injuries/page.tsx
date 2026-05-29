@@ -1,11 +1,13 @@
-"use client";
-import { useQuery } from "@tanstack/react-query";
+﻿"use client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { injuriesApi, analyticsApi } from "@/lib/api";
+import { useRealtime } from "@/lib/ws";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AlertTriangle, Activity, Calendar, Clock, Zap } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -24,6 +26,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export default function InjuriesPage() {
+  const qc = useQueryClient();
   const { data: activeInjuries, isLoading } = useQuery({
     queryKey: ["active-injuries"],
     queryFn: () => injuriesApi.getActive(),
@@ -31,6 +34,11 @@ export default function InjuriesPage() {
   const { data: injuryStats } = useQuery({
     queryKey: ["injury-stats"],
     queryFn: () => analyticsApi.injuryStats(),
+  });
+
+  useRealtime("injuries", () => {
+    qc.invalidateQueries({ queryKey: ["active-injuries"] });
+    qc.invalidateQueries({ queryKey: ["injury-stats"] });
   });
 
   const severityData = injuryStats?.by_severity
@@ -54,7 +62,7 @@ export default function InjuriesPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Lesiones activas"    value={injuryStats?.active ?? 0}              icon={Zap}           color="#EF4444" />
+        <StatCard label="Lesiones activas"    value={injuryStats?.active ?? 0}              icon={Zap}           color="#ff3b30" />
         <StatCard label="Total históricas"    value={injuryStats?.total ?? 0}               icon={Activity}      color="#94A3B8" />
         <StatCard label="Días promedio baja"  value={injuryStats?.avg_days_out?.toFixed(0) ?? 0} icon={Clock}    color="#F59E0B" />
       </div>
@@ -91,7 +99,7 @@ export default function InjuriesPage() {
               <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="count" fill="#EF4444" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="count" fill="#ff3b30" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -118,13 +126,11 @@ export default function InjuriesPage() {
             Cargando lesiones...
           </div>
         ) : activeInjuries?.length === 0 ? (
-          <div className="p-14 text-center">
-            <div className="inline-flex p-4 rounded-2xl mb-4" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-              <Activity className="w-7 h-7" style={{ color: "var(--success)", opacity: 0.5 }} />
-            </div>
-            <p className="font-semibold" style={{ color: "var(--text-secondary)" }}>Sin lesiones activas</p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>El plantel está en óptimas condiciones</p>
-          </div>
+          <EmptyState
+            illustration="injuries-ok"
+            title="Sin lesiones activas"
+            description="El plantel está en óptimas condiciones físicas."
+          />
         ) : (
           <div style={{ borderColor: "var(--border-subtle)" }}>
             {activeInjuries?.map((inj: any, i: number) => {
