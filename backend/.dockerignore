@@ -1,0 +1,33 @@
+# Keep the build context small and free of host-only / secret files.
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local dev database & artifacts — never bake these into an image.
+*.db
+*.sqlite3
+cv_data/
+import_data/
+ml_models/
+*.pt
+*.ubj
+
+# Secrets / local config.
+.env
+.env.*
+!.env.prod.example
+
+# Tests aren't needed in the runtime image.
+tests/
+
+# VCS / editor / OS noise.
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store

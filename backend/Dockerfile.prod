@@ -1,0 +1,92 @@
+# syntax=docker/dockerfile:1
+# ─────────────────────────────────────────────────────────────────────────────
+# Production image for the Deporte FC backend.
+#
+#   • Multi-stage: a fat "builder" compiles wheels into an isolated venv; the
+#     runtime stage copies only that venv → small image, no build toolchain
+#     shipped to production.
+#   • Runs as a non-root user (uid 10001).
+#   • tini as PID 1 so SIGTERM reaches gunicorn/celery cleanly (graceful drain).
+#   • Same image runs the API (gunicorn), the worker and the beat scheduler —
+#     the compose file just overrides the command. One image, one build.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── builder ──────────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Build deps for native wheels (xgboost, opencv, psycopg2, etc.). These live
+# only in the builder stage and never reach the runtime image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+        g++ \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Isolated virtualenv we can copy wholesale into the runtime stage.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# ── runtime ──────────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    # Persisted-data roots — mounted as named volumes in compose and shared
+    # between the API (writes uploads) and the worker (reads them).
+    DEPORTE_CV_ROOT=/data/cv \
+    DEPORTE_IMPORT_ROOT=/data/imports \
+    DEPORTE_MODEL_ROOT=/data/ml_models
+
+# Runtime-only shared libraries:
+#   libpq5            → psycopg2 (Postgres)
+#   libGL/ libglib    → opencv-python-headless needs these even headless
+#   curl              → container HEALTHCHECK probes
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tini \
+        curl \
+        libpq5 \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root runtime user. Fixed uid so volume ownership is predictable on hosts.
+RUN groupadd --gid 10001 appuser \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser
+
+COPY --from=builder /opt/venv /opt/venv
+
+WORKDIR /app
+COPY . .
+
+# Data dirs owned by the runtime user (volumes inherit this on first mount).
+RUN mkdir -p /data/cv /data/imports /data/ml_models /data/celerybeat \
+    && chown -R appuser:appuser /app /data
+
+USER appuser
+
+EXPOSE 8000
+
+# tini reaps zombies and forwards signals — essential for Celery child procs
+# and for gunicorn to drain on SIGTERM during a rolling deploy.
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Default command = API. Worker/beat override this in compose.
+# gunicorn process-manages N uvicorn workers; 2 workers × container is a sane
+# default and is overridable via $WEB_CONCURRENCY.
+CMD ["gunicorn", "app.main:app", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--workers", "2", \
+     "--bind", "0.0.0.0:8000", \
+     "--timeout", "120", \
+     "--graceful-timeout", "30", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

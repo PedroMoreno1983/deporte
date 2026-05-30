@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -31,6 +29,23 @@ services:
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery worker — without this, CV uploads enqueue to Redis but nothing
+  # consumes them (the dispatcher only falls back to inline when Redis is
+  # *unreachable*; in compose it's reachable). Shares the backend image and the
+  # ./backend mount so code changes hot-reload via a container restart.
+  worker:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/deporte_db
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: change-me-in-production
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    command: celery -A app.worker.celery_app:celery_app worker -Q cv,ml,imports,maintenance,default --concurrency 2 --loglevel info
 
   frontend:
     build: ./frontend

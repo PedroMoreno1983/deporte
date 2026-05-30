@@ -1,0 +1,200 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# Production stack for Deporte FC.
+#
+#   Usage:
+#     cp backend/.env.prod.example .env.prod   # then fill in REAL secrets
+#     docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+#   Topology:
+#     postgres ─┐
+#     redis ────┼─► init (one-shot schema bootstrap) ─► api / worker / beat
+#               └─► backup (periodic pg_dump loop)
+#
+#   Hardening vs. the dev compose:
+#     • Postgres/Redis are NOT published to the host (internal network only).
+#     • Multi-stage non-root image (Dockerfile.prod), tini as PID 1.
+#     • Healthchecks gate startup order (depends_on: condition: service_healthy).
+#     • Schema is bootstrapped once by `init` before app containers start, so a
+#       bad migration fails fast instead of half-starting the API.
+#     • Redis AOF persistence; nightly verified Postgres dumps with retention.
+#     • restart: unless-stopped on every long-lived service.
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ── shared building blocks (YAML anchors) ────────────────────────────────────
+x-backend-build: &backend-build
+  build:
+    context: ./backend
+    dockerfile: Dockerfile.prod
+  image: deporte-backend:prod
+
+# Every backend container (api/worker/beat/init) gets the same environment.
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAIL_FROM: ${EMAIL_FROM:-Deporte FC <noreply@deportefc.com>}
+  EMAIL_ALERTS_ENABLED: ${EMAIL_ALERTS_ENABLED:-false}
+
+# Persisted-data volumes shared between API (writer) and worker (reader).
+# The API saves uploaded videos / import files to these paths; the worker must
+# read the SAME bytes, so they cannot be per-container.
+x-data-volumes: &data-volumes
+  - cv_data:/data/cv
+  - import_data:/data/imports
+  - ml_models:/data/ml_models
+
+services:
+  # ── datastores ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── one-shot schema bootstrap ────────────────────────────────────────────────
+  # Creates missing tables + reconciles additive columns, then exits 0. The app
+  # services wait for this to complete successfully before starting. Idempotent.
+  init:
+    <<: *backend-build
+    command: ["python", "-m", "app.scripts.bootstrap"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── API (gunicorn + uvicorn workers) ─────────────────────────────────────────
+  api:
+    <<: *backend-build
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    # Default image CMD already runs gunicorn; expose it on the host.
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes: *data-volumes
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ── Celery worker (consumes every queue) ─────────────────────────────────────
+  worker:
+    <<: *backend-build
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - app.worker.celery_app:celery_app
+      - worker
+      - -Q
+      - cv,ml,imports,maintenance,default
+      - --concurrency
+      - "2"
+      - --loglevel
+      - INFO
+    environment: *backend-env
+    volumes: *data-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.celery_app:celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Celery beat (periodic scheduler) ─────────────────────────────────────────
+  # Exactly ONE beat instance must run, else schedules double-fire. Its schedule
+  # state lives on a named volume so restarts don't replay missed ticks.
+  beat:
+    <<: *backend-build
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - app.worker.celery_app:celery_app
+      - beat
+      - --loglevel
+      - INFO
+      - --schedule
+      - /data/celerybeat/schedule.db
+      - --pidfile=
+    environment: *backend-env
+    volumes:
+      - celerybeat_data:/data/celerybeat
+    depends_on:
+      redis:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+
+  # ── periodic Postgres backups ────────────────────────────────────────────────
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./backend/docker/backup.sh:/usr/local/bin/backup.sh:ro
+      - pg_backups:/backups
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  cv_data:
+  import_data:
+  ml_models:
+  celerybeat_data:
+  pg_backups:
