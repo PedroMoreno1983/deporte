@@ -53,7 +53,7 @@ def run_pipeline(
     try:
         import cv2
         import numpy as np
-        from .detector        import YoloDetector, PERSON_CLASSES
+        from .model_loader    import load_detector
         from .tracker         import BoxTracker
         from .team_assigner   import TeamAssigner
         from .view_transformer import ViewTransformer
@@ -85,7 +85,13 @@ def run_pipeline(
 
     log.info("CV start: %s | %dx%d @ %.1ffps | %d frames", video_path, frame_w, frame_h, fps, frame_count)
 
-    detector    = YoloDetector(weights or "yolov8n.pt")
+    # Resolve weights (explicit → env → fine-tuned on disk → base) and load the
+    # matching class schema, so person/ball filtering is class-id-agnostic and
+    # works for both the stock COCO model and a football fine-tune.
+    detector    = load_detector(weights)
+    person_ids  = detector.schema.person_class_ids
+    log.info("Detector classes: %s | tracking ids %s",
+             detector.schema.names, sorted(person_ids))
     tracker     = BoxTracker(fps=fps)
     team        = TeamAssigner()
     transformer = ViewTransformer(frame_w, frame_h)
@@ -119,8 +125,10 @@ def run_pipeline(
         t_s = f / fps
 
         detections = detector.detect(frame, conf=0.25, imgsz=imgsz)
-        # Keep persons only for team-assignment + tracking simplification
-        persons = [d for d in detections if d.cls in PERSON_CLASSES]
+        # Keep persons only for team-assignment + tracking simplification.
+        # `person_ids` comes from the loaded model's schema (COCO person, or the
+        # fine-tune's player/goalkeeper/referee classes).
+        persons = [d for d in detections if d.cls in person_ids]
         tracks  = tracker.update(persons)
 
         # Collect a few crops for team K-means fit (first ~80 frames or until 30 crops)
