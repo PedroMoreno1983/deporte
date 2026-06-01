@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # ── Encryption at rest ───────────────────────────────────────────────
     # urlsafe-base64 32-byte Fernet key; if empty, derived from SECRET_KEY (dev only).
     DATA_ENCRYPTION_KEY: str = ""
+
+    # ── Verified backups (compliance #13) ────────────────────────────────
+    BACKUP_DIR: str = "./backups"        # where backup artifacts + manifest are written
+    BACKUP_RETENTION: int = 7            # most-recent artifacts to keep (0 = never prune)
+    PG_DUMP_PATH: str = ""               # path to pg_dump   (empty → resolve on PATH)
+    PG_RESTORE_PATH: str = ""            # path to pg_restore (empty → resolve on PATH)
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"

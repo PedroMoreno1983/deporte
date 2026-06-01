@@ -24,5 +24,11 @@ ml_models/
 # Imported vendor files (Wyscout/Catapult/Polar/Garmin) — datos de club
 import_data/
 
+# Verified DB backups (artefactos de respaldo + checksums, no fuente)
+backups/
+*.sqlite.gz
+*.dump
+*.sha256
+
 # Test cache
 .pytest_cache/
