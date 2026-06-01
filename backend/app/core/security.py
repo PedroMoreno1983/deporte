@@ -62,3 +62,29 @@ def decode_token(token: str) -> Optional[dict]:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
+
+
+# ── MFA challenge token ─────────────────────────────────────────────────────
+# Issued after a correct password when 2FA is enabled. It is *not* an access
+# token — it only authorises completing the second factor at /auth/login/verify.
+
+def create_mfa_token(user_id: int) -> str:
+    """Short-lived token that authorises only the 2FA verification step."""
+    expire = datetime.utcnow() + timedelta(minutes=settings.MFA_TOKEN_EXPIRE_MINUTES)
+    return jwt.encode(
+        {"sub": str(user_id), "type": "mfa", "exp": expire},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+
+def decode_mfa_token(token: str) -> Optional[int]:
+    """Return the user id from a valid MFA challenge token, else None."""
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "mfa":
+        return None
+    sub = payload.get("sub")
+    try:
+        return int(sub)
+    except (TypeError, ValueError):
+        return None

@@ -8,6 +8,11 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-multipart==0.0.12
+
+# ── Compliance / security ─────────────────────────────────────────────
+# 2FA (TOTP) is implemented in-house against RFC 6238 — no extra runtime dep.
+cryptography==48.0.0                  # Fernet at-rest encryption (2FA secrets, health data); also a python-jose extra
+
 pydantic==2.9.2
 pydantic-settings==2.5.2
 pydantic[email]==2.9.2
