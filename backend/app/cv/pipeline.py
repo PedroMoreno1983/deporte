@@ -37,9 +37,10 @@ class PipelineResult:
     tracks:      List[Dict[str, Any]]   # per-track summary
     team_colors: List[List[int]]        # BGR for team 0 and 1
     identities:  List[Dict[str, Any]] = field(default_factory=list)  # ReID-merged players
-    sample_path: Optional[str] = None   # decorative thumbnail
-    output_dir:  Optional[str] = None
-    error:       Optional[str] = None
+    sample_path:  Optional[str] = None   # decorative thumbnail
+    output_video: Optional[str] = None   # full annotated output.mp4
+    output_dir:   Optional[str] = None
+    error:        Optional[str] = None
 
 
 def _aggregate_identities(
@@ -119,6 +120,7 @@ def run_pipeline(
         from .jersey_ocr      import JerseyReader, JerseyVoter, torso_crop
         from .reid            import ColorHistogramEmbedder, ReIDGallery
         from .events          import EventDetector
+        from .annotate        import MatchAnnotator, VideoSink
     except ImportError as e:
         return PipelineResult(
             fps=0.0, duration_s=0.0, frame_count=0,
@@ -203,6 +205,18 @@ def run_pipeline(
     stride = max(1, int(os.getenv("DEPORTE_CV_STRIDE", "3")))
     imgsz  = max(320, int(os.getenv("DEPORTE_CV_IMGSZ", "640")))
 
+    # ── Annotated output video (optional) ────────────────────────────────
+    # Render a full output.mp4 with team-coloured boxes, "#jersey speed" labels
+    # and a top-down pitch minimap. One annotated frame is written per *processed*
+    # frame, so the clip plays back at fps/stride (real time). Toggle with
+    # DEPORTE_CV_VIDEO=0; the codec is configurable via DEPORTE_CV_VIDEO_FOURCC.
+    video_enabled = os.getenv("DEPORTE_CV_VIDEO", "1").lower() not in {"0", "false", "no"}
+    video_fourcc  = os.getenv("DEPORTE_CV_VIDEO_FOURCC", "mp4v")
+    out_fps       = max(1.0, fps / stride)
+    annotator     = MatchAnnotator(frame_w, frame_h)
+    video_path    = os.path.join(output_dir, "output.mp4")
+    video_sink: Optional[Any] = None
+
     f = 0
     while True:
         if max_frames and f >= max_frames:
@@ -238,7 +252,11 @@ def run_pipeline(
                 team.fit(sample_crops)
                 log.info("Team K-means fitted on %d crops", len(sample_crops))
 
-        # Assign team + kinematics per track
+        # Assign team + kinematics per track. Capture per-frame values for the
+        # annotated-video overlay (speed, team, foot position on the pitch).
+        frame_speeds: Dict[int, float] = {}
+        frame_teams:  Dict[int, Optional[int]] = {}
+        frame_feet:   Dict[int, Any] = {}
         for tr in tracks:
             x1, y1, x2, y2 = map(int, tr.bbox)
             x1, y1 = max(0, x1), max(0, y1)
@@ -248,8 +266,11 @@ def run_pipeline(
                 team.assign(tr.track_id, crop)
             fx, fy = transformer.bbox_foot_point(tr.bbox)
             x_m, y_m = transformer.to_pitch(fx, fy)
-            kinematics.update(tr.track_id, x_m, y_m, t_s)
+            speed_now, _dist = kinematics.update(tr.track_id, x_m, y_m, t_s)
             events.update(tr.track_id, x_m, y_m, t_s)
+            frame_speeds[tr.track_id] = round(speed_now, 1)
+            frame_teams[tr.track_id] = team.team_of(tr.track_id) if team._fitted else None
+            frame_feet[tr.track_id] = (x_m, y_m)
 
             # Re-identify the track against the appearance gallery. Cheap enough
             # to run every processed frame, which keeps each identity's stored
@@ -264,28 +285,41 @@ def run_pipeline(
                 for num, conf in jersey_reader.read(tcrop):
                     jersey_voter.update(tr.track_id, num, conf)
 
-        # Save a sample annotated frame once — pick a frame ~5s in with several
-        # active tracks so the user sees a useful preview. Draw bbox + track id
-        # + team colour overlay so the analysis is visually obvious.
-        if sample_path is None and f >= int(fps * 5) and len(tracks) >= 4:
-            annotated = frame.copy()
-            for tr in tracks:
-                x1, y1, x2, y2 = map(int, tr.bbox)
-                team_idx = team.team_of(tr.track_id) if team._fitted else None
-                if team_idx is None:
-                    color = (255, 255, 255)
-                else:
-                    bgr = team.team_color_bgr(team_idx)
-                    color = (int(bgr[0]), int(bgr[1]), int(bgr[2]))
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-                # Track id label with filled background for legibility
-                label = f"#{tr.track_id}"
-                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                cv2.rectangle(annotated, (x1, y1 - th - 8), (x1 + tw + 6, y1), color, -1)
-                cv2.putText(annotated, label, (x1 + 3, y1 - 4),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-            sample_path = os.path.join(output_dir, "sample.jpg")
-            cv2.imwrite(sample_path, annotated)
+        # ── Annotate: write to output.mp4 and/or grab the preview thumbnail ──
+        # The thumbnail is a frame ~5s in with several active tracks. The full
+        # video (when enabled) gets every processed frame. Both share one render
+        # pass via MatchAnnotator, so the box/label/minimap style is identical.
+        # Write EVERY processed frame to the video (even with no tracks, so the
+        # clip's timing stays true); the thumbnail still waits for a busy frame.
+        need_sample = sample_path is None and f >= int(fps * 5) and len(tracks) >= 4
+        if video_enabled or need_sample:
+            if team._fitted:
+                annotator.team_colors = team.colours()
+            # Best-effort live jersey numbers (the voter firms up over the track's life).
+            frame_jerseys = {
+                tr.track_id: (jr["number"] if (jr := jersey_voter.resolve(tr.track_id)) else None)
+                for tr in tracks
+            }
+            annotated = annotator.annotate(
+                frame, tracks,
+                teams=frame_teams, speeds=frame_speeds,
+                jerseys=frame_jerseys, feet_m=frame_feet,
+            )
+            if video_enabled:
+                if video_sink is None:
+                    try:
+                        video_sink = VideoSink(
+                            video_path, out_fps, (frame_w, frame_h), fourcc=video_fourcc
+                        ).open()
+                        log.info("Annotated video → %s @ %.1f fps", video_path, out_fps)
+                    except Exception as e:  # noqa: BLE001 — a bad codec must not abort analysis
+                        log.warning("Annotated video disabled (VideoWriter unavailable): %s", e)
+                        video_enabled = False
+                if video_sink is not None:
+                    video_sink.write(annotated)
+            if need_sample:
+                sample_path = os.path.join(output_dir, "sample.jpg")
+                cv2.imwrite(sample_path, annotated)
 
         if on_progress and (time.time() - last_emit) > 0.4:
             on_progress(PipelineProgress(
@@ -298,6 +332,10 @@ def run_pipeline(
         f += 1
 
     cap.release()
+    if video_sink is not None:
+        video_sink.release()
+        log.info("Annotated video written: %d frames → %s", video_sink.frames_written, video_path)
+    output_video = video_path if (video_sink is not None and video_sink.frames_written > 0) else None
 
     # If we never fit teams, do it now from whatever we got
     if not team._fitted and sample_crops:
@@ -354,6 +392,7 @@ def run_pipeline(
         team_colors=[list(c) for c in team.colours()],
         identities=identities_summary,
         sample_path=sample_path,
+        output_video=output_video,
         output_dir=output_dir,
     )
 
@@ -366,6 +405,7 @@ def run_pipeline(
             "tracks":      result.tracks,
             "team_colors": result.team_colors,
             "identities":  result.identities,
+            "output_video": result.output_video,
         }, fp, ensure_ascii=False, indent=2)
 
     if on_progress:
