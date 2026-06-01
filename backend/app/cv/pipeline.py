@@ -49,8 +49,9 @@ def _aggregate_identities(
     """Collapse per-track rows sharing a ReID identity into per-player rows.
 
     Distance is summed across fragments, speed takes the peak, team is the most
-    common assignment, and jersey is the number with the most *pooled* votes
-    (reusing C2's per-track vote counts) across the identity's member tracks.
+    common assignment, jersey is the number with the most *pooled* votes
+    (reusing C2's per-track vote counts), and the high-intensity event counts
+    (C4) are summed across the identity's member tracks.
     """
     by_identity: Dict[int, List[Dict[str, Any]]] = {}
     for t in tracks_summary:
@@ -58,6 +59,9 @@ def _aggregate_identities(
         if iid is None:
             continue
         by_identity.setdefault(int(iid), []).append(t)
+
+    def _isum(members: List[Dict[str, Any]], key: str) -> int:
+        return sum(int(m.get("intensity", {}).get(key, 0)) for m in members)
 
     out: List[Dict[str, Any]] = []
     for iid, members in sorted(by_identity.items()):
@@ -72,6 +76,10 @@ def _aggregate_identities(
                 jersey_votes[jd["number"]] += jd["votes"]
         jersey_rep = jersey_votes.most_common(1)[0][0] if jersey_votes else None
 
+        top_speed = max(
+            (float(m.get("intensity", {}).get("top_speed_kmh", 0.0)) for m in members),
+            default=0.0,
+        )
         out.append({
             "identity":   iid,
             "track_ids":  sorted(int(m["track_id"]) for m in members),
@@ -79,6 +87,13 @@ def _aggregate_identities(
             "jersey":     jersey_rep,
             "distance_m": round(sum(float(m.get("distance_m", 0.0)) for m in members), 1),
             "speed_kmh":  round(max((float(m.get("speed_kmh", 0.0)) for m in members), default=0.0), 1),
+            "top_speed_kmh":     round(top_speed, 1),
+            "sprints":           _isum(members, "sprints"),
+            "accelerations":     _isum(members, "accelerations"),
+            "decelerations":     _isum(members, "decelerations"),
+            "direction_changes": _isum(members, "direction_changes"),
+            "sprint_distance_m": round(
+                sum(float(m.get("intensity", {}).get("sprint_distance_m", 0.0)) for m in members), 1),
         })
     return out
 
@@ -103,6 +118,7 @@ def run_pipeline(
         from .speed_distance  import SpeedDistance
         from .jersey_ocr      import JerseyReader, JerseyVoter, torso_crop
         from .reid            import ColorHistogramEmbedder, ReIDGallery
+        from .events          import EventDetector
     except ImportError as e:
         return PipelineResult(
             fps=0.0, duration_s=0.0, frame_count=0,
@@ -141,6 +157,7 @@ def run_pipeline(
     team        = TeamAssigner()
     transformer = ViewTransformer(frame_w, frame_h)
     kinematics  = SpeedDistance()
+    events      = EventDetector()   # sprints / accel / decel / direction changes
 
     # ── Jersey-number OCR (optional, lazy) ───────────────────────────────
     # Reading a number off a moving shirt is noisy per-frame, so we OCR each
@@ -232,6 +249,7 @@ def run_pipeline(
             fx, fy = transformer.bbox_foot_point(tr.bbox)
             x_m, y_m = transformer.to_pitch(fx, fy)
             kinematics.update(tr.track_id, x_m, y_m, t_s)
+            events.update(tr.track_id, x_m, y_m, t_s)
 
             # Re-identify the track against the appearance gallery. Cheap enough
             # to run every processed frame, which keeps each identity's stored
@@ -294,17 +312,30 @@ def run_pipeline(
     # may collapse onto one identity (the same player across occlusions).
     identities_map = reid_gallery.snapshot()
 
+    # High-intensity events per track (sprints / accel / decel / COD).
+    events_map = {int(e["track_id"]): e for e in events.summary()}
+
     # Build per-track summary
     tracks_summary: List[Dict[str, Any]] = []
     for k_snap in kinematics.snapshot():
         tid = k_snap["track_id"]
         jersey = jerseys.get(int(tid))
+        ev = events_map.get(int(tid), {})
         tracks_summary.append({
             **k_snap,
             "team": team._cache.get(int(tid)),
             "jersey":        jersey["number"] if jersey else None,
             "jersey_detail": jersey,   # {number, confidence, votes, agreement} or None
             "identity":      identities_map.get(int(tid)),
+            "intensity": {
+                "sprints":           ev.get("sprints", 0),
+                "accelerations":     ev.get("accelerations", 0),
+                "decelerations":     ev.get("decelerations", 0),
+                "direction_changes": ev.get("direction_changes", 0),
+                "top_speed_kmh":     ev.get("top_speed_kmh", 0.0),
+                "sprint_distance_m": ev.get("sprint_distance_m", 0.0),
+                "events":            ev.get("events", []),
+            },
         })
 
     # Aggregate fragmented tracks into per-player identities: pool distance,
