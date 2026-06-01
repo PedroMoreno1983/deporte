@@ -44,3 +44,4 @@ ultralytics==8.3.0                   # YOLOv8/v10 detection
 opencv-python-headless==4.10.0.84    # video I/O, image ops; headless = no GUI bindings
 supervision==0.24.0                  # ByteTrack tracker + annotators
 Pillow==10.4.0                       # image thumbnails
+easyocr==1.7.1                       # jersey-number OCR (reuses the torch ultralytics pulls)

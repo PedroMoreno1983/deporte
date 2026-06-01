@@ -6,6 +6,7 @@ Components (mirror of https://github.com/abdullahtarek/football_analysis):
   - model_loader.py    Checkpoint resolution (explicit→env→fine-tuned→base)
   - train.py           Fine-tune YOLO on a YOLO-format dataset + publish sidecar
   - detector.py        YOLO detection of players / ball / referees / goalkeepers
+  - jersey_ocr.py      Jersey-number OCR (EasyOCR) + cross-frame voting
   - tracker.py         ByteTrack across frames (via `supervision`)
   - team_assigner.py   K-means on jersey-crop pixels → team A / team B
   - view_transformer.py  Pitch perspective warp → 2D minimap (m)
@@ -18,4 +19,5 @@ the rest of the app still boots when they're not installed.
 """
 from .labels import ClassSchema, FOOTBALL_CLASSES  # re-export (pure-python, always importable)
 from .model_loader import ResolvedWeights, cv_model_dir, resolve_weights
+from .jersey_ocr import JerseyReader, JerseyVoter, plausible_jersey_number, torso_crop
 from .pipeline import run_pipeline, PipelineProgress

@@ -58,6 +58,7 @@ def run_pipeline(
         from .team_assigner   import TeamAssigner
         from .view_transformer import ViewTransformer
         from .speed_distance  import SpeedDistance
+        from .jersey_ocr      import JerseyReader, JerseyVoter, torso_crop
     except ImportError as e:
         return PipelineResult(
             fps=0.0, duration_s=0.0, frame_count=0,
@@ -97,9 +98,28 @@ def run_pipeline(
     transformer = ViewTransformer(frame_w, frame_h)
     kinematics  = SpeedDistance()
 
+    # ── Jersey-number OCR (optional, lazy) ───────────────────────────────
+    # Reading a number off a moving shirt is noisy per-frame, so we OCR each
+    # player only every Nth processed frame and let JerseyVoter resolve a
+    # stable number by confidence-weighted voting across the track's life.
+    # Disabled cleanly if EasyOCR isn't installed or DEPORTE_CV_OCR=0.
+    jersey_voter  = JerseyVoter()
+    jersey_reader = None
+    ocr_enabled   = os.getenv("DEPORTE_CV_OCR", "1").lower() not in {"0", "false", "no"}
+    ocr_every     = max(1, int(os.getenv("DEPORTE_CV_OCR_EVERY", "5")))   # processed frames
+    ocr_min_box_h = max(16, int(os.getenv("DEPORTE_CV_OCR_MIN_BOX_H", "44")))  # px
+    if ocr_enabled:
+        try:
+            jersey_reader = JerseyReader(gpu=False)
+            log.info("Jersey OCR enabled (every %d processed frames)", ocr_every)
+        except Exception as e:  # noqa: BLE001 — missing/broken easyocr must not abort
+            log.warning("Jersey OCR disabled (EasyOCR unavailable): %s", e)
+            jersey_reader = None
+
     sample_crops: List[Any] = []
     last_emit = 0.0
     sample_path: Optional[str] = None
+    processed = 0   # count of frames we actually ran inference on (after stride)
 
     # ── Performance knobs ────────────────────────────────────────────
     # `stride` = process 1 of every N frames. ByteTrack interpolates the rest,
@@ -123,6 +143,8 @@ def run_pipeline(
             f += 1
             continue
         t_s = f / fps
+        processed += 1
+        do_ocr = jersey_reader is not None and (processed % ocr_every == 0)
 
         detections = detector.detect(frame, conf=0.25, imgsz=imgsz)
         # Keep persons only for team-assignment + tracking simplification.
@@ -154,6 +176,12 @@ def run_pipeline(
             fx, fy = transformer.bbox_foot_point(tr.bbox)
             x_m, y_m = transformer.to_pitch(fx, fy)
             kinematics.update(tr.track_id, x_m, y_m, t_s)
+
+            # Jersey OCR on a cadence, only for boxes big enough to read.
+            if do_ocr and (y2 - y1) >= ocr_min_box_h:
+                tcrop = torso_crop(frame, tr.bbox)
+                for num, conf in jersey_reader.read(tcrop):
+                    jersey_voter.update(tr.track_id, num, conf)
 
         # Save a sample annotated frame once — pick a frame ~5s in with several
         # active tracks so the user sees a useful preview. Draw bbox + track id
@@ -194,13 +222,21 @@ def run_pipeline(
     if not team._fitted and sample_crops:
         team.fit(sample_crops)
 
+    # Resolve a stable jersey number per track from the accumulated votes.
+    jerseys = jersey_voter.snapshot()
+    if jerseys:
+        log.info("Jersey numbers resolved for %d/%d tracks", len(jerseys), len(kinematics.tracks))
+
     # Build per-track summary
     tracks_summary: List[Dict[str, Any]] = []
     for k_snap in kinematics.snapshot():
         tid = k_snap["track_id"]
+        jersey = jerseys.get(int(tid))
         tracks_summary.append({
             **k_snap,
             "team": team._cache.get(int(tid)),
+            "jersey":        jersey["number"] if jersey else None,
+            "jersey_detail": jersey,   # {number, confidence, votes, agreement} or None
         })
 
     result = PipelineResult(
