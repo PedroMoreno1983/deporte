@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from ..core.database import Base
+from ..core.crypto import EncryptedString  # field-level encryption at rest (compliance #12)
 
 
 class InjurySeverity(str, enum.Enum):
@@ -58,7 +59,9 @@ class Injury(Base):
     body_zone = Column(Enum(BodyZone), nullable=False)
     severity = Column(Enum(InjurySeverity), nullable=False)
     mechanism = Column(Enum(InjuryMechanism), nullable=False)
-    description = Column(Text, nullable=True)
+    # Clinical narrative = sensitive health data → encrypted at rest. Kept as the
+    # decrypted plaintext in Python; never used in SQL filters/aggregations.
+    description = Column(EncryptedString, nullable=True)
     during_match = Column(Boolean, default=False)
 
     # Baja
@@ -68,15 +71,15 @@ class Injury(Base):
     actual_days_out = Column(Integer, nullable=True)
 
     # Tratamiento
-    treatment = Column(Text, nullable=True)
+    treatment = Column(EncryptedString, nullable=True)
     surgery_required = Column(Boolean, default=False)
     surgery_date = Column(Date, nullable=True)
 
     # Recuperación
-    recovery_milestones = Column(Text, nullable=True)  # JSON string con hitos
+    recovery_milestones = Column(EncryptedString, nullable=True)  # JSON string con hitos (cifrado)
     is_recovered = Column(Boolean, default=False)
 
     diagnosed_by = Column(String, nullable=True)
-    notes = Column(Text, nullable=True)
+    notes = Column(EncryptedString, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

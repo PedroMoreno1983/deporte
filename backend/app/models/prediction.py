@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, String, ForeignKey, DateTime, Tex
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
+from ..core.crypto import EncryptedString  # field-level encryption at rest (compliance #12)
 
 
 class PredictionScore(Base):
@@ -28,4 +29,4 @@ class PredictionScore(Base):
     availability_forecast_pct = Column(Float, nullable=True)  # % disponibilidad próximas 4 semanas
 
     model_version = Column(String, default="1.0.0")
-    notes = Column(Text, nullable=True)
+    notes = Column(EncryptedString, nullable=True)  # narrativa de riesgo → cifrada at-rest
