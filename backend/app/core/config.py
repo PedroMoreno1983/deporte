@@ -9,6 +9,15 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # ── Two-factor auth (TOTP) ───────────────────────────────────────────
+    MFA_ISSUER: str = "Deporte FC"          # shown as the account label in authenticator apps
+    MFA_TOKEN_EXPIRE_MINUTES: int = 5       # lifetime of the short-lived post-password challenge token
+    MFA_REQUIRED_FOR_ADMINS: bool = True    # flag (not hard-lock) forcing admins/superadmins to enrol
+
+    # ── Encryption at rest ───────────────────────────────────────────────
+    # urlsafe-base64 32-byte Fernet key; if empty, derived from SECRET_KEY (dev only).
+    DATA_ENCRYPTION_KEY: str = ""
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
