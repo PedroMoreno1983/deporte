@@ -8,7 +8,7 @@
 #   Topology:
 #     postgres ─┐
 #     redis ────┼─► init (one-shot schema bootstrap) ─► api / worker / beat
-#               └─► backup (periodic pg_dump loop)
+#               └─► backup (periodic verified pg_dump loop)
 #
 #   Hardening vs. the dev compose:
 #     • Postgres/Redis are NOT published to the host (internal network only).
