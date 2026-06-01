@@ -12,7 +12,8 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -35,9 +36,51 @@ class PipelineResult:
     frame_count: int
     tracks:      List[Dict[str, Any]]   # per-track summary
     team_colors: List[List[int]]        # BGR for team 0 and 1
+    identities:  List[Dict[str, Any]] = field(default_factory=list)  # ReID-merged players
     sample_path: Optional[str] = None   # decorative thumbnail
     output_dir:  Optional[str] = None
     error:       Optional[str] = None
+
+
+def _aggregate_identities(
+    tracks_summary: List[Dict[str, Any]],
+    jerseys: Dict[int, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Collapse per-track rows sharing a ReID identity into per-player rows.
+
+    Distance is summed across fragments, speed takes the peak, team is the most
+    common assignment, and jersey is the number with the most *pooled* votes
+    (reusing C2's per-track vote counts) across the identity's member tracks.
+    """
+    by_identity: Dict[int, List[Dict[str, Any]]] = {}
+    for t in tracks_summary:
+        iid = t.get("identity")
+        if iid is None:
+            continue
+        by_identity.setdefault(int(iid), []).append(t)
+
+    out: List[Dict[str, Any]] = []
+    for iid, members in sorted(by_identity.items()):
+        team_votes = Counter(m["team"] for m in members if m.get("team") is not None)
+        team_rep = team_votes.most_common(1)[0][0] if team_votes else None
+
+        # Jersey: pool C2 vote counts across member tracks, pick the top number.
+        jersey_votes: Counter = Counter()
+        for m in members:
+            jd = jerseys.get(int(m["track_id"]))
+            if jd:
+                jersey_votes[jd["number"]] += jd["votes"]
+        jersey_rep = jersey_votes.most_common(1)[0][0] if jersey_votes else None
+
+        out.append({
+            "identity":   iid,
+            "track_ids":  sorted(int(m["track_id"]) for m in members),
+            "team":       team_rep,
+            "jersey":     jersey_rep,
+            "distance_m": round(sum(float(m.get("distance_m", 0.0)) for m in members), 1),
+            "speed_kmh":  round(max((float(m.get("speed_kmh", 0.0)) for m in members), default=0.0), 1),
+        })
+    return out
 
 
 def run_pipeline(
@@ -59,6 +102,7 @@ def run_pipeline(
         from .view_transformer import ViewTransformer
         from .speed_distance  import SpeedDistance
         from .jersey_ocr      import JerseyReader, JerseyVoter, torso_crop
+        from .reid            import ColorHistogramEmbedder, ReIDGallery
     except ImportError as e:
         return PipelineResult(
             fps=0.0, duration_s=0.0, frame_count=0,
@@ -115,6 +159,18 @@ def run_pipeline(
         except Exception as e:  # noqa: BLE001 — missing/broken easyocr must not abort
             log.warning("Jersey OCR disabled (EasyOCR unavailable): %s", e)
             jersey_reader = None
+
+    # ── Track re-identification (optional, pure-numpy) ───────────────────
+    # ByteTrack hands out a fresh id whenever a player is occluded or leaves
+    # and reappears, fragmenting per-player stats. The ReID gallery re-links
+    # those fragments by torso-colour appearance so distance/speed/jersey are
+    # aggregated per *player*, not per track fragment. Cheap (no GPU); toggle
+    # with DEPORTE_CV_REID=0.
+    reid_enabled  = os.getenv("DEPORTE_CV_REID", "1").lower() not in {"0", "false", "no"}
+    reid_embedder = ColorHistogramEmbedder() if reid_enabled else None
+    reid_gallery  = ReIDGallery()
+    if reid_enabled:
+        log.info("Track ReID enabled (colour-histogram appearance)")
 
     sample_crops: List[Any] = []
     last_emit = 0.0
@@ -177,6 +233,13 @@ def run_pipeline(
             x_m, y_m = transformer.to_pitch(fx, fy)
             kinematics.update(tr.track_id, x_m, y_m, t_s)
 
+            # Re-identify the track against the appearance gallery. Cheap enough
+            # to run every processed frame, which keeps each identity's stored
+            # appearance fresh. `processed` is the monotonic processed-frame
+            # index used as the recency clock for active-track exclusion.
+            if reid_embedder is not None:
+                reid_gallery.assign(tr.track_id, reid_embedder.embed(crop), processed)
+
             # Jersey OCR on a cadence, only for boxes big enough to read.
             if do_ocr and (y2 - y1) >= ocr_min_box_h:
                 tcrop = torso_crop(frame, tr.bbox)
@@ -227,6 +290,10 @@ def run_pipeline(
     if jerseys:
         log.info("Jersey numbers resolved for %d/%d tracks", len(jerseys), len(kinematics.tracks))
 
+    # Re-identification: {track_id: identity_id}. Several fragmented track ids
+    # may collapse onto one identity (the same player across occlusions).
+    identities_map = reid_gallery.snapshot()
+
     # Build per-track summary
     tracks_summary: List[Dict[str, Any]] = []
     for k_snap in kinematics.snapshot():
@@ -237,7 +304,16 @@ def run_pipeline(
             "team": team._cache.get(int(tid)),
             "jersey":        jersey["number"] if jersey else None,
             "jersey_detail": jersey,   # {number, confidence, votes, agreement} or None
+            "identity":      identities_map.get(int(tid)),
         })
+
+    # Aggregate fragmented tracks into per-player identities: pool distance,
+    # take peak speed, and vote a representative team + jersey across members
+    # (jersey weighted by C2's per-track vote counts).
+    identities_summary = _aggregate_identities(tracks_summary, jerseys)
+    if identities_summary:
+        log.info("ReID merged %d tracks into %d identities",
+                 len(tracks_summary), len(identities_summary))
 
     result = PipelineResult(
         fps=float(fps),
@@ -245,6 +321,7 @@ def run_pipeline(
         frame_count=f,
         tracks=tracks_summary,
         team_colors=[list(c) for c in team.colours()],
+        identities=identities_summary,
         sample_path=sample_path,
         output_dir=output_dir,
     )
@@ -257,6 +334,7 @@ def run_pipeline(
             "frame_count": result.frame_count,
             "tracks":      result.tracks,
             "team_colors": result.team_colors,
+            "identities":  result.identities,
         }, fp, ensure_ascii=False, indent=2)
 
     if on_progress:
