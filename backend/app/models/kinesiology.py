@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, String, Date, ForeignKey, DateTim
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
+from ..core.crypto import EncryptedString  # field-level encryption at rest (compliance #12)
 
 
 class KinesiologyRecord(Base):
@@ -49,5 +50,5 @@ class KinesiologyRecord(Base):
     sprint_30m_sec = Column(Float, nullable=True)
     sprint_40m_sec = Column(Float, nullable=True)
 
-    notes = Column(Text, nullable=True)
+    notes = Column(EncryptedString, nullable=True)  # observación clínica → cifrada at-rest
     created_at = Column(DateTime(timezone=True), server_default=func.now())
