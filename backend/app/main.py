@@ -53,28 +53,48 @@ app.include_router(ws_router)  # exposes /ws (WebSocket)
 
 @app.on_event("startup")
 def _optional_demo_seed() -> None:
-    """One-shot demo seed for a fresh deployment, gated by ``SEED_ON_START=1``.
+    """One-shot DB reset + demo seed for a fresh/drifted deployment.
 
-    A freshly-provisioned production DB has no users (login fails) and no events
-    (analytics is empty). This runs the seed scripts *from inside the app* — so
-    it works no matter how the container is started (``start.sh`` or a direct
-    ``uvicorn`` command) — but only when the flag is set AND the DB has no users
-    yet, so it's idempotent and safe across workers. Never raises: a seeding
-    hiccup must not stop the API from booting.
+    Runs *from inside the app*, so it works no matter how the container is
+    started (``start.sh`` or a direct ``uvicorn`` command). Gated by env flags so
+    nothing happens unless explicitly requested, and never raises (a hiccup must
+    not stop the API from booting):
+
+      * ``RESET_DB=1``      — DROP and recreate every table from the current
+        models. Fixes a production DB whose schema drifted because migrations
+        never ran. **Destructive** (wipes data) — set it once and remove it
+        right after the deploy.
+      * ``SEED_ON_START=1`` — seed users + demo data when the DB has no users.
     """
-    if os.getenv("SEED_ON_START") != "1":
+    reset = os.getenv("RESET_DB") == "1"
+    seed = os.getenv("SEED_ON_START") == "1"
+    if not (reset or seed):
         return
     import logging
     log = logging.getLogger("startup.seed")
     try:
-        from .core.database import SessionLocal
+        from .core.database import Base, engine, SessionLocal
         from .models.user import User
+
+        if reset:
+            log.warning(
+                "RESET_DB=1 → DROP + CREATE all tables from current models "
+                "(existing data is lost). Remove this variable after the deploy."
+            )
+            Base.metadata.drop_all(bind=engine)
+            Base.metadata.create_all(bind=engine)
+            ensure_schema()
+
+        if not seed:
+            return
+
         db = SessionLocal()
         try:
             if db.query(User).first() is not None:
                 return  # already seeded — nothing to do
         finally:
             db.close()
+
         import subprocess
         import sys
         backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # .../backend
@@ -82,7 +102,7 @@ def _optional_demo_seed() -> None:
             log.info("Running %s …", script)
             subprocess.run([sys.executable, script], cwd=backend_dir, check=False)
     except Exception as exc:  # noqa: BLE001 — never block startup on seeding
-        log.warning("Demo seed skipped: %s", exc)
+        log.warning("Startup seed/reset skipped: %s", exc)
 
 
 @app.get("/health")
