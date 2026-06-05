@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .security import decode_token
 from ..models.user import User, UserRole
+from ..models.player import Player
 
 security = HTTPBearer()
 
@@ -68,3 +69,22 @@ def scoped_query(query, model, current_user: User):
     if hasattr(model, "club_id"):
         return query.filter(model.club_id == current_user.club_id)
     return query
+
+
+def get_player_in_club(
+    player_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Player:
+    """Resolve a player *within the caller's club* or 404.
+
+    Use as a dependency on any ``/.../player/{player_id}/...`` route to stop one
+    club reading another club's player data (wellness, kinesiology, predictions,
+    stats…). Returns 404 (not 403) so player ids aren't enumerable cross-club.
+    """
+    player = scoped_query(db.query(Player), Player, current_user).filter(
+        Player.id == player_id
+    ).first()
+    if player is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jugador no encontrado")
+    return player

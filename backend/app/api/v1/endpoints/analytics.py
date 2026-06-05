@@ -4,23 +4,30 @@ from sqlalchemy import func
 from typing import Optional
 from datetime import date, timedelta
 from ....core.database import get_db
-from ....core.deps import get_current_user
+from ....core.deps import get_current_user, scoped_query, get_player_in_club
 from ....models.player import Player, PlayerStatus
 from ....models.injury import Injury
 from ....models.match import MatchStat, Match
 from ....models.training import TrainingSession
+from ....models.user import User
 
 router = APIRouter()
+
+
+def _club_player_ids(db: Session, current_user: User) -> list[int]:
+    """Ids of the players in the caller's club — used to scope per-player
+    aggregates (Injury, MatchStat…) whose own models have no club_id."""
+    return [pid for (pid,) in scoped_query(db.query(Player.id), Player, current_user).all()]
 
 
 @router.get("/dashboard")
 def get_dashboard(
     category_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """KPIs principales del dashboard."""
-    q = db.query(Player).filter(Player.is_active == True)
+    """KPIs principales del dashboard (del club del usuario)."""
+    q = scoped_query(db.query(Player), Player, current_user).filter(Player.is_active == True)
     if category_id:
         q = q.filter(Player.category_id == category_id)
     players = q.all()
@@ -34,17 +41,23 @@ def get_dashboard(
     injured = by_status.get("injured", 0)
     availability_rate = round(available / total * 100, 1) if total > 0 else 0
 
-    # Lesiones activas
-    active_injuries = db.query(Injury).filter(Injury.is_recovered == False).count()
+    club_player_ids = [p.id for p in players]
 
-    # Partidos último mes
+    # Lesiones activas (de jugadores del club)
+    active_injuries = db.query(Injury).filter(
+        Injury.is_recovered == False, Injury.player_id.in_(club_player_ids)
+    ).count()
+
+    # Partidos último mes (del club)
     last_month = date.today() - timedelta(days=30)
-    recent_matches = db.query(Match).filter(Match.date >= last_month).count()
+    recent_matches = scoped_query(db.query(Match), Match, current_user).filter(
+        Match.date >= last_month
+    ).count()
 
-    # Promedio calificación equipo
+    # Promedio calificación equipo (jugadores del club)
     avg_rating = (
         db.query(func.avg(MatchStat.rating))
-        .filter(MatchStat.rating.isnot(None))
+        .filter(MatchStat.rating.isnot(None), MatchStat.player_id.in_(club_player_ids))
         .scalar()
     )
 
@@ -63,7 +76,7 @@ def get_dashboard(
 
 
 @router.get("/player/{player_id}/summary")
-def get_player_summary(player_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_player_summary(player_id: int, db: Session = Depends(get_db), _player=Depends(get_player_in_club)):
     """Resumen analítico completo de un jugador."""
     # Promedio de stats en partidos
     stats = db.query(MatchStat).filter(MatchStat.player_id == player_id).all()
@@ -108,10 +121,11 @@ def get_player_summary(player_id: int, db: Session = Depends(get_db), _=Depends(
 
 
 @router.get("/injuries/stats")
-def get_injury_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    """Estadísticas de lesiones del equipo."""
-    from sqlalchemy import extract
-    injuries = db.query(Injury).all()
+def get_injury_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Estadísticas de lesiones del equipo (del club del usuario)."""
+    injuries = db.query(Injury).filter(
+        Injury.player_id.in_(_club_player_ids(db, current_user))
+    ).all()
     if not injuries:
         return {"total": 0}
 
@@ -184,13 +198,14 @@ def _player_radar(player_id: int, db: Session) -> dict:
 def get_player_radar(
     player_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
+    _player=Depends(get_player_in_club),
 ):
     """Radar metrics for a player vs team average."""
     radar = _player_radar(player_id, db)
 
-    # Team average
-    all_players = db.query(Player).filter(Player.is_active == True).all()
+    # Team average (current club only)
+    all_players = scoped_query(db.query(Player), Player, current_user).filter(Player.is_active == True).all()
     team_radars = [_player_radar(p.id, db) for p in all_players if p.id != player_id]
 
     if team_radars:
@@ -225,7 +240,7 @@ def _league_label(p: float) -> str:
 def get_player_benchmarks(
     player_id: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _player=Depends(get_player_in_club),
 ):
     """Compare a player against same-position peers (proxy league benchmark).
 
@@ -318,10 +333,10 @@ def _has_superadmin_attr_or_default(p) -> bool:
 def get_team_radar(
     category_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """Radar + summary for all players (for comparison table)."""
-    q = db.query(Player).filter(Player.is_active == True)
+    """Radar + summary for all players (current club only)."""
+    q = scoped_query(db.query(Player), Player, current_user).filter(Player.is_active == True)
     if category_id:
         q = q.filter(Player.category_id == category_id)
     players = q.all()

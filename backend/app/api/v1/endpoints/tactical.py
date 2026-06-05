@@ -4,7 +4,7 @@ from typing import List
 from pydantic import BaseModel
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, scoped_query
 from app.models.tactical import Tactical
 
 router = APIRouter()
@@ -36,7 +36,11 @@ def list_tacticals(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    items = db.query(Tactical).order_by(Tactical.created_at.desc()).all()
+    items = (
+        scoped_query(db.query(Tactical), Tactical, current_user)
+        .order_by(Tactical.created_at.desc())
+        .all()
+    )
     return items
 
 
@@ -52,6 +56,7 @@ def create_tactical(
         players_json=body.players_json,
         assignments_json=body.assignments_json,
         paths_json=body.paths_json,
+        club_id=getattr(current_user, "club_id", None),
     )
     db.add(item)
     db.commit()
@@ -65,7 +70,7 @@ def delete_tactical(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    item = db.query(Tactical).filter(Tactical.id == id).first()
+    item = scoped_query(db.query(Tactical), Tactical, current_user).filter(Tactical.id == id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Táctica no encontrada")
     db.delete(item)
