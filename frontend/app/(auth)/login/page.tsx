@@ -9,7 +9,7 @@ import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import {
   Loader2, Lock, Mail, Eye, EyeOff, ArrowRight,
-  Activity, Brain, Shield, Zap,
+  Activity, Brain, Shield, Zap, KeyRound, ShieldCheck, ArrowLeft,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { motion } from "framer-motion";
@@ -80,6 +80,11 @@ export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  // Two-factor challenge: when the account has 2FA on, /login returns a short-lived
+  // mfa_token instead of a session; we then collect a TOTP/recovery code.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
   const {
     register, handleSubmit, setValue, formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
@@ -88,12 +93,34 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await authApi.login(data.email, data.password);
-      setAuth(res.user, res.access_token, res.refresh_token);
+      if (res.mfa_required && res.mfa_token) {
+        setMfaToken(res.mfa_token);
+        setCode("");
+        return;
+      }
+      setAuth(res.user, res.access_token!, res.refresh_token!);
       router.push("/dashboard");
     } catch {
       toast.error("Credenciales incorrectas");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function verifyMfa(e: React.FormEvent) {
+    e.preventDefault();
+    const cleaned = code.replace(/\s/g, "");
+    if (!mfaToken || cleaned.length < 6) return;
+    setVerifying(true);
+    try {
+      const res = await authApi.loginVerify(mfaToken, cleaned);
+      setAuth(res.user, res.access_token!, res.refresh_token!);
+      router.push("/dashboard");
+    } catch {
+      toast.error("Código incorrecto. Intenta nuevamente.");
+      setCode("");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -200,6 +227,79 @@ export default function LoginPage() {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-sm"
         >
+          {mfaToken ? (
+          /* ── Second step: 2FA verification (compliance #11) ───────────── */
+          <div>
+            <div className="mb-8">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
+                style={{
+                  background: "linear-gradient(135deg, rgba(0,255,135,0.18) 0%, rgba(0,255,135,0.06) 100%)",
+                  border: "1px solid rgba(0,255,135,0.32)",
+                }}
+              >
+                <ShieldCheck className="w-6 h-6" style={{ color: "var(--brand)" }} />
+              </div>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                Verificación en dos pasos
+              </h2>
+              <p className="text-sm text-white/45 mt-1">
+                Ingresa el código de 6 dígitos de tu app de autenticación.
+              </p>
+            </div>
+
+            <form onSubmit={verifyMfa} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold tracking-wider uppercase text-white/40 mb-1.5">
+                  Código de verificación
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <input
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    placeholder="123456"
+                    maxLength={14}
+                    className="input w-full pl-10 tracking-[0.4em] font-mono text-lg"
+                  />
+                </div>
+                <p className="text-[11px] mt-1.5 text-white/30">
+                  ¿Perdiste tu teléfono? Usa uno de tus códigos de recuperación.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifying || code.replace(/\s/g, "").length < 6}
+                className="btn-primary w-full mt-2 group"
+              >
+                {verifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Verificando...
+                  </>
+                ) : (
+                  <>
+                    Verificar e ingresar
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setMfaToken(null); setCode(""); }}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white/40 hover:text-white/70 transition-colors mt-1"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Volver al inicio de sesión
+              </button>
+            </form>
+          </div>
+          ) : (
+          <>
           {/* Heading */}
           <div className="mb-8">
             <h2 className="text-2xl font-black text-white tracking-tight">
@@ -332,6 +432,8 @@ export default function LoginPage() {
               Click para autocompletar credenciales demo
             </p>
           </div>
+          </>
+          )}
         </motion.div>
       </div>
     </div>
