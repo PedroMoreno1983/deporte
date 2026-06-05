@@ -8,14 +8,14 @@ from ....schemas.prediction import PredictionScoreOut
 from ....ml.injury_risk import calculate_injury_risk
 from ....ml.performance import calculate_performance_projection
 from ....ml.load_recommendations import recommend_team
-from ....core.deps import get_current_user, get_current_club_id
+from ....core.deps import get_current_user, get_current_club_id, get_player_in_club, scoped_query
 from ....models.user import User
 
 router = APIRouter()
 
 
 @router.get("/player/{player_id}", response_model=PredictionScoreOut)
-def get_player_predictions(player_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_player_predictions(player_id: int, db: Session = Depends(get_db), _player=Depends(get_player_in_club)):
     """Recalcula y devuelve predicciones actualizadas para un jugador."""
     injury_data = calculate_injury_risk(player_id, db)
     perf_data = calculate_performance_projection(player_id, db)
@@ -38,7 +38,7 @@ def get_player_predictions(player_id: int, db: Session = Depends(get_db), _=Depe
 
 
 @router.get("/player/{player_id}/history", response_model=List[PredictionScoreOut])
-def get_prediction_history(player_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_prediction_history(player_id: int, db: Session = Depends(get_db), _player=Depends(get_player_in_club)):
     return (
         db.query(PredictionScore)
         .filter(PredictionScore.player_id == player_id)
@@ -58,10 +58,12 @@ def get_load_recommendations(
 
 
 @router.get("/team/risk-summary")
-def get_team_risk_summary(db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_team_risk_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Resumen de riesgo de todo el equipo."""
     from ....models.player import Player, PlayerStatus
-    players = db.query(Player).filter(Player.is_active == True, Player.status != PlayerStatus.INJURED).all()
+    players = scoped_query(db.query(Player), Player, current_user).filter(
+        Player.is_active == True, Player.status != PlayerStatus.INJURED
+    ).all()
     results = []
     for player in players:
         risk = calculate_injury_risk(player.id, db)

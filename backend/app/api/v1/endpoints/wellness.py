@@ -5,10 +5,10 @@ from typing import List, Optional
 from datetime import date, timedelta
 
 from ....core.database import get_db
-from ....core.deps import get_current_user, require_roles
+from ....core.deps import get_current_user, require_roles, scoped_query, get_player_in_club
 from ....models.wellness import WellnessEntry
 from ....models.player import Player, PlayerStatus
-from ....models.user import UserRole
+from ....models.user import User, UserRole
 from ....schemas.wellness import WellnessCreate, WellnessOut, WellnessTeamSummary, WellnessTeamEntry
 from ....websockets import manager, RealtimeEvent
 
@@ -87,7 +87,7 @@ def get_player_wellness(
     player_id: int,
     days: int = Query(30, ge=7, le=180),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    _player=Depends(get_player_in_club),
 ):
     since = date.today() - timedelta(days=days)
     return (
@@ -107,16 +107,16 @@ def get_team_summary(
     target_date: Optional[date] = Query(None, description="Fecha (default: hoy)"),
     category_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     if target_date is None:
         target_date = date.today()
 
-    # Jugadores activos
-    q = db.query(Player).filter(Player.status != PlayerStatus.INACTIVE)
+    # Jugadores activos (del club del usuario)
+    q = scoped_query(db.query(Player), Player, current_user).filter(Player.status != PlayerStatus.INACTIVE)
     if category_id:
         q = q.filter(Player.category_id == category_id)
-    players = q.order_by(Player.full_name).all()
+    players = q.order_by(Player.last_name, Player.first_name).all()  # full_name is a @property, not sortable
 
     # Entradas del día
     entries_today = {
@@ -171,12 +171,14 @@ def get_team_summary(
 def get_team_trend(
     days: int = Query(14, ge=7, le=60),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     since = date.today() - timedelta(days=days)
+    # WellnessEntry has no club_id; scope by the club's players.
+    player_ids = [p.id for p in scoped_query(db.query(Player.id), Player, current_user).all()]
     entries = (
         db.query(WellnessEntry)
-        .filter(WellnessEntry.entry_date >= since)
+        .filter(WellnessEntry.entry_date >= since, WellnessEntry.player_id.in_(player_ids))
         .order_by(WellnessEntry.entry_date.asc())
         .all()
     )
