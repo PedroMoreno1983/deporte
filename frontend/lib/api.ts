@@ -41,11 +41,54 @@ api.interceptors.response.use(
   }
 );
 
+export interface LoginResult {
+  mfa_required: boolean;
+  mfa_token: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_type: string;
+  user: any | null;
+  mfa_enrollment_required: boolean;
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post("/auth/login", { email, password }).then((r) => r.data),
+    api.post("/auth/login", { email, password }).then((r) => r.data as LoginResult),
+  // Second login step: exchange the challenge token + a TOTP/recovery code for a session.
+  loginVerify: (mfa_token: string, code: string) =>
+    api.post("/auth/login/verify", { mfa_token, code }).then((r) => r.data as LoginResult),
   me:          () => api.get("/auth/me").then((r) => r.data),
   permissions: () => api.get("/auth/me/permissions").then((r) => r.data as { permissions: string[] }),
+};
+
+// ── Two-factor (TOTP) enrolment & management ─────────────────────────────────
+export interface MfaStatus {
+  enabled: boolean;
+  confirmed_at: string | null;
+  recovery_codes_remaining: number;
+  enrollment_required: boolean;
+}
+export interface MfaSetup {
+  secret: string;
+  otpauth_uri: string;
+  issuer: string;
+  digits: number;
+  period: number;
+}
+export interface MfaEnableResult {
+  enabled: boolean;
+  recovery_codes: string[];
+}
+
+export const mfaApi = {
+  status:  () => api.get("/auth/mfa/status").then((r) => r.data as MfaStatus),
+  setup:   () => api.post("/auth/mfa/setup").then((r) => r.data as MfaSetup),
+  enable:  (code: string) =>
+    api.post("/auth/mfa/enable", { code }).then((r) => r.data as MfaEnableResult),
+  regenerateRecovery: (code: string) =>
+    api.post("/auth/mfa/recovery-codes", { code }).then((r) => r.data as MfaEnableResult),
+  disable: (password: string, code?: string) =>
+    api.post("/auth/mfa/disable", { password, code }).then((r) => r.data),
 };
 
 export const playersApi = {
@@ -86,11 +129,43 @@ export const injuriesApi = {
     api.patch(`/injuries/${id}`, data).then((r) => r.data),
 };
 
+// ── Spatial match analytics (xG / shot map / pass networks) ──────────────────
+export interface ShotRec {
+  x: number; y: number; xg: number; outcome: string | null;
+  is_goal: boolean; is_penalty: boolean; team: string | null;
+  player_id: number | null; minute: number | null;
+}
+export interface PassNode {
+  player_id: number; avg_x: number; avg_y: number; involvements: number; passes: number;
+}
+export interface PassEdge { from: number; to: number; count: number }
+export interface TeamAnalytics {
+  is_own_team: boolean | null;
+  shots: number; shots_on_target: number; goals: number;
+  xg_total: number; xg_per_shot: number;
+  shot_map: ShotRec[];
+  xg_timeline: { minute: number; xg: number; cumulative: number; is_goal: boolean }[];
+  passing: { total: number; completed: number; accuracy: number; progressive: number; into_final_third: number; into_box: number };
+  pass_network: { nodes: PassNode[]; edges: PassEdge[] };
+  possession_pct: number; field_tilt_pct: number; territory: number[][];
+}
+export interface MatchAnalytics {
+  meta: { n_events: number; n_shots: number; teams: string[]; own_team: string | null; territory_grid: { cols: number; rows: number } };
+  scoreline: Record<string, number>;
+  xg: Record<string, number>;
+  possession_pct: Record<string, number>;
+  teams: Record<string, TeamAnalytics>;
+  match: { id: number; date: string | null; opponent: string | null; competition: string | null; is_home: boolean | null };
+}
+
 export const matchesApi = {
   list: (params?: { category_id?: number }) =>
     api.get("/matches", { params }).then((r) => r.data),
   get: (id: number) => api.get(`/matches/${id}`).then((r) => r.data),
   create: (data: unknown) => api.post("/matches", data).then((r) => r.data),
+  // Spatial analytics bundle (xG, shot map, pass networks, possession, tilt).
+  analytics: (id: number) =>
+    api.get(`/matches/${id}/analytics`).then((r) => r.data as MatchAnalytics),
   getStats: (matchId: number) =>
     api.get(`/matches/${matchId}/stats`).then((r) => r.data),
   createStat: (data: unknown) =>

@@ -179,15 +179,28 @@ export default function MatchDetailPage() {
           iconBg="bg-yellow-500/10 border-yellow-500/20"
           className="mb-0 flex-1"
         />
-        <Link href="/matches">
-          <button
-            className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-colors"
-            style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)" }}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Partidos
-          </button>
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {match?.id != null && (
+            <Link href={`/matches/${match.id}/analytics`}>
+              <button
+                className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-colors"
+                style={{ color: "#00ff87", background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.25)" }}
+              >
+                <Target className="w-3.5 h-3.5" />
+                Analítica
+              </button>
+            </Link>
+          )}
+          <Link href="/matches">
+            <button
+              className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-colors"
+              style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)" }}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Partidos
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* ── Scoreboard hero ── */}
