@@ -9,6 +9,7 @@ import { categoriesApi, api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store";
 import { resetOnboarding } from "@/components/onboarding/OnboardingTour";
+import { TwoFactorCard } from "@/components/settings/TwoFactorCard";
 
 const ROLE_CFG: Record<string, { label: string; color: string; bg: string }> = {
   admin:         { label: "Administrador", color: "#ff3b30",  bg: "rgba(255,59,48,0.12)"   },
@@ -134,6 +135,11 @@ export default function SettingsPage() {
             )}
           </div>
         </GlowCard>
+      </motion.div>
+
+      {/* Two-factor authentication */}
+      <motion.div {...stagger(2)}>
+        <TwoFactorCard />
       </motion.div>
 
       {/* Categories */}

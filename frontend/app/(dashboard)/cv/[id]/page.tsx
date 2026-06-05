@@ -80,7 +80,7 @@ function normaliseTrack(t: RawTrack): Track {
 interface CVRow {
   id: number;
   name: string;
-  status: "queued" | "processing" | "done" | "failed";
+  status: "pending" | "processing" | "done" | "failed";
   progress: number;
   duration_s: number | null;
   frame_count: number | null;

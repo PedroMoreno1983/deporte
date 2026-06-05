@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cvApi } from "@/lib/api";
 import { useRealtime } from "@/lib/ws";
 
-type CVStatus = "queued" | "processing" | "done" | "failed";
+type CVStatus = "pending" | "processing" | "done" | "failed";
 
 interface AnalysisRow {
   id: number;
@@ -33,11 +33,15 @@ interface AnalysisRow {
 }
 
 const STATUS_META: Record<CVStatus, { color: string; label: string; icon: any }> = {
-  queued:     { color: "#94a3b8", label: "En cola",      icon: Clock },
+  pending:    { color: "#94a3b8", label: "En cola",      icon: Clock },
   processing: { color: "#0ea5e9", label: "Procesando",   icon: Loader2 },
   done:       { color: "#00ff87", label: "Listo",        icon: CheckCircle2 },
   failed:     { color: "#ff3b30", label: "Falló",        icon: XCircle },
 };
+
+// Defensive fallback: an unrecognised status (e.g. a future enum value) must
+// degrade gracefully — never crash the whole list with `undefined.icon`.
+const STATUS_FALLBACK = { color: "#94a3b8", label: "Desconocido", icon: AlertTriangle };
 
 function bytesHuman(n: number) {
   if (n < 1024) return `${n} B`;
@@ -224,7 +228,7 @@ export default function CVPage() {
           <ul className="space-y-2">
             <AnimatePresence initial={false}>
               {list.map((row, i) => {
-                const meta = STATUS_META[row.status];
+                const meta = STATUS_META[row.status] ?? STATUS_FALLBACK;
                 const Icon = meta.icon;
                 return (
                   <motion.li
