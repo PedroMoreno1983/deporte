@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from . import models  # noqa: F401  — registra todas las tablas en Base.metadata
 from .api.v1 import api_router
 from .core.database import Base, engine, ensure_schema
@@ -46,6 +47,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(AuditMiddleware)
+# Detrás del proxy HTTPS de Railway/Vercel: confiar en X-Forwarded-Proto para
+# que los redirects de "barra final" (p.ej. /matches -> /matches/) salgan en
+# https y no los bloquee el navegador por mixed-content. Sin esto, los listados
+# (rutas en la raíz del router) llegan vacíos en producción.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(ws_router)  # exposes /ws (WebSocket)
