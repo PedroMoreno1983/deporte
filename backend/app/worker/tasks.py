@@ -158,7 +158,7 @@ def daily_briefing_task() -> dict:
 
     db = SessionLocal()
     try:
-        return {"clubs": run_for_all_clubs(db, provider=provider)}
+        return {"clubs": run_for_all_clubs(db, provider=provider, notify=True)}
     finally:
         db.close()
 

@@ -203,14 +203,56 @@ def latest_briefing(db: Session, club_id: int) -> Optional[AgentBriefing]:
     )
 
 
-def run_for_all_clubs(db: Session, provider=None) -> List[Dict[str, Any]]:
-    """Generate + persist today's briefing for every club. For the scheduler."""
+def email_sections(signals: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Turn the gathered signals into alert-email sections (color-coded)."""
+    sections: List[Dict[str, Any]] = []
+    risks = [r for r in signals.get("riesgo_top", []) if r.get("nivel") in ("high", "critical")]
+    if risks:
+        sections.append({"title": f"Riesgo de lesión elevado ({len(risks)})", "color": "#f97316",
+                         "items": [{"label": r["jugador"], "value": f"{r['score']} · {r['nivel']}",
+                                    "color": "#ff3b30" if r["nivel"] == "critical" else "#f97316"} for r in risks]})
+    low = signals.get("wellness_bajo", [])
+    if low:
+        sections.append({"title": f"Bienestar bajo ({len(low)})", "color": "#f59e0b",
+                         "items": [{"label": w["jugador"], "value": f"{w['score']}/10 · {w['fecha']}",
+                                    "color": "#f59e0b"} for w in low]})
+    inj = signals.get("lesiones_activas", [])
+    if inj:
+        sections.append({"title": f"Lesiones activas ({len(inj)})", "color": "#ff3b30",
+                         "items": [{"label": i["jugador"], "value": i["tipo"] or "—", "color": "#ff3b30"} for i in inj]})
+    return sections
+
+
+def _club_recipients(db: Session, club_id: int) -> List[str]:
+    from ..models.user import User, UserRole
+    rows = (
+        db.query(User)
+        .filter(User.club_id == club_id, User.is_active == True,  # noqa: E712
+                User.role.in_([UserRole.ADMIN, UserRole.COACH]))
+        .all()
+    )
+    return [u.email for u in rows if u.email]
+
+
+def run_for_all_clubs(db: Session, provider=None, notify: bool = False) -> List[Dict[str, Any]]:
+    """Generate + persist today's briefing for every club (and optionally email
+    it to each club's admins/coaches). For the daily scheduler."""
     out = []
     for club in db.query(Club).all():
         try:
             result = generate_club_briefing(db, club.id, provider=provider)
             row = persist_briefing(db, club.id, result)
-            out.append({"club_id": club.id, "briefing_id": row.id, "headline": row.headline})
+            entry = {"club_id": club.id, "briefing_id": row.id, "headline": row.headline}
+            if notify:
+                sections = email_sections(result["data"]["signals"])
+                recipients = _club_recipients(db, club.id)
+                if sections and recipients:
+                    from ..core.email import send_bulk_alert
+                    subject = f"Briefing del plantel — {row.headline}"
+                    entry["emailed"] = send_bulk_alert(recipients, subject, sections)
+                else:
+                    entry["emailed"] = 0
+            out.append(entry)
         except Exception as exc:  # noqa: BLE001 — one club must not break the rest
             log.exception("briefing failed for club %s: %s", club.id, exc)
             out.append({"club_id": club.id, "error": str(exc)})

@@ -19,6 +19,7 @@ from app.models.wellness import WellnessEntry
 from app.models.match import Match
 from app.agent.briefing import (
     gather_signals, generate_club_briefing, persist_briefing, latest_briefing,
+    email_sections, run_for_all_clubs,
 )
 
 
@@ -72,6 +73,27 @@ def test_generate_and_persist_briefing(db):
     row2 = persist_briefing(db, 1, generate_club_briefing(db, 1, provider=None))
     assert row2.id == row.id
     assert latest_briefing(db, 1).id == row.id
+
+
+def test_email_sections_filters_and_formats():
+    sig = {
+        "riesgo_top": [{"jugador": "A", "score": 80, "nivel": "high"},
+                       {"jugador": "B", "score": 50, "nivel": "medium"}],
+        "wellness_bajo": [{"jugador": "C", "score": 3, "fecha": "2026-06-01"}],
+        "lesiones_activas": [{"jugador": "D", "tipo": "Desgarro"}],
+    }
+    secs = email_sections(sig)
+    titles = " ".join(s["title"] for s in secs)
+    assert "Riesgo" in titles and "Bienestar" in titles and "Lesiones" in titles
+    risk_labels = {i["label"] for i in secs[0]["items"]}
+    assert "A" in risk_labels and "B" not in risk_labels   # medium excluded from email
+
+
+def test_run_for_all_clubs_notify_is_safe_without_smtp(db):
+    res = run_for_all_clubs(db, provider=None, notify=True)
+    assert res and all(("emailed" in e or "error" in e) for e in res)
+    # no recipients / SMTP disabled in tests → 0 sent, no crash
+    assert all(e.get("emailed", 0) == 0 for e in res if "error" not in e)
 
 
 def test_empty_club_briefing_is_honest(db):
