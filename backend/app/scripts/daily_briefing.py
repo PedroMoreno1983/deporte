@@ -29,7 +29,7 @@ def main() -> int:
 
     db = SessionLocal()
     try:
-        results = run_for_all_clubs(db, provider=provider)
+        results = run_for_all_clubs(db, provider=provider, notify=True)
         for r in results:
             log.info("briefing %s", r)
         log.info("Listo: %d club(es).", len(results))
