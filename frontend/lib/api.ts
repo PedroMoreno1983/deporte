@@ -260,9 +260,21 @@ export interface AgentChatResult {
   tool_calls: AgentToolCall[];
   iterations: number;
 }
+export interface AgentBriefing {
+  id: number | null;
+  briefing_date: string | null;
+  headline: string | null;
+  summary: string | null;
+  data: { signals?: Record<string, unknown>; prioridades?: string[] } | null;
+  generated_by: string | null;
+}
 export const agentApi = {
   chat: (messages: { role: "user" | "assistant"; content: string }[]) =>
     api.post("/agent/chat", { messages }).then((r) => r.data as AgentChatResult),
+  getBriefing: () =>
+    api.get("/agent/briefing").then((r) => r.data as AgentBriefing | null),
+  runBriefing: () =>
+    api.post("/agent/briefing/run").then((r) => r.data as AgentBriefing),
 };
 
 export const alertsApi = {

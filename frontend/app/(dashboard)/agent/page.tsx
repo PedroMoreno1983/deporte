@@ -5,11 +5,14 @@
  * respuesta. No es un chatbot: cada número viene de una tool sobre tu BD.
  */
 import { useRef, useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentApi, type AgentToolCall } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Bot, Send, Loader2, User as UserIcon, Database, ChevronDown, Sparkles } from "lucide-react";
+import {
+  Bot, Send, Loader2, User as UserIcon, Database, ChevronDown, Sparkles,
+  ClipboardList, RefreshCw, AlertTriangle,
+} from "lucide-react";
 
 type Msg = {
   role: "user" | "assistant";
@@ -62,6 +65,8 @@ export default function AgentPage() {
         icon={Bot}
         iconColor="text-[#00ff87]"
       />
+
+      <BriefingCard />
 
       <GlowCard className="flex-1 flex flex-col mt-4 overflow-hidden p-0">
         {/* Thread */}
@@ -124,6 +129,62 @@ export default function AgentPage() {
         </div>
       </GlowCard>
     </div>
+  );
+}
+
+function BriefingCard() {
+  const qc = useQueryClient();
+  const { data: briefing, isLoading } = useQuery({
+    queryKey: ["agent-briefing"],
+    queryFn: () => agentApi.getBriefing(),
+  });
+  const run = useMutation({
+    mutationFn: () => agentApi.runBriefing(),
+    onSuccess: (b) => qc.setQueryData(["agent-briefing"], b),
+  });
+  const prios = (briefing?.data?.prioridades as string[] | undefined) ?? [];
+
+  return (
+    <GlowCard className="p-4 mt-4">
+      <div className="flex items-center gap-2 mb-2">
+        <ClipboardList className="w-4 h-4 text-[#00ff87]" />
+        <h3 className="text-sm font-bold">Briefing del plantel</h3>
+        {briefing?.briefing_date && <span className="text-[11px] text-white/40">· {briefing.briefing_date}</span>}
+        {briefing?.generated_by && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(0,255,135,0.1)", color: "#00ff87", border: "1px solid rgba(0,255,135,0.25)" }}>
+            {briefing.generated_by === "llm" ? "IA" : "auto"}
+          </span>
+        )}
+        <button onClick={() => run.mutate()} disabled={run.isPending}
+          className="ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
+          {run.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {briefing ? "Actualizar" : "Generar"}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-white/40"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>
+      ) : !briefing ? (
+        <p className="text-sm text-white/50">Todavía no hay briefing de hoy. El agente lo genera cada mañana; o tocá <strong>Generar</strong>.</p>
+      ) : (
+        <>
+          <p className="text-sm font-semibold text-white/90">{briefing.headline}</p>
+          {briefing.summary && <p className="text-sm text-white/55 mt-1 whitespace-pre-wrap leading-relaxed">{briefing.summary}</p>}
+          {prios.length > 0 && (
+            <ul className="mt-2.5 space-y-1.5">
+              {prios.map((p, i) => (
+                <li key={i} className="text-xs text-white/70 flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#f59e0b" }} />
+                  <span>{p}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </GlowCard>
   );
 }
 

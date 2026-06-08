@@ -67,6 +67,7 @@ celery_app.conf.update(
         "deporte.ml.*": {"queue": "ml"},
         "deporte.imports.*": {"queue": "imports"},
         "deporte.maintenance.*": {"queue": "maintenance"},
+        "deporte.agent.*": {"queue": "maintenance"},
     },
     # Global ceilings; the CV task overrides these with a much larger limit.
     task_soft_time_limit=30 * 60,
@@ -82,6 +83,11 @@ celery_app.conf.update(
         "reap-stale-analyses-hourly": {
             "task": "deporte.maintenance.reap_stale_analyses",
             "schedule": crontab(minute=15),
+            "options": {"queue": "maintenance"},
+        },
+        "agent-daily-briefing": {
+            "task": "deporte.agent.daily_briefing",
+            "schedule": crontab(hour=7, minute=0),   # cada mañana
             "options": {"queue": "maintenance"},
         },
     },
