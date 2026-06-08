@@ -14,3 +14,4 @@ from .wellness import WellnessEntry
 from .recovery import RecoveryRecord
 from .prediction import PredictionScore
 from .tactical import Tactical
+from .agent_briefing import AgentBriefing

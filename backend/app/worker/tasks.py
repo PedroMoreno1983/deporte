@@ -140,6 +140,29 @@ def reap_stale_analyses_task(max_age_minutes: int = 240) -> dict:
         db.close()
 
 
+# ── proactive agent (scheduled) ──────────────────────────────────────────────
+@celery_app.task(name="deporte.agent.daily_briefing")
+def daily_briefing_task() -> dict:
+    """Generate + persist today's proactive squad briefing for every club."""
+    from ..core.database import SessionLocal
+    from ..core.config import settings
+    from ..agent.briefing import run_for_all_clubs
+
+    provider = None
+    if settings.GROQ_API_KEY:
+        try:
+            from ..agent.provider import GroqProvider
+            provider = GroqProvider(api_key=settings.GROQ_API_KEY)
+        except Exception:  # noqa: BLE001 — template fallback
+            provider = None
+
+    db = SessionLocal()
+    try:
+        return {"clubs": run_for_all_clubs(db, provider=provider)}
+    finally:
+        db.close()
+
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 def _set_video_task_id(analysis_id: int, task_id: Optional[str]) -> None:
     """Persist the worker's task id on the row (best-effort) for correlation."""
