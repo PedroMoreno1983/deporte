@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, AlertTriangle, Trophy,
   Dumbbell, Brain, Settings, ChevronLeft, ChevronRight,
   LogOut, BarChart3, Map, HeartPulse, Menu, X, CalendarDays,
-  GitCompare, Video,
+  GitCompare, Video, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
@@ -36,6 +36,7 @@ const NAV_GROUPS = [
   {
     labelKey: "nav.analytics_group",
     items: [
+      { href: "/agent",           icon: Bot,        labelKey: "nav.agent",        roles: ["admin", "analyst", "coach", "kinesiologist"] },
       { href: "/analytics",       icon: BarChart3,  labelKey: "nav.analytics",    roles: ["admin", "analyst", "coach"] },
       { href: "/players/compare", icon: GitCompare, labelKey: "nav.compare",      roles: ["admin", "analyst", "coach"] },
       { href: "/predictions",     icon: Brain,      labelKey: "nav.predictions",  roles: ["admin", "analyst"] },

@@ -249,6 +249,22 @@ export const cvApi = {
   },
 };
 
+// ── Agente IA (GaaS) ─────────────────────────────────────────────────────────
+export interface AgentToolCall {
+  tool: string;
+  args: Record<string, unknown>;
+  result: unknown;
+}
+export interface AgentChatResult {
+  reply: string;
+  tool_calls: AgentToolCall[];
+  iterations: number;
+}
+export const agentApi = {
+  chat: (messages: { role: "user" | "assistant"; content: string }[]) =>
+    api.post("/agent/chat", { messages }).then((r) => r.data as AgentChatResult),
+};
+
 export const alertsApi = {
   preview: () => api.get("/alerts/preview").then((r) => r.data),
   send: (recipients: string[]) => api.post("/alerts/send", { recipients }).then((r) => r.data),
