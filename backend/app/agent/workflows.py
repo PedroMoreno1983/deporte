@@ -256,3 +256,87 @@ def render_prematch_pdf(data: Dict[str, Any], club_name: str = "Deporte FC") -> 
                             topMargin=16 * mm, bottomMargin=16 * mm, title="Informe Pre-Partido")
     doc.build(elems)
     return buf.getvalue()
+
+
+def render_prematch_docx(data: Dict[str, Any], club_name: str = "Deporte FC") -> bytes:
+    """Render the stored pre-match report to an editable Word (.docx)."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+
+    green = RGBColor(0x00, 0xC9, 0x6A)
+    s = data.get("signals", {})
+    plan = data.get("plan", {})
+
+    doc = Document()
+    doc.add_heading("Informe Pre-Partido", level=0)
+    meta = doc.add_paragraph()
+    run = meta.add_run(
+        f"{club_name} vs {data.get('opponent') or 'rival'}"
+        + (f" · {data['match_date']}" if data.get("match_date") else "")
+        + f" · generado {data.get('generated_at','')[:10]}")
+    run.italic = True
+    run.font.size = Pt(9)
+
+    def _section(title: str):
+        h = doc.add_heading(title, level=2)
+        if h.runs:
+            h.runs[0].font.color.rgb = green
+
+    if plan.get("resumen"):
+        _section("Resumen")
+        doc.add_paragraph(plan["resumen"])
+
+    _section("Disponibilidad del plantel")
+    rows = [
+        ("Plantel activo", s.get("plantel_activo", 0)),
+        ("Disponibles (estimado)", data.get("disponibles_estimados", 0)),
+        ("Lesionados activos", len(s.get("lesiones_activas", []))),
+        ("Riesgo elevado", len([r for r in s.get("riesgo_top", []) if r.get("nivel") in ("high", "critical")])),
+        ("Bienestar bajo", len(s.get("wellness_bajo", []))),
+    ]
+    t = doc.add_table(rows=0, cols=2)
+    t.style = "Light List Accent 1"
+    for k, v in rows:
+        c = t.add_row().cells
+        c[0].text, c[1].text = str(k), str(v)
+
+    form = s.get("forma_reciente", [])
+    if form:
+        _section("Forma reciente")
+        ft = doc.add_table(rows=1, cols=4)
+        ft.style = "Light Grid Accent 1"
+        hdr = ft.rows[0].cells
+        hdr[0].text, hdr[1].text, hdr[2].text, hdr[3].text = "Fecha", "Rival", "Resultado", ""
+        for f in form:
+            c = ft.add_row().cells
+            c[0].text = f.get("fecha", "")
+            c[1].text = f.get("rival", "")
+            c[2].text = f.get("resultado") or "—"
+            c[3].text = f.get("signo") or ""
+
+    if plan.get("jugadores_a_vigilar"):
+        _section("Jugadores a vigilar")
+        for x in plan["jugadores_a_vigilar"]:
+            doc.add_paragraph(str(x), style="List Bullet")
+
+    if plan.get("plan_tactico"):
+        _section("Plan de preparación")
+        for x in plan["plan_tactico"]:
+            doc.add_paragraph(str(x), style="List Bullet")
+
+    if plan.get("recomendaciones"):
+        _section("Recomendaciones")
+        for x in plan["recomendaciones"]:
+            doc.add_paragraph(str(x), style="List Bullet")
+
+    foot = doc.add_paragraph()
+    fr = foot.add_run(
+        "Generado por el agente de Deporte FC sobre datos del club. "
+        + ("Narrativa por IA." if data.get("generated_by") == "llm" else "Narrativa automática."))
+    fr.italic = True
+    fr.font.size = Pt(8)
+    fr.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
