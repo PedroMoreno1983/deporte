@@ -11,7 +11,7 @@ import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Bot, Send, Loader2, User as UserIcon, Database, ChevronDown, Sparkles,
-  ClipboardList, RefreshCw, AlertTriangle, FileDown,
+  ClipboardList, RefreshCw, AlertTriangle, FileDown, FileText,
 } from "lucide-react";
 
 type Msg = {
@@ -212,14 +212,24 @@ function MessageBubble({ msg }: { msg: Msg }) {
           const report = msg.tools
             ?.map((t) => t.result as { report_id?: number } | null)
             .find((r) => r && r.report_id);
-          return report?.report_id ? (
-            <button
-              onClick={() => agentApi.openReportPdf(report.report_id as number)}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-              style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.3)", color: "#00ff87" }}
-            >
-              <FileDown className="w-3.5 h-3.5" /> Descargar informe PDF
-            </button>
+          const rid = report?.report_id;
+          return rid ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => agentApi.openReportPdf(rid)}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.3)", color: "#00ff87" }}
+              >
+                <FileDown className="w-3.5 h-3.5" /> PDF
+              </button>
+              <button
+                onClick={() => agentApi.downloadReportDocx(rid)}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                style={{ background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.3)", color: "#93c5fd" }}
+              >
+                <FileText className="w-3.5 h-3.5" /> Word
+              </button>
+            </div>
           ) : null;
         })()}
 

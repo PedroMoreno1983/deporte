@@ -30,6 +30,7 @@ shap==0.46.0                         # TreeSHAP per-prediction explanations
 
 # ── Executive reports ─────────────────────────────────────────────────
 reportlab==4.2.2                     # board-level PDF generation (pure-Python, no native deps)
+python-docx==1.1.2                   # .docx report generation (editable Word reports)
 
 # ── Async task queue ──────────────────────────────────────────────────
 celery==5.4.0                        # distributed task queue (CV analysis, ML retrain, maintenance)

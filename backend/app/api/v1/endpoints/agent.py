@@ -18,7 +18,7 @@ from ....agent import run_agent
 from ....agent.provider import GroqProvider
 from ....agent.briefing import generate_club_briefing, persist_briefing, latest_briefing
 from ....agent.workflows import (
-    run_prematch_workflow, get_report, latest_reports, render_prematch_pdf,
+    run_prematch_workflow, get_report, latest_reports, render_prematch_pdf, render_prematch_docx,
 )
 
 router = APIRouter()
@@ -137,6 +137,7 @@ class ReportOut(BaseModel):
     subject: Optional[str] = None
     created_at: Optional[str] = None
     download_pdf: str
+    download_docx: str
 
 
 def _report_out(row) -> ReportOut:
@@ -144,6 +145,7 @@ def _report_out(row) -> ReportOut:
         id=row.id, kind=row.kind, title=row.title, subject=row.subject,
         created_at=row.created_at.isoformat() if row.created_at else None,
         download_pdf=f"/api/v1/agent/report/{row.id}.pdf",
+        download_docx=f"/api/v1/agent/report/{row.id}.docx",
     )
 
 
@@ -182,4 +184,24 @@ def download_report_pdf(
     return Response(
         content=pdf, media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="informe_{report_id}.pdf"'},
+    )
+
+
+@router.get("/report/{report_id}.docx")
+def download_report_docx(
+    report_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    club_id = _club_id_or_400(current_user)
+    row = get_report(db, club_id, report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Informe no encontrado")
+    club = db.query(Club).filter(Club.id == club_id).first()
+    try:
+        docx_bytes = render_prematch_docx(row.data or {}, club_name=club.name if club else "Deporte FC")
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Generación de Word no disponible (python-docx).")
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="informe_{report_id}.docx"'},
     )

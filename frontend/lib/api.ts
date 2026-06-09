@@ -282,6 +282,16 @@ export const agentApi = {
     window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   },
+  // Download a generated report as editable Word (.docx).
+  downloadReportDocx: async (reportId: number) => {
+    const res = await api.get(`/agent/report/${reportId}.docx`, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data as Blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `informe_${reportId}.docx`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
 };
 
 export const alertsApi = {

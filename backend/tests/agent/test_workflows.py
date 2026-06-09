@@ -18,7 +18,7 @@ from app.models.category import Category
 from app.models.player import Player, PlayerPosition
 from app.models.match import Match
 from app.agent.workflows import (
-    build_prematch_report, run_prematch_workflow, render_prematch_pdf, get_report,
+    build_prematch_report, run_prematch_workflow, render_prematch_pdf, render_prematch_docx, get_report,
 )
 from app.agent.tools import _generar_informe_pre_partido
 
@@ -69,6 +69,13 @@ def test_render_pdf_returns_pdf_bytes(db):
     pdf = render_prematch_pdf(data, club_name="Mi Club")
     assert isinstance(pdf, (bytes, bytearray)) and pdf[:4] == b"%PDF"
     assert len(pdf) > 1000
+
+
+def test_render_docx_returns_docx_bytes(db):
+    data = build_prematch_report(db, club_id=1, provider=None)
+    blob = render_prematch_docx(data, club_name="Mi Club")
+    assert isinstance(blob, (bytes, bytearray)) and blob[:2] == b"PK"   # .docx is a zip
+    assert len(blob) > 1000
 
 
 def test_run_workflow_persists_report(db):
