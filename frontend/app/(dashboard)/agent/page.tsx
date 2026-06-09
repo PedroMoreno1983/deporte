@@ -11,7 +11,7 @@ import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Bot, Send, Loader2, User as UserIcon, Database, ChevronDown, Sparkles,
-  ClipboardList, RefreshCw, AlertTriangle,
+  ClipboardList, RefreshCw, AlertTriangle, FileDown,
 } from "lucide-react";
 
 type Msg = {
@@ -206,6 +206,22 @@ function MessageBubble({ msg }: { msg: Msg }) {
           }}>
           {msg.content}
         </div>
+
+        {/* Generated report → download button */}
+        {!isUser && (() => {
+          const report = msg.tools
+            ?.map((t) => t.result as { report_id?: number } | null)
+            .find((r) => r && r.report_id);
+          return report?.report_id ? (
+            <button
+              onClick={() => agentApi.openReportPdf(report.report_id as number)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.3)", color: "#00ff87" }}
+            >
+              <FileDown className="w-3.5 h-3.5" /> Descargar informe PDF
+            </button>
+          ) : null;
+        })()}
 
         {/* Data transparency: which tools/data backed this answer */}
         {!isUser && msg.tools && msg.tools.length > 0 && (

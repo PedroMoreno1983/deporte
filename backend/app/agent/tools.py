@@ -197,6 +197,31 @@ def _wellness_plantel(db: Session, user: Any, args: Dict[str, Any]) -> Any:
     return {"dias": days, "registros": items, "alertas_bajo_bienestar": alerts}
 
 
+def _generar_informe_pre_partido(db: Session, user: Any, args: Dict[str, Any]) -> Any:
+    """Action workflow: build + persist a pre-match report; return a download ref."""
+    club_id = getattr(user, "club_id", None)
+    if not club_id:
+        return {"error": "Tu usuario no tiene un club asignado."}
+    from ..core.config import settings
+    from .workflows import run_prematch_workflow
+    provider = None
+    if settings.GROQ_API_KEY:
+        try:
+            from .provider import GroqProvider
+            provider = GroqProvider(api_key=settings.GROQ_API_KEY)
+        except Exception:  # noqa: BLE001 — template fallback
+            provider = None
+    row = run_prematch_workflow(
+        db, club_id, opponent=args.get("opponent"), match_id=args.get("match_id"),
+        provider=provider, created_by=getattr(user, "id", None),
+    )
+    return {
+        "report_id": row.id, "titulo": row.title,
+        "resumen": (row.data or {}).get("plan", {}).get("resumen"),
+        "descarga_pdf": f"/api/v1/agent/report/{row.id}.pdf",
+    }
+
+
 # ── registry ──────────────────────────────────────────────────────────────────
 
 def build_tools() -> List[Tool]:
@@ -236,6 +261,14 @@ def build_tools() -> List[Tool]:
              "Bienestar reciente del plantel y alertas de jugadores con score bajo.",
              {"type": "object", "properties": {"dias": {"type": "integer", "description": "Ventana en días (máx 30)"}}},
              _wellness_plantel),
+        Tool("generar_informe_pre_partido",
+             "ACCIÓN: arma y guarda un informe pre-partido (disponibilidad, riesgo, forma, plan) "
+             "y devuelve un link de descarga en PDF. Usalo cuando pidan preparar/armar un informe "
+             "para un partido. Indicá el rival (opponent) o el match_id si lo sabés.",
+             {"type": "object", "properties": {
+                 "opponent": {"type": "string", "description": "Nombre del rival"},
+                 "match_id": {"type": "integer", "description": "Id del partido (opcional)"}}},
+             _generar_informe_pre_partido),
     ]
 
 

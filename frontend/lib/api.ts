@@ -275,6 +275,13 @@ export const agentApi = {
     api.get("/agent/briefing").then((r) => r.data as AgentBriefing | null),
   runBriefing: () =>
     api.post("/agent/briefing/run").then((r) => r.data as AgentBriefing),
+  // Open a generated report PDF (authenticated fetch → blob → new tab).
+  openReportPdf: async (reportId: number) => {
+    const res = await api.get(`/agent/report/${reportId}.pdf`, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data as Blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
 };
 
 export const alertsApi = {

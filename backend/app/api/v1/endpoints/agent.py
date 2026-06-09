@@ -6,16 +6,20 @@ tools/data used (transparency), so the UI can show what backed each answer.
 """
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ....core.database import get_db
 from ....core.deps import get_current_user
 from ....core.config import settings
+from ....models.club import Club
 from ....agent import run_agent
 from ....agent.provider import GroqProvider
 from ....agent.briefing import generate_club_briefing, persist_briefing, latest_briefing
+from ....agent.workflows import (
+    run_prematch_workflow, get_report, latest_reports, render_prematch_pdf,
+)
 
 router = APIRouter()
 
@@ -117,3 +121,65 @@ def run_briefing_now(db: Session = Depends(get_db), current_user=Depends(get_cur
     club_id = _club_id_or_400(current_user)
     result = generate_club_briefing(db, club_id, provider=_provider_or_none())
     return _briefing_out(persist_briefing(db, club_id, result))
+
+
+# ── Workflows que actúan: informe pre-partido (level 3) ───────────────────────
+
+class PrematchRequest(BaseModel):
+    opponent: Optional[str] = None
+    match_id: Optional[int] = None
+
+
+class ReportOut(BaseModel):
+    id: int
+    kind: str
+    title: Optional[str] = None
+    subject: Optional[str] = None
+    created_at: Optional[str] = None
+    download_pdf: str
+
+
+def _report_out(row) -> ReportOut:
+    return ReportOut(
+        id=row.id, kind=row.kind, title=row.title, subject=row.subject,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+        download_pdf=f"/api/v1/agent/report/{row.id}.pdf",
+    )
+
+
+@router.post("/report/prematch", response_model=ReportOut)
+def create_prematch_report(
+    body: PrematchRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    """Workflow: arma + persiste un informe pre-partido para tu club."""
+    club_id = _club_id_or_400(current_user)
+    row = run_prematch_workflow(
+        db, club_id, opponent=body.opponent, match_id=body.match_id,
+        provider=_provider_or_none(), created_by=getattr(current_user, "id", None),
+    )
+    return _report_out(row)
+
+
+@router.get("/reports", response_model=List[ReportOut])
+def list_reports(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    club_id = _club_id_or_400(current_user)
+    return [_report_out(r) for r in latest_reports(db, club_id)]
+
+
+@router.get("/report/{report_id}.pdf")
+def download_report_pdf(
+    report_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    club_id = _club_id_or_400(current_user)
+    row = get_report(db, club_id, report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Informe no encontrado")
+    club = db.query(Club).filter(Club.id == club_id).first()
+    try:
+        pdf = render_prematch_pdf(row.data or {}, club_name=club.name if club else "Deporte FC")
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Generación de PDF no disponible (reportlab).")
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="informe_{report_id}.pdf"'},
+    )
