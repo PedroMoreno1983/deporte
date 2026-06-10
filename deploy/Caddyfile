@@ -1,0 +1,12 @@
+# Caddy reverse proxy for the Deporte FC backend.
+# Caddy obtains + renews a Let's Encrypt certificate automatically.
+# WebSocket traffic (/ws) passes through reverse_proxy transparently.
+#
+# Requires a DNS A record:  deporte-api.datawiseconsultoria.com -> 72.62.12.242
+# Install Caddy on the VPS (Debian) and place this file at /etc/caddy/Caddyfile.
+
+deporte-api.datawiseconsultoria.com {
+	encode zstd gzip
+	# The API container publishes port 8000 on the host (see docker-compose.prod.yml).
+	reverse_proxy localhost:8000
+}
