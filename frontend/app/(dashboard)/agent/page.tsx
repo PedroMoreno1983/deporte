@@ -7,12 +7,9 @@
 import { useRef, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentApi, type AgentToolCall } from "@/lib/api";
-import { GlowCard } from "@/components/ui/GlowCard";
-import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  Bot, Send, Loader2, User as UserIcon, Database, ChevronDown, Sparkles,
-  ClipboardList, RefreshCw, AlertTriangle, FileDown, FileText,
-} from "lucide-react";
+import { Loader2, Database, ChevronDown, RefreshCw, AlertTriangle, FileDown, FileText } from "lucide-react";
+import { PageTitle, Card } from "@/components/lupi/viz";
+import { Note } from "@/components/lupi/primitives";
 
 type Msg = {
   role: "user" | "assistant";
@@ -58,76 +55,56 @@ export default function AgentPage() {
   }
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-2rem)]">
-      <PageHeader
-        title="Agente de datos"
-        subtitle="Preguntá en lenguaje natural — responde con tus datos reales, citando la fuente"
-        icon={Bot}
-        iconColor="text-[#00ff87]"
-      />
+    <div className="screen">
+      <PageTitle title="Asistente" subtitle="preguntas en voz alta, respuestas con los datos reales del plantel" />
 
       <BriefingCard />
 
-      <GlowCard className="flex-1 flex flex-col mt-4 overflow-hidden p-0">
-        {/* Thread */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <Card kicker="Cada número viene de una consulta a tu base" title="Asistente táctico">
+        <div className="chat">
+          <div className="chat-log">
+            {messages.length === 0 && (
+              <Note style={{ fontSize: 16.5, opacity: 0.8, display: "block", padding: "8px 2px" }}>
+                Preguntale al agente sobre tu plantel. Solo responde con datos que existen en tu base — nunca inventa.
+              </Note>
+            )}
+
+            {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
+
+            {chat.isPending && (
+              <div className="bubble bot" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span className="bubble-mark" />
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--terracotta)" }} />
+                <span className="bubble-text">consultando tus datos…</span>
+              </div>
+            )}
+            <div ref={endRef} />
+          </div>
+
           {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center gap-4">
-              <div className="p-3 rounded-2xl" style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)" }}>
-                <Sparkles className="w-7 h-7 text-[#00ff87]" />
-              </div>
-              <div>
-                <p className="text-white/80 font-semibold">Preguntale al agente sobre tu plantel</p>
-                <p className="text-white/40 text-sm mt-1">Solo responde con datos que existen en tu base — nunca inventa.</p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-2 max-w-2xl w-full mt-2">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => send(s)}
-                    className="text-left text-sm px-3 py-2.5 rounded-xl transition-colors"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
-                    {s}
-                  </button>
-                ))}
-              </div>
+            <div className="chat-suggest">
+              {SUGGESTIONS.map((s) => (
+                <button key={s} className="chip" onClick={() => send(s)}>{s}</button>
+              ))}
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <MessageBubble key={i} msg={m} />
-          ))}
-
-          {chat.isPending && (
-            <div className="flex items-center gap-2 text-sm text-white/50">
-              <Bot className="w-4 h-4 text-[#00ff87]" />
-              <Loader2 className="w-4 h-4 animate-spin" /> Consultando tus datos…
-            </div>
-          )}
-          <div ref={endRef} />
-        </div>
-
-        {/* Composer */}
-        <div className="p-3 border-t" style={{ borderColor: "var(--border-subtle)" }}>
-          <div className="flex items-end gap-2">
+          <div className="chat-input">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
               rows={1}
               placeholder="Escribí tu pregunta… (Enter para enviar)"
-              className="flex-1 resize-none px-3 py-2.5 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", maxHeight: 120 }}
+              className="chat-field"
+              style={{ resize: "none", maxHeight: 120 }}
             />
-            <button
-              onClick={() => send(input)}
-              disabled={!input.trim() || chat.isPending}
-              className="p-2.5 rounded-xl transition-all disabled:opacity-40 shrink-0"
-              style={{ background: "var(--brand)", color: "#04140c" }}
-            >
-              {chat.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            <button className="chat-send" onClick={() => send(input)} disabled={!input.trim() || chat.isPending}>
+              {chat.isPending ? "…" : "Enviar"}
             </button>
           </div>
         </div>
-      </GlowCard>
+      </Card>
     </div>
   );
 }
@@ -145,38 +122,40 @@ function BriefingCard() {
   const prios = (briefing?.data?.prioridades as string[] | undefined) ?? [];
 
   return (
-    <GlowCard className="p-4 mt-4">
-      <div className="flex items-center gap-2 mb-2">
-        <ClipboardList className="w-4 h-4 text-[#00ff87]" />
-        <h3 className="text-sm font-bold">Briefing del plantel</h3>
-        {briefing?.briefing_date && <span className="text-[11px] text-white/40">· {briefing.briefing_date}</span>}
+    <Card
+      kicker="Lo que el cuerpo técnico debería mirar hoy"
+      title="Briefing del plantel"
+      note={briefing?.briefing_date ?? undefined}
+    >
+      <div className="filter-bar" style={{ marginBottom: 10 }}>
         {briefing?.generated_by && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full"
-            style={{ background: "rgba(0,255,135,0.1)", color: "#00ff87", border: "1px solid rgba(0,255,135,0.25)" }}>
-            {briefing.generated_by === "llm" ? "IA" : "auto"}
-          </span>
+          <span className="chip is-on">{briefing.generated_by === "llm" ? "IA" : "auto"}</span>
         )}
-        <button onClick={() => run.mutate()} disabled={run.isPending}
-          className="ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
+        <button onClick={() => run.mutate()} disabled={run.isPending} className="chip" style={{ marginLeft: "auto" }}>
           {run.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           {briefing ? "Actualizar" : "Generar"}
         </button>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-white/40"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>
+        <Note style={{ fontSize: 16, opacity: 0.7 }}>cargando…</Note>
       ) : !briefing ? (
-        <p className="text-sm text-white/50">Todavía no hay briefing de hoy. El agente lo genera cada mañana; o tocá <strong>Generar</strong>.</p>
+        <Note style={{ fontSize: 16, opacity: 0.8 }}>
+          Todavía no hay briefing de hoy. El agente lo genera cada mañana; o tocá <b>Generar</b>.
+        </Note>
       ) : (
         <>
-          <p className="text-sm font-semibold text-white/90">{briefing.headline}</p>
-          {briefing.summary && <p className="text-sm text-white/55 mt-1 whitespace-pre-wrap leading-relaxed">{briefing.summary}</p>}
+          <p style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 18, color: "var(--ink)" }}>{briefing.headline}</p>
+          {briefing.summary && (
+            <p style={{ fontFamily: "var(--serif)", fontSize: 16, color: "var(--ink-soft)", marginTop: 4, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+              {briefing.summary}
+            </p>
+          )}
           {prios.length > 0 && (
-            <ul className="mt-2.5 space-y-1.5">
+            <ul style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
               {prios.map((p, i) => (
-                <li key={i} className="text-xs text-white/70 flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#f59e0b" }} />
+                <li key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontFamily: "var(--serif)", fontSize: 15, color: "var(--ink-soft)" }}>
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--ochre)" }} />
                   <span>{p}</span>
                 </li>
               ))}
@@ -184,78 +163,56 @@ function BriefingCard() {
           )}
         </>
       )}
-    </GlowCard>
+    </Card>
   );
 }
 
 function MessageBubble({ msg }: { msg: Msg }) {
   const [showData, setShowData] = useState(false);
   const isUser = msg.role === "user";
+
+  const report = !isUser
+    ? msg.tools?.map((t) => t.result as { report_id?: number } | null).find((r) => r && r.report_id)
+    : undefined;
+  const rid = report?.report_id;
+
   return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
-      <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-        style={{ background: isUser ? "rgba(255,255,255,0.06)" : "rgba(0,255,135,0.12)" }}>
-        {isUser ? <UserIcon className="w-4 h-4 text-white/60" /> : <Bot className="w-4 h-4 text-[#00ff87]" />}
-      </div>
-      <div className={`max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
-        <div className="px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed"
-          style={{
-            background: isUser ? "rgba(0,255,135,0.10)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${isUser ? "rgba(0,255,135,0.2)" : "var(--border-subtle)"}`,
-            color: "var(--text-primary)",
-          }}>
-          {msg.content}
+    <div className={"bubble " + (isUser ? "user" : "bot")}>
+      {!isUser && <span className="bubble-mark" />}
+      <span className="bubble-text">{msg.content}</span>
+
+      {rid && (
+        <div className="filter-bar" style={{ marginTop: 10 }}>
+          <button onClick={() => agentApi.openReportPdf(rid)} className="chip">
+            <FileDown className="w-3.5 h-3.5" /> PDF
+          </button>
+          <button onClick={() => agentApi.downloadReportDocx(rid)} className="chip">
+            <FileText className="w-3.5 h-3.5" /> Word
+          </button>
         </div>
+      )}
 
-        {/* Generated report → download button */}
-        {!isUser && (() => {
-          const report = msg.tools
-            ?.map((t) => t.result as { report_id?: number } | null)
-            .find((r) => r && r.report_id);
-          const rid = report?.report_id;
-          return rid ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => agentApi.openReportPdf(rid)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.3)", color: "#00ff87" }}
-              >
-                <FileDown className="w-3.5 h-3.5" /> PDF
-              </button>
-              <button
-                onClick={() => agentApi.downloadReportDocx(rid)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.3)", color: "#93c5fd" }}
-              >
-                <FileText className="w-3.5 h-3.5" /> Word
-              </button>
+      {!isUser && msg.tools && msg.tools.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <button onClick={() => setShowData((v) => !v)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--hand)", fontSize: 14, color: "var(--ink-faint)", cursor: "pointer" }}>
+            <Database className="w-3 h-3" />
+            {msg.tools.length} consulta{msg.tools.length > 1 ? "s" : ""} a tus datos
+            <ChevronDown className={"w-3 h-3 transition-transform" + (showData ? " rotate-180" : "")} />
+          </button>
+          {showData && (
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+              {msg.tools.map((tc, i) => (
+                <div key={i} style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, borderRadius: 8, padding: 8, overflowX: "auto",
+                  background: "rgba(44,38,32,0.06)", border: "1px solid var(--rule)", color: "var(--ink-soft)" }}>
+                  <span style={{ color: "var(--terracotta)" }}>{tc.tool}</span>({JSON.stringify(tc.args)})
+                  <div style={{ color: "var(--ink-faint)", marginTop: 2 }}>{JSON.stringify(tc.result)}</div>
+                </div>
+              ))}
             </div>
-          ) : null;
-        })()}
-
-        {/* Data transparency: which tools/data backed this answer */}
-        {!isUser && msg.tools && msg.tools.length > 0 && (
-          <div className="w-full">
-            <button onClick={() => setShowData((v) => !v)}
-              className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 transition-colors">
-              <Database className="w-3 h-3" />
-              {msg.tools.length} consulta{msg.tools.length > 1 ? "s" : ""} a tus datos
-              <ChevronDown className={`w-3 h-3 transition-transform ${showData ? "rotate-180" : ""}`} />
-            </button>
-            {showData && (
-              <div className="mt-1.5 space-y-1.5">
-                {msg.tools.map((tc, i) => (
-                  <div key={i} className="text-[11px] font-mono rounded-lg p-2 overflow-x-auto"
-                    style={{ background: "rgba(0,0,0,0.25)", border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
-                    <span className="text-[#00ff87]">{tc.tool}</span>({JSON.stringify(tc.args)})
-                    <div className="text-white/40 mt-0.5 line-clamp-3">{JSON.stringify(tc.result)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

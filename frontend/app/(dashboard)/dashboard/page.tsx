@@ -1,288 +1,58 @@
-﻿"use client";
+"use client";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { analyticsApi, predictionsApi } from "@/lib/api";
-import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
-import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+import { playersApi, predictionsApi, injuriesApi, analyticsApi, matchesApi } from "@/lib/api";
 import {
-  Users, AlertTriangle, Trophy, ShieldCheck,
-  HeartPulse, Target, Zap, TrendingUp,
-} from "lucide-react";
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-} from "recharts";
-import Link from "next/link";
-
-const STATUS_COLORS: Record<string, string> = {
-  available:  "#00ff87",
-  injured:    "#ff3b30",
-  recovering: "#F97316",
-  suspended:  "#F59E0B",
-  inactive:   "#64748b",
-};
-const STATUS_LABELS: Record<string, string> = {
-  available: "Disponible", injured: "Lesionado",
-  recovering: "Recuperación", suspended: "Suspendido", inactive: "Inactivo",
-};
-
-const RISK_COLOR: Record<string, string> = {
-  low: "#00ff87", medium: "#F59E0B", high: "#F97316", critical: "#ff3b30",
-};
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div
-      className="rounded-xl px-3 py-2 text-xs"
-      style={{ background: "var(--surface-3)", border: "1px solid var(--border-medium)" }}
-    >
-      <p className="font-semibold mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} className="font-bold" style={{ color: p.color ?? p.fill }}>
-          {p.name ?? ""}: {p.value}
-        </p>
-      ))}
-    </div>
-  );
-};
+  adaptRoster, adaptInjuries, groupInjuriesByMonth, buildDashboard, adaptMatches, avgDaysOut,
+} from "@/lib/lupi-adapters";
+import { SAMPLE_WELLNESS_WEEK } from "@/lib/lupi-fallbacks";
+import type { LupiPlayer } from "@/lib/lupi";
+import { PageTitle, SquadConstellation, InjuryTimeline, RiskLedger, WellnessWeek, MatchesRibbon, Marginalia } from "@/components/lupi/viz";
 
 export default function DashboardPage() {
-  const { data: dash, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => analyticsApi.dashboard(),
+  const [selected, setSelected] = useState<LupiPlayer | null>(null);
+
+  const { data: players } = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
+  const { data: teamRisk } = useQuery({ queryKey: ["team-risk"], queryFn: () => predictionsApi.teamRisk() });
+  const { data: activeInjuries } = useQuery({ queryKey: ["active-injuries"], queryFn: () => injuriesApi.getActive() });
+  const { data: injuryStats } = useQuery({ queryKey: ["injury-stats"], queryFn: () => analyticsApi.injuryStats() });
+  const { data: matchesRaw } = useQuery({ queryKey: ["matches"], queryFn: () => matchesApi.list() });
+
+  const roster = adaptRoster(players, teamRisk);
+  const injuries = adaptInjuries(activeInjuries);
+  const byMonth = groupInjuriesByMonth(injuries);
+
+  const matches = adaptMatches(matchesRaw)
+    .slice()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+  const recentMatches = matches.filter((m) => m.played).length;
+
+  const stats = injuryStats as { avg_days_out?: number } | undefined;
+  const dash = buildDashboard(roster, {
+    avgDaysOut: stats?.avg_days_out ? Math.round(stats.avg_days_out) : avgDaysOut(injuries),
+    recentMatches,
   });
-  const { data: teamRisk } = useQuery({
-    queryKey: ["team-risk"],
-    queryFn: () => predictionsApi.teamRisk(),
-  });
-  const { data: injuryStats } = useQuery({
-    queryKey: ["injury-stats"],
-    queryFn: () => analyticsApi.injuryStats(),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-10 w-52 skeleton rounded-xl" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="skeleton h-28 rounded-[14px]" style={{ animationDelay: `${i * 0.1}s` }} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="skeleton h-64 md:col-span-2 rounded-[14px]" />
-          <div className="skeleton h-64 rounded-[14px]" />
-        </div>
-      </div>
-    );
-  }
-
-  const statusData = dash?.by_status
-    ? Object.entries(dash.by_status).map(([name, value]) => ({
-        name: STATUS_LABELS[name] ?? name,
-        value: value as number,
-        fill: STATUS_COLORS[name] ?? "#64748b",
-      }))
-    : [];
-
-  const topRisk = ((teamRisk ?? []) as Array<{
-    player_id: number; player_name: string; risk_score: number; risk_level: string;
-  }>).slice(0, 5);
-
-  const monthData = injuryStats?.by_month
-    ? Object.entries(injuryStats.by_month).slice(-6).map(([k, v]) => ({
-        month: k.slice(5),
-        injuries: v as number,
-      }))
-    : [];
-
-  const availRate  = dash?.availability_rate ?? 0;
-  const availColor = availRate >= 80 ? "#00ff87" : availRate >= 60 ? "#F59E0B" : "#ff3b30";
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        subtitle="Resumen general del equipo"
-        action={
-          <span
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border"
-            style={{
-              color: "var(--brand)",
-              background: "rgba(0,255,135,0.08)",
-              borderColor: "rgba(0,255,135,0.2)",
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: "var(--brand)" }}
-            />
-            En tiempo real
-          </span>
-        }
-      />
+    <div className="screen">
+      <PageTitle title="Resumen del equipo" subtitle="todo el plantel en una sola página, como un diario">
+        <span className="live-tag"><span className="live-dot" /> en vivo</span>
+      </PageTitle>
 
-      {/* KPIs */}
-      <div data-tour-id="kpi-row" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Hero: Disponibilidad */}
-        <Card variant="highlight" className="sm:col-span-2 flex items-center gap-5">
-          <div
-            className="shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${availColor}20 0%, ${availColor}08 100%)`,
-              border: `1px solid ${availColor}30`,
-              boxShadow: `0 0 16px ${availColor}20`,
-            }}
-          >
-            <ShieldCheck className="w-7 h-7" style={{ color: availColor }} />
-          </div>
-          <div className="flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
-              Disponibilidad del plantel
-            </p>
-            <div className="flex items-baseline gap-2">
-              <AnimatedCounter
-                value={availRate}
-                decimals={1}
-                suffix="%"
-                className="text-4xl font-black text-white tabular-nums"
-              />
-              <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                {dash?.available ?? 0} / {dash?.total_players ?? 0} jugadores
-              </span>
-            </div>
-            <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <div
-                className="h-full rounded-full transition-all duration-1000"
-                style={{ width: `${availRate}%`, background: `linear-gradient(90deg, ${availColor}, ${availColor}99)` }}
-              />
-            </div>
-          </div>
-        </Card>
+      <SquadConstellation roster={roster} dash={dash} selected={selected} onSelect={setSelected} />
 
-        <StatCard label="Lesiones activas"  value={dash?.active_injuries ?? 0} icon={AlertTriangle} color="#ff3b30" />
-        <StatCard label="Partidos (30d)"    value={dash?.recent_matches ?? 0}  icon={Trophy}        color="#F59E0B" />
+      <div className="grid-2-1">
+        <InjuryTimeline byMonth={byMonth} note="el semestre, lesión a lesión" />
+        <RiskLedger roster={roster} onSelect={(p) => setSelected(p)} />
       </div>
 
-      {/* Charts + Risk */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Pie estado */}
-        <Card>
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-            Estado del plantel
-          </p>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%" cy="50%"
-                innerRadius={38} outerRadius={58}
-                dataKey="value" paddingAngle={3} strokeWidth={0}
-              >
-                {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-2">
-            {statusData.map((item) => (
-              <div key={item.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: item.fill }} />
-                  <span style={{ color: "var(--text-muted)" }}>{item.name}</span>
-                </div>
-                <span className="font-bold text-white">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Tendencia lesiones */}
-        <Card>
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-            Tendencia de lesiones (6m)
-          </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={monthData}>
-              <defs>
-                <linearGradient id="injGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#ff3b30" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#ff3b30" stopOpacity={0}   />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone" dataKey="injuries" name="Lesiones"
-                stroke="#ff3b30" strokeWidth={2} fill="url(#injGrad)"
-                dot={{ fill: "#ff3b30", r: 3, strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Top riesgo */}
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-4 h-4" style={{ color: "var(--purple)" }} />
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-              Mayor riesgo de lesión
-            </p>
-          </div>
-          {topRisk.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-sm" style={{ color: "var(--text-muted)" }}>
-              Sin datos disponibles
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {topRisk.map((p) => {
-                const color = RISK_COLOR[p.risk_level] ?? "#64748b";
-                return (
-                  <Link key={p.player_id} href={`/players/${p.player_id}`}>
-                    <div
-                      className="flex items-center gap-3 p-2.5 rounded-xl transition-colors cursor-pointer"
-                      style={{ background: "rgba(255,255,255,0.02)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                    >
-                      {/* Initials avatar */}
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0"
-                        style={{ background: `${color}15`, border: `1px solid ${color}28`, color }}
-                      >
-                        {p.player_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-white/80 truncate">{p.player_name}</p>
-                        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${p.risk_score}%`, background: color }}
-                          />
-                        </div>
-                      </div>
-                      <Badge variant="risk" value={p.risk_level} />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+      <div className="grid-1-1">
+        <WellnessWeek data={SAMPLE_WELLNESS_WEEK} />
+        <MatchesRibbon matches={matches} />
       </div>
 
-      {/* Bottom stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total jugadores"   value={dash?.total_players ?? 0}              icon={Users}      color="#00ff87" />
-        <StatCard label="En recuperación"   value={dash?.recovering ?? 0}                 icon={HeartPulse} color="#F97316" />
-        <StatCard label="Suspendidos"        value={dash?.suspended ?? 0}                  icon={AlertTriangle} color="#F59E0B" />
-        <StatCard label="Días prom. de baja" value={injuryStats?.avg_days_out ?? 0}        icon={Target}     color="#A855F7" />
-      </div>
+      <Marginalia dash={dash} />
     </div>
   );
 }

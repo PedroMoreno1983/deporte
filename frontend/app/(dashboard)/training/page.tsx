@@ -1,414 +1,153 @@
-﻿"use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
-import { trainingApi, playersApi } from "@/lib/api";
+"use client";
 import { useState } from "react";
-import { GlowCard } from "@/components/ui/GlowCard";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
-import { Dumbbell, Plus, ChevronDown, X, Loader2, TrendingUp, Zap, Activity } from "lucide-react";
-import { toast } from "sonner";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, ReferenceLine, LineChart, Line, Legend,
-} from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { trainingApi, playersApi } from "@/lib/api";
+import { TRAIN_TYPE, TRAINING_WEEKS, WEEK_PLAN } from "@/lib/lupi-fallbacks";
+import { PageTitle, Card } from "@/components/lupi/viz";
+import { Note } from "@/components/lupi/primitives";
 
-const SESSION_TYPES = [
-  { value: "training",  label: "Entrenamiento", color: "#00ff87" },
-  { value: "match",     label: "Partido",       color: "#F59E0B" },
-  { value: "gym",       label: "Gimnasio",       color: "#A855F7" },
-  { value: "recovery",  label: "Recuperación",   color: "#0ea5e9" },
-];
-
-const ACWR_ZONES = [
-  { min: 0,    max: 0.8,  label: "Sub-carga",    color: "#0ea5e9" },
-  { min: 0.8,  max: 1.3,  label: "Zona óptima",  color: "#00ff87" },
-  { min: 1.3,  max: 1.5,  label: "Precaución",   color: "#F59E0B" },
-  { min: 1.5,  max: 99,   label: "Zona de riesgo", color: "#ff3b30" },
-];
-
-function getZone(acwr?: number | null) {
-  if (!acwr) return ACWR_ZONES[0];
-  return ACWR_ZONES.find(z => acwr >= z.min && acwr < z.max) ?? ACWR_ZONES[3];
-}
-
-const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl outline-none transition-all focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
-const inputStyle = { background: "var(--surface-3)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" };
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "var(--surface-2)", border: "1px solid var(--border-medium)" }}>
-      <p className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} className="font-bold" style={{ color: p.color }}>{p.name}: {typeof p.value === "number" ? p.value.toFixed(2) : p.value}</p>
-      ))}
-    </div>
-  );
+const SESSION_LABEL: Record<string, string> = {
+  training: "entrenamiento", match: "partido", gym: "gimnasio", recovery: "recuperación",
 };
 
+const ACWR_ZONES = [
+  { min: 0,   max: 0.8, label: "sub-carga",  color: "var(--slate)" },
+  { min: 0.8, max: 1.3, label: "óptima",     color: "var(--pine)" },
+  { min: 1.3, max: 1.5, label: "precaución", color: "var(--ochre)" },
+  { min: 1.5, max: 99,  label: "riesgo",     color: "var(--terracotta)" },
+];
+function getZone(acwr?: number | null) {
+  if (!acwr) return ACWR_ZONES[0];
+  return ACWR_ZONES.find((z) => acwr >= z.min && acwr < z.max) ?? ACWR_ZONES[3];
+}
+
 export default function TrainingPage() {
-  const qc = useQueryClient();
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    session_date: new Date().toISOString().split("T")[0],
-    session_type: "training",
-    duration_minutes: "90",
-    rpe: "6",
-    total_distance_m: "",
-  });
 
   const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
   const { data: sessions = [] } = useQuery({
     queryKey: ["training", selectedPlayer],
-    queryFn: () => selectedPlayer ? trainingApi.getByPlayer(selectedPlayer) : Promise.resolve([]),
+    queryFn: () => (selectedPlayer ? trainingApi.getByPlayer(selectedPlayer) : Promise.resolve([])),
     enabled: !!selectedPlayer,
   });
 
-  const createSession = useMutation({
-    mutationFn: (data: unknown) => trainingApi.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["training", selectedPlayer] });
-      setShowForm(false);
-      setForm({ session_date: new Date().toISOString().split("T")[0], session_type: "training", duration_minutes: "90", rpe: "6", total_distance_m: "" });
-      toast.success("Sesión registrada");
-    },
-    onError: () => toast.error("Error al registrar sesión"),
-  });
-
-  const lastSession = (sessions as any[])[0];
-  const acwrValue = lastSession?.acwr;
-  const zone = getZone(acwrValue);
-  const selectedPlayerData = (players as any[]).find((p: any) => p.id === selectedPlayer);
-
-  const chartData = [...(sessions as any[])].reverse().slice(-30).map((s: any) => ({
-    date: s.session_date?.slice(5) ?? "",
-    load: s.session_load ?? 0,
-    acwr: s.acwr ? +s.acwr.toFixed(2) : null,
-    acute: s.acute_load ?? 0,
-    chronic: s.chronic_load ?? 0,
-  }));
-
-  const stagger = (i: number) => ({
-    initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 },
-    transition: { delay: i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] as any },
-  });
+  const sess = sessions as any[];
+  const last = sess[0];
+  const zone = getZone(last?.acwr);
+  const maxLoad = Math.max(...TRAINING_WEEKS.map((w) => w.sessions.reduce((a, s) => a + s[1], 0)));
+  const colH = 200;
 
   return (
-    <div className="p-6 space-y-5 h-full overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <PageHeader
-          icon={Dumbbell}
-          title="Entrenamiento"
-          description="Carga de trabajo y ACWR por jugador"
-          iconColor="text-orange-400"
-          iconBg="bg-orange-500/10 border-orange-500/20"
-          className="pl-10 sm:pl-12 lg:pl-0 mb-0 flex-1"
-        />
-        {selectedPlayer && (
-          <motion.button
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 4px 16px rgba(0,255,135,0.4)" }}
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Registrar sesión</span>
-            <span className="sm:hidden">Registrar</span>
-          </motion.button>
-        )}
-      </div>
+    <div className="screen">
+      <PageTitle title="Entrenamiento" subtitle="la carga del cuerpo, hecha visible" />
 
-      {/* Player selector */}
-      <motion.div {...stagger(0)}>
-        <GlowCard className="p-4 rounded-2xl">
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-xs font-semibold shrink-0" style={{ color: "var(--text-muted)" }}>Jugador:</label>
-            <select
-              value={selectedPlayer ?? ""}
-              onChange={e => setSelectedPlayer(e.target.value ? Number(e.target.value) : null)}
-              className="flex-1 min-w-48 px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]"
-              style={inputStyle}
-            >
-              <option value="">Selecciona un jugador...</option>
-              {(players as any[]).map((p: any) => (
-                <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
-              ))}
-            </select>
-            {selectedPlayerData && (
-              <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
-                style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.2)", color: "var(--brand)" }}>
-                {(sessions as any[]).length} sesiones
-              </span>
-            )}
-          </div>
-        </GlowCard>
-      </motion.div>
-
-      {/* Form */}
-      <AnimatePresence>
-        {showForm && selectedPlayer && (
-          <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={{ opacity: 0, y: -10, height: 0 }}>
-            <GlowCard className="p-5 rounded-2xl" style={{ border: "1px solid rgba(0,255,135,0.2)" }}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold">Nueva sesión</p>
-                <button onClick={() => setShowForm(false)}>
-                  <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                <div>
-                  <label className="text-xs mb-1.5 block" style={{ color: "var(--text-muted)" }}>Fecha</label>
-                  <input type="date" value={form.session_date} onChange={e => setForm(f => ({ ...f, session_date: e.target.value }))} className={inputCls} style={inputStyle} />
+      <Card kicker="Cada bloque es una sesión · altura = carga" title="La carga, semana a semana"
+        note="el plantel en conjunto, semana a semana">
+        <div className="train-chart">
+          {TRAINING_WEEKS.map((w) => {
+            const total = w.sessions.reduce((a, s) => a + s[1], 0);
+            return (
+              <div className="train-col" key={w.week}>
+                <div className="train-stack" style={{ height: colH }}>
+                  {w.sessions.map((s, i) => (
+                    <div key={i} className="train-block" title={`${TRAIN_TYPE[s[0]].label}: ${s[1]}`}
+                      style={{ height: (s[1] / maxLoad) * colH, background: TRAIN_TYPE[s[0]].color, opacity: 0.85 }} />
+                  ))}
                 </div>
-                <div>
-                  <label className="text-xs mb-1.5 block" style={{ color: "var(--text-muted)" }}>Tipo</label>
-                  <select value={form.session_type} onChange={e => setForm(f => ({ ...f, session_type: e.target.value }))} className={inputCls} style={{ ...inputStyle, cursor: "pointer" }}>
-                    {SESSION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs mb-1.5 block" style={{ color: "var(--text-muted)" }}>Duración (min)</label>
-                  <input type="number" min={1} max={300} value={form.duration_minutes} onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-                <div>
-                  <label className="text-xs mb-1.5 block" style={{ color: "var(--text-muted)" }}>RPE (1-10)</label>
-                  <input type="number" min={1} max={10} value={form.rpe} onChange={e => setForm(f => ({ ...f, rpe: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
+                <div className="train-axis" />
+                <div className="train-week">{w.week}</div>
+                <div className="train-total">{total}</div>
               </div>
-              {/* RPE visual scale */}
-              <div className="flex gap-1 mt-3">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
-                  const active = Number(form.rpe) >= n;
-                  const color = n <= 3 ? "#00ff87" : n <= 6 ? "#f59e0b" : n <= 8 ? "#f97316" : "#ff3b30";
-                  return (
-                    <button key={n} onClick={() => setForm(f => ({ ...f, rpe: String(n) }))}
-                      className="flex-1 h-2 rounded-full transition-all"
-                      style={{ background: active ? color : "rgba(255,255,255,0.08)" }}
-                    />
-                  );
-                })}
+            );
+          })}
+        </div>
+        <div className="tl-legend">
+          {Object.entries(TRAIN_TYPE).map(([k, v]) => (
+            <div className="tl-leg-item" key={k}><span className="tl-dot" style={{ background: v.color }} />{v.label}</div>
+          ))}
+        </div>
+      </Card>
+
+      <Card kicker="Microciclo en curso" title="El plan de esta semana">
+        <div className="week-plan">
+          {WEEK_PLAN.map((d) => (
+            <div className={"plan-day" + (d.match ? " is-match" : "")} key={d.day}>
+              <div className="plan-dayname">{d.day}</div>
+              <div className="plan-glyph">
+                <svg width="40" height="40">
+                  <circle cx="20" cy="20" r={6 + d.intensity * 2.4} fill={TRAIN_TYPE[d.type].color}
+                    opacity={0.3 + d.intensity * 0.13} filter="url(#wobble)" />
+                </svg>
               </div>
-              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                RPE: <span className="font-bold text-white">{form.rpe}</span>
-                {Number(form.rpe) <= 3 ? " — Muy ligero" : Number(form.rpe) <= 5 ? " — Moderado" : Number(form.rpe) <= 7 ? " — Duro" : " — Máximo esfuerzo"}
-              </p>
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => createSession.mutate({ player_id: selectedPlayer, ...form, duration_minutes: Number(form.duration_minutes), rpe: Number(form.rpe) })}
-                  disabled={createSession.isPending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
-                  style={{ background: "var(--brand)", color: "#fff" }}
-                >
-                  {createSession.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                  Guardar
-                </button>
-                <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-xl text-sm transition-colors" style={{ color: "var(--text-muted)" }}>
-                  Cancelar
-                </button>
-              </div>
-            </GlowCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Data — only if player selected */}
-      {selectedPlayer && (sessions as any[]).length > 0 && (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              {
-                label: "ACWR actual",
-                value: acwrValue ? acwrValue.toFixed(2) : "—",
-                sub: zone.label,
-                color: zone.color,
-                icon: Activity,
-                raw: true,
-              },
-              {
-                label: "Carga aguda (7d)",
-                value: lastSession?.acute_load ?? 0,
-                sub: "UA — últimos 7 días",
-                color: "#0ea5e9",
-                icon: Zap,
-              },
-              {
-                label: "Carga crónica (28d)",
-                value: lastSession?.chronic_load ?? 0,
-                sub: "UA — media 4 semanas",
-                color: "#a855f7",
-                icon: TrendingUp,
-              },
-            ].map(({ label, value, sub, color, icon: Icon, raw }, i) => (
-              <motion.div key={label} {...stagger(i + 1)}>
-                <GlowCard className="p-5 rounded-2xl text-center">
-                  <div className="inline-flex p-2.5 rounded-xl mb-3" style={{ background: `${color}12`, border: `1px solid ${color}25` }}>
-                    <Icon className="w-5 h-5" style={{ color }} />
-                  </div>
-                  {raw ? (
-                    <p className="text-4xl font-black" style={{ color }}>{value}</p>
-                  ) : (
-                    <AnimatedCounter value={Number(value)} className="text-4xl font-black" style={{ color } as any} />
-                  )}
-                  <p className="text-xs mt-1.5 font-semibold" style={{ color }}>{sub}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
-                </GlowCard>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* ACWR zone legend */}
-          <motion.div {...stagger(4)}>
-            <GlowCard className="p-4 rounded-2xl">
-              <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-muted)" }}>Zonas ACWR</p>
-              <div className="flex gap-2 flex-wrap">
-                {ACWR_ZONES.map(z => (
-                  <div key={z.label} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
-                    style={{ background: `${z.color}12`, border: `1px solid ${z.color}30`, color: z.color, fontWeight: acwrValue && acwrValue >= z.min && acwrValue < z.max ? 800 : 500 }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: z.color }} />
-                    {z.min}–{z.max >= 99 ? "∞" : z.max} · {z.label}
-                  </div>
-                ))}
-              </div>
-            </GlowCard>
-          </motion.div>
-
-          {/* Charts */}
-          {chartData.length > 1 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Load chart */}
-              <motion.div {...stagger(5)}>
-                <GlowCard className="p-5 rounded-2xl">
-                  <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-                    Carga de sesión (últimas 30)
-                  </p>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="loadGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#00ff87" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#00ff87" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="load" stroke="#00ff87" fill="url(#loadGrad)" strokeWidth={2} name="Carga" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </GlowCard>
-              </motion.div>
-
-              {/* ACWR chart */}
-              <motion.div {...stagger(6)}>
-                <GlowCard className="p-5 rounded-2xl">
-                  <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-                    ACWR — Ratio carga aguda/crónica
-                  </p>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <YAxis domain={[0, 2.2]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <ReferenceLine y={0.8} stroke="#0ea5e9" strokeDasharray="4 2" strokeOpacity={0.5} />
-                      <ReferenceLine y={1.3} stroke="#f59e0b" strokeDasharray="4 2" strokeOpacity={0.5} />
-                      <ReferenceLine y={1.5} stroke="#ff3b30" strokeDasharray="4 2" strokeOpacity={0.5} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Line type="monotone" dataKey="acwr" stroke="#f59e0b" strokeWidth={2.5} dot={{ fill: "#f59e0b", r: 3, strokeWidth: 0 }} name="ACWR" connectNulls />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </GlowCard>
-              </motion.div>
+              <div className="plan-type" style={{ color: TRAIN_TYPE[d.type].color }}>{TRAIN_TYPE[d.type].label}</div>
+              <div className="plan-label">{d.label}</div>
+              <div className="plan-intensity">{"●".repeat(d.intensity)}<span className="dim">{"●".repeat(5 - d.intensity)}</span></div>
             </div>
-          )}
+          ))}
+        </div>
+        <Note style={{ fontSize: 15, opacity: 0.75, display: "block", marginTop: 12 }}>
+          círculo más grande = sesión más intensa · los puntos marcan la intensidad de 1 a 5
+        </Note>
+      </Card>
 
-          {/* Sessions table */}
-          <motion.div {...stagger(7)}>
-            <GlowCard className="rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg" style={{ background: "rgba(255,166,0,0.1)" }}>
-                    <Dumbbell className="w-4 h-4 text-orange-400" />
+      <Card kicker="Datos reales · carga aguda/crónica por jugador" title="ACWR jugador por jugador">
+        <div className="filter-bar" style={{ marginBottom: 14 }}>
+          <select
+            value={selectedPlayer ?? ""}
+            onChange={(e) => setSelectedPlayer(e.target.value ? Number(e.target.value) : null)}
+            className="lupi-select"
+          >
+            <option value="">Selecciona un jugador…</option>
+            {(players as any[]).map((p: any) => (
+              <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+            ))}
+          </select>
+          {selectedPlayer && <Note style={{ fontSize: 15, marginLeft: "auto", opacity: 0.75 }}>{sess.length} sesiones</Note>}
+        </div>
+
+        {!selectedPlayer ? (
+          <Note style={{ fontSize: 17, opacity: 0.7, display: "block", padding: "8px 4px" }}>
+            elige un jugador para leer su carga y su ACWR.
+          </Note>
+        ) : sess.length === 0 ? (
+          <Note style={{ fontSize: 17, opacity: 0.7, display: "block", padding: "8px 4px" }}>
+            este jugador aún no tiene sesiones registradas.
+          </Note>
+        ) : (
+          <>
+            <div className="marginalia">
+              <div className="margin-item">
+                <span className="margin-num" style={{ color: zone.color }}>{last?.acwr ? last.acwr.toFixed(2) : "—"}</span>
+                <Note style={{ fontSize: 15 }}>ACWR · {zone.label}</Note>
+              </div>
+              <div className="margin-item">
+                <span className="margin-num" style={{ color: "var(--slate)" }}>{last?.acute_load ?? 0}</span>
+                <Note style={{ fontSize: 15 }}>carga aguda (7d)</Note>
+              </div>
+              <div className="margin-item">
+                <span className="margin-num" style={{ color: "var(--plum)" }}>{last?.chronic_load ?? 0}</span>
+                <Note style={{ fontSize: 15 }}>carga crónica (28d)</Note>
+              </div>
+            </div>
+
+            <div className="inj-list" style={{ marginTop: 8 }}>
+              {sess.slice(0, 14).map((s: any, i: number) => {
+                const z = getZone(s.acwr);
+                return (
+                  <div className="inj-row" key={s.id ?? i}>
+                    <span className="inj-region-dot" style={{ background: z.color }} />
+                    <span className="inj-player">{SESSION_LABEL[s.session_type] ?? s.session_type}</span>
+                    <span className="inj-region">{s.duration_minutes ? `${s.duration_minutes}′` : "—"}</span>
+                    <span className="inj-month">RPE {s.rpe ?? "—"}</span>
+                    <span className="inj-sev" style={{ color: z.color }}>{s.acwr ? s.acwr.toFixed(2) : "—"}</span>
+                    <span className="inj-days"><b>{s.session_load?.toFixed(0) ?? "—"}</b> carga</span>
                   </div>
-                  <h3 className="text-sm font-bold">Historial de sesiones</h3>
-                </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}>
-                  {(sessions as any[]).length} sesiones
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      {["Fecha", "Tipo", "Duración", "RPE", "Carga", "ACWR", "Zona"].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(sessions as any[]).slice(0, 20).map((s: any, i: number) => {
-                      const z = getZone(s.acwr);
-                      const typeConfig = SESSION_TYPES.find(t => t.value === s.session_type);
-                      return (
-                        <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                          className="transition-colors" style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>{s.session_date}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${typeConfig?.color ?? "#64748b"}15`, color: typeConfig?.color ?? "#64748b" }}>
-                              {typeConfig?.label ?? s.session_type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{s.duration_minutes ? `${s.duration_minutes} min` : "—"}</td>
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-bold" style={{ color: "var(--brand)" }}>
-                              {s.rpe ?? "—"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-mono font-bold text-white/80">{s.session_load?.toFixed(0) ?? "—"}</td>
-                          <td className="px-4 py-3 font-mono font-bold" style={{ color: s.acwr ? z.color : "var(--text-muted)" }}>{s.acwr ? s.acwr.toFixed(2) : "—"}</td>
-                          <td className="px-4 py-3">
-                            {s.acwr ? (
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: z.color, background: `${z.color}15` }}>{z.label}</span>
-                            ) : <span style={{ color: "var(--text-muted)" }}>—</span>}
-                          </td>
-                        </motion.tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </GlowCard>
-          </motion.div>
-        </>
-      )}
-
-      {/* Empty state */}
-      {!selectedPlayer && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="inline-flex p-5 rounded-2xl mb-4" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
-            <Dumbbell className="w-8 h-8 text-orange-400 opacity-50" />
-          </div>
-          <p className="font-semibold text-white/50">Selecciona un jugador</p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>para ver su carga de entrenamiento y ACWR</p>
-        </motion.div>
-      )}
-
-      {selectedPlayer && (sessions as any[]).length === 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="inline-flex p-4 rounded-2xl mb-4" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
-            <Dumbbell className="w-7 h-7" style={{ color: "var(--brand)", opacity: 0.5 }} />
-          </div>
-          <p className="font-semibold text-white/50">Sin sesiones registradas</p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Registra la primera sesión con el botón de arriba</p>
-        </motion.div>
-      )}
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Card>
     </div>
   );
 }
