@@ -1,399 +1,92 @@
-﻿"use client";
+"use client";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { predictionsApi } from "@/lib/api";
-import { GlowCard } from "@/components/ui/GlowCard";
-import { RiskGauge } from "@/components/ui/RiskGauge";
-import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Brain, Shield, AlertTriangle, TrendingUp, Activity, Zap, Dumbbell, Clock } from "lucide-react";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { playersApi, predictionsApi } from "@/lib/api";
+import { adaptRoster } from "@/lib/lupi-adapters";
+import { POS_COLOR, RISK_COLOR } from "@/lib/lupi";
+import { PRED_FACTORS } from "@/lib/lupi-fallbacks";
+import { PageTitle, Card } from "@/components/lupi/viz";
+import { Note } from "@/components/lupi/primitives";
 
-const RISK_COLOR: Record<string, string> = {
-  low: "#00ff87", medium: "#F59E0B", high: "#F97316", critical: "#ff3b30",
-};
-const RISK_BG: Record<string, string> = {
-  low: "rgba(34,197,94,0.07)", medium: "rgba(245,158,11,0.07)",
-  high: "rgba(249,115,22,0.07)", critical: "rgba(239,68,68,0.07)",
-};
-const RISK_BORDER: Record<string, string> = {
-  low: "rgba(34,197,94,0.18)", medium: "rgba(245,158,11,0.18)",
-  high: "rgba(249,115,22,0.22)", critical: "rgba(239,68,68,0.25)",
-};
-const RISK_LABEL: Record<string, string> = {
-  low: "Riesgo bajo", medium: "Riesgo medio", high: "Riesgo alto", critical: "Riesgo crítico",
-};
-
-const stagger = (i: number) => ({
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay: i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] as any },
-});
+const maxWeight = Math.max(...PRED_FACTORS.map((f) => f.weight));
 
 export default function PredictionsPage() {
-  const { data: teamRisk, isLoading } = useQuery({
-    queryKey: ["team-risk"],
-    queryFn: () => predictionsApi.teamRisk(),
-  });
-  const { data: loadRecs = [] } = useQuery({
-    queryKey: ["load-recommendations"],
-    queryFn: () => predictionsApi.loadRecommendations(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: players } = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
+  const { data: teamRisk } = useQuery({ queryKey: ["team-risk"], queryFn: () => predictionsApi.teamRisk() });
 
-  const levels = ["low", "medium", "high", "critical"];
-  const levelCounts = levels.reduce((acc, l) => {
-    acc[l] = teamRisk?.filter((p: { risk_level: string }) => p.risk_level === l).length ?? 0;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const criticalAndHigh = teamRisk?.filter(
-    (p: { risk_level: string }) => p.risk_level === "critical" || p.risk_level === "high"
-  ) ?? [];
-
-  const allPlayers = teamRisk ?? [];
+  const roster = adaptRoster(players, teamRisk);
+  const sorted = roster.slice().sort((a, b) => b.risk - a.risk);
 
   return (
-    <div className="p-6 space-y-5 h-full overflow-y-auto">
-      {/* ── Background sci-fi grid */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.012]"
-        style={{
-          backgroundImage: "linear-gradient(rgba(0,255,135,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,135,1) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
+    <div className="screen">
+      <PageTitle title="Predicciones" subtitle="el modelo de riesgo, explicado" />
 
-      <div className="relative z-10 space-y-5">
-        {/* Header */}
-        <PageHeader
-          icon={Brain}
-          title="Predicciones ML"
-          description="Modelos de riesgo de lesión y proyección de rendimiento"
-          iconColor="text-purple-400"
-          iconBg="bg-purple-500/10 border-purple-500/20"
-        />
-
-        {/* Level summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-          {levels.map((level, i) => {
-            const color = RISK_COLOR[level];
-            const LevelIcon = level === "critical" ? Zap : level === "high" ? AlertTriangle : level === "medium" ? TrendingUp : Shield;
-            return (
-              <motion.div key={level} {...stagger(i)}>
-                <GlowCard className="p-5 rounded-2xl" style={{
-                  border: `1px solid ${RISK_BORDER[level]}`,
-                  background: RISK_BG[level],
-                }}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="p-2 rounded-lg" style={{ background: `${color}15`, border: `1px solid ${color}25` }}>
-                      <LevelIcon className="w-4 h-4" style={{ color }} />
-                    </div>
-                    {level === "critical" && levelCounts[level] > 0 && (
-                      <div className="status-dot" style={{ width: 6, height: 6, background: color }} />
-                    )}
-                  </div>
-                  <AnimatedCounter value={levelCounts[level]} className="text-4xl font-black" style={{ color } as any} />
-                  <p className="text-xs mt-1 font-semibold" style={{ color }}>{RISK_LABEL[level]}</p>
-                </GlowCard>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Critical / High alert + Gauge grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* Alert panel */}
-          <motion.div {...stagger(4)}>
-            <GlowCard className="p-5 rounded-2xl h-full" style={{ border: "1px solid rgba(255,59,48,0.15)" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 rounded-lg" style={{ background: "rgba(255,59,48,0.1)" }}>
-                  <AlertTriangle className="w-4 h-4" style={{ color: "var(--danger)" }} />
-                </div>
-                <h3 className="text-sm font-bold">Jugadores en alerta</h3>
-                <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{ color: "var(--danger)", background: "rgba(255,59,48,0.1)" }}>
-                  {criticalAndHigh.length} jugadores
-                </span>
+      <Card kicker="Cada punto es un jugador · eje = riesgo de 0 a 100" title="Distribución del riesgo"
+        note="la cola derecha es la que nos preocupa">
+        {roster.length === 0 ? (
+          <Note style={{ fontSize: 16, opacity: 0.7 }}>sin datos de riesgo todavía</Note>
+        ) : (
+          <div className="risk-axis">
+            {roster.map((p, i) => (
+              <div key={p.id} className="risk-dot-wrap" style={{ left: `${p.risk}%`, top: `${8 + (i % 5) * 15}px` }}
+                title={`${p.name} · ${p.risk}`}>
+                <span className="risk-dot" style={{ background: RISK_COLOR[p.riskLevel] }} />
               </div>
+            ))}
+            <div className="risk-axis-line" />
+            <div className="risk-bands">
+              <span style={{ left: "0%", width: "30%" }}>bajo</span>
+              <span style={{ left: "30%", width: "20%" }}>medio</span>
+              <span style={{ left: "50%", width: "20%" }}>alto</span>
+              <span style={{ left: "70%", width: "30%" }}>crítico</span>
+            </div>
+          </div>
+        )}
+      </Card>
 
-              {criticalAndHigh.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="inline-flex p-4 rounded-2xl mb-3"
-                    style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                    <Shield className="w-6 h-6" style={{ color: "var(--success)" }} />
-                  </div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-                    Sin jugadores en riesgo alto
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {criticalAndHigh.map((p: {
-                    player_id: number; player_name: string; risk_score: number; risk_level: string;
-                  }, i: number) => {
-                    const color = RISK_COLOR[p.risk_level];
-                    return (
-                      <motion.div
-                        key={p.player_id}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + i * 0.05 }}
-                      >
-                        <Link href={`/players/${p.player_id}`}>
-                          <div className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
-                            style={{ background: `${color}08`, border: `1px solid ${color}25` }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = `${color}14`)}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = `${color}08`)}
-                          >
-                            {/* Mini gauge */}
-                            <div className="shrink-0">
-                              <RiskGauge score={p.risk_score} level={p.risk_level as any} size={52} showLabel={false} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-white/90 truncate">{p.player_name}</p>
-                              <p className="text-xs font-semibold mt-0.5" style={{ color }}>{RISK_LABEL[p.risk_level]}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-2xl font-black font-mono" style={{ color }}>{p.risk_score}</p>
-                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>/ 100</p>
-                            </div>
-                          </div>
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-            </GlowCard>
-          </motion.div>
+      <div className="grid-2-1">
+        <Card kicker="Modelo predictivo · prioridad" title="Tabla completa de riesgo">
+          {sorted.length === 0 ? (
+            <Note style={{ fontSize: 16, opacity: 0.7 }}>sin jugadores en el modelo</Note>
+          ) : (
+            <div className="pred-list">
+              {sorted.map((p, i) => {
+                const TICKS = 14, filled = Math.round((p.risk / 100) * TICKS);
+                return (
+                  <Link href={`/players/${p.id}`} className="pred-row" key={p.id}>
+                    <span className="ledger-rank">{i + 1}</span>
+                    <span className="ledger-pos" style={{ background: POS_COLOR[p.pos] }} />
+                    <span className="pred-name">{p.name}</span>
+                    <span className="ledger-ticks">
+                      {Array.from({ length: TICKS }).map((_, k) => (
+                        <span key={k} className="tick"
+                          style={{ background: k < filled ? RISK_COLOR[p.riskLevel] : "transparent", borderColor: k < filled ? RISK_COLOR[p.riskLevel] : "var(--rule)" }} />
+                      ))}
+                    </span>
+                    <span className="pred-score">{p.risk}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </Card>
 
-          {/* Top 6 gauge grid */}
-          <motion.div {...stagger(5)}>
-            <GlowCard className="p-5 rounded-2xl h-full">
-              <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--text-muted)" }}>
-                Top riesgo — mayor a menor
-              </p>
-              {isLoading ? (
-                <div className="grid grid-cols-3 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="skeleton rounded-xl" style={{ height: 100 }} />
-                  ))}
+        <Card kicker="Qué pesa en el modelo" title="Factores de riesgo">
+          <div className="factors">
+            {PRED_FACTORS.map((f) => (
+              <div className="factor" key={f.label}>
+                <div className="factor-head">
+                  <span className="factor-label">{f.label}</span>
+                  <span className="factor-weight">{Math.round(f.weight * 100)}%</span>
                 </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  {allPlayers.slice(0, 6).map((p: {
-                    player_id: number; player_name: string; risk_score: number; risk_level: string;
-                  }, i: number) => (
-                    <motion.div
-                      key={p.player_id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.4 + i * 0.07 }}
-                    >
-                      <Link href={`/players/${p.player_id}`}>
-                        <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl cursor-pointer transition-all"
-                          style={{ background: "rgba(255,255,255,0.02)" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                        >
-                          <RiskGauge score={p.risk_score} level={p.risk_level as any} size={72} showLabel={false} />
-                          <p className="text-[10px] font-semibold text-center text-white/60 leading-tight truncate w-full text-center">
-                            {p.player_name.split(" ")[1] ?? p.player_name}
-                          </p>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ))}
+                <div className="factor-track">
+                  <span className="factor-fill" style={{ width: `${(f.weight / maxWeight) * 92}%` }} />
                 </div>
-              )}
-            </GlowCard>
-          </motion.div>
-        </div>
-
-        {/* Full ranking table */}
-        <motion.div {...stagger(6)}>
-          <GlowCard className="rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4"
-              style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg" style={{ background: "rgba(168,85,247,0.1)" }}>
-                  <Brain className="w-4 h-4 text-purple-400" />
-                </div>
-                <h3 className="text-sm font-bold">Ranking completo de riesgo</h3>
+                <Note style={{ fontSize: 14.5, opacity: 0.78 }}>{f.note}</Note>
               </div>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {allPlayers.length} jugadores evaluados
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[600px]">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", background: "rgba(255,255,255,0.01)" }}>
-                    {["#", "Jugador", "Score de riesgo", "Nivel"].map((h) => (
-                      <th key={h} className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: "var(--text-muted)" }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                        {Array.from({ length: 4 }).map((_, j) => (
-                          <td key={j} className="px-5 py-3">
-                            <div className="skeleton h-4 rounded" style={{ width: j === 1 ? 120 : j === 2 ? 80 : 40 }} />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : allPlayers.map((p: {
-                    player_id: number; player_name: string; risk_score: number; risk_level: string;
-                  }, i: number) => {
-                    const color = RISK_COLOR[p.risk_level];
-                    return (
-                      <motion.tr
-                        key={p.player_id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.6 + i * 0.02 }}
-                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                        className="transition-colors cursor-pointer"
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <td className="px-5 py-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-                          {String(i + 1).padStart(2, "0")}
-                        </td>
-                        <td className="px-5 py-3">
-                          <Link href={`/players/${p.player_id}`} className="font-semibold text-white/80 hover:text-white transition-colors">
-                            {p.player_name}
-                          </Link>
-                        </td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-1.5 rounded-full overflow-hidden max-w-[120px]"
-                              style={{ background: "rgba(255,255,255,0.06)" }}>
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${p.risk_score}%` }}
-                                transition={{ delay: 0.7 + i * 0.02, duration: 0.6 }}
-                                className="h-full rounded-full"
-                                style={{ background: color, boxShadow: `0 0 6px ${color}50` }}
-                              />
-                            </div>
-                            <span className="text-xs font-bold font-mono w-8" style={{ color }}>{p.risk_score}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                            style={{ color, background: `${color}12`, border: `1px solid ${color}25` }}>
-                            {RISK_LABEL[p.risk_level]}
-                          </span>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </GlowCard>
-        </motion.div>
-
-        {/* ── Load recommendations ──────────────────────────────── */}
-        <motion.div {...stagger(7)}>
-          <GlowCard className="p-5 rounded-2xl">
-            <div className="flex items-center gap-2 mb-4">
-              <Dumbbell className="w-4 h-4 text-[#0ea5e9]" />
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-                Recomendaciones de carga
-              </p>
-              {loadRecs.length > 0 && (
-                <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-1"
-                  style={{ background: "rgba(14,165,233,0.10)", color: "#0ea5e9", border: "1px solid rgba(14,165,233,0.25)" }}
-                >
-                  {loadRecs.length} jugador{loadRecs.length === 1 ? "" : "es"}
-                </span>
-              )}
-            </div>
-
-            {(loadRecs as any[]).length === 0 ? (
-              <EmptyState
-                illustration="training"
-                title="Todo el plantel en zona segura"
-                description="No hay ajustes de carga sugeridos. Los ACWR y volúmenes están dentro de rango."
-                size="compact"
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {(loadRecs as any[]).map((rec, i) => {
-                  const prio = rec.priority as "high" | "medium" | "low";
-                  const color = prio === "high" ? "#ff3b30" : prio === "medium" ? "#f59e0b" : "#0ea5e9";
-                  return (
-                    <motion.div
-                      key={rec.player_id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="rounded-xl p-4 relative"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: `1px solid ${color}28`,
-                      }}
-                    >
-                      <div
-                        className="absolute top-0 left-3 right-3 h-px"
-                        style={{ background: `linear-gradient(90deg, transparent, ${color}80, transparent)` }}
-                      />
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <Link href={`/players/${rec.player_id}`}>
-                          <p className="text-sm font-bold text-white/90 hover:underline truncate">
-                            {rec.player_name}
-                          </p>
-                        </Link>
-                        <span
-                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                          style={{ background: `${color}18`, color, border: `1px solid ${color}40` }}
-                        >
-                          {prio === "high" ? "Urgente" : prio === "medium" ? "Atento" : "Sugerido"}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold mb-1.5" style={{ color }}>
-                        {rec.action}
-                      </p>
-                      <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
-                        {rec.reason}
-                      </p>
-                      <div className="flex items-center gap-3 text-[10px] font-mono tabular-nums" style={{ color: "rgba(255,255,255,0.35)" }}>
-                        {rec.metrics?.acwr != null && (
-                          <span className="flex items-center gap-1">
-                            <Activity className="w-3 h-3" /> ACWR {Number(rec.metrics.acwr).toFixed(2)}
-                          </span>
-                        )}
-                        {rec.metrics?.weekly_load != null && (
-                          <span className="flex items-center gap-1">
-                            <Zap className="w-3 h-3" /> {Number(rec.metrics.weekly_load).toFixed(0)} UA
-                          </span>
-                        )}
-                        {rec.metrics?.last_injury_days != null && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {rec.metrics.last_injury_days}d
-                          </span>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </GlowCard>
-        </motion.div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );

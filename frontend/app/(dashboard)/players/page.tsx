@@ -1,27 +1,32 @@
 "use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
-import { playersApi, categoriesApi } from "@/lib/api";
-import { PlayerCard } from "@/components/ui/PlayerCard";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Search, Plus, Users, X } from "lucide-react";
 import Link from "next/link";
+import { Plus, Search, X } from "lucide-react";
+import { playersApi, categoriesApi, predictionsApi } from "@/lib/api";
+import { adaptRoster } from "@/lib/lupi-adapters";
+import {
+  type LupiPlayer, type LupiPos,
+  POS_COLOR, POS_LABEL, STATUS_COLOR, STATUS_LABEL, RISK_COLOR,
+} from "@/lib/lupi";
+import { PageTitle, PlayerPeekFull } from "@/components/lupi/viz";
+import { PlayerGlyph, Note } from "@/components/lupi/primitives";
 import { ExportButton } from "@/components/ui/ExportButton";
 import { getPositionConfig, getStatusConfig } from "@/lib/design-system";
 
-const STATUS_OPTS = [
-  { value: "", label: "Todos" },
-  { value: "available", label: "Disponible" },
-  { value: "injured", label: "Lesionado" },
-  { value: "recovering", label: "Recuperación" },
-  { value: "suspended", label: "Suspendido" },
+const POS_FILTERS: [LupiPos | "ALL", string][] = [
+  ["ALL", "Todos"],
+  ["GK", "Arqueros"],
+  ["DEF", "Defensas"],
+  ["MID", "Medios"],
+  ["ATK", "Delanteros"],
 ];
 
 export default function PlayersPage() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<number | undefined>();
-  const [status, setStatus] = useState<string>("");
+  const [pos, setPos] = useState<LupiPos | "ALL">("ALL");
+  const [sel, setSel] = useState<LupiPlayer | null>(null);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -29,53 +34,60 @@ export default function PlayersPage() {
   });
 
   const { data: players, isLoading } = useQuery({
-    queryKey: ["players", categoryId, status, search],
-    queryFn: () => playersApi.list({ category_id: categoryId, status: status || undefined, search: search || undefined }),
+    queryKey: ["players", categoryId, search],
+    queryFn: () => playersApi.list({ category_id: categoryId, search: search || undefined }),
   });
 
-  return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Jugadores"
-        subtitle={`${players?.length ?? 0} jugadores registrados`}
-        action={
-          <div className="flex items-center gap-2">
-            <ExportButton
-              filename="plantel"
-              sheets={{
-                Plantel: (players ?? []).map((p: any) => ({
-                  Numero:      p.jersey_number ?? "",
-                  Nombre:      p.first_name,
-                  Apellido:    p.last_name,
-                  Posicion:    getPositionConfig(p.position).label,
-                  Estado:      getStatusConfig(p.status).label,
-                  Pie:         p.dominant_foot ?? "",
-                  Altura_cm:   p.height_cm ?? "",
-                  Peso_kg:     p.weight_kg ?? "",
-                  Nacionalidad: p.nationality ?? "",
-                })),
-              }}
-            />
-            <Link href="/players/new" className="btn-primary text-sm">
-              <Plus className="w-4 h-4" />
-              Nuevo jugador
-            </Link>
-          </div>
-        }
-      />
+  const { data: teamRisk } = useQuery({ queryKey: ["team-risk"], queryFn: () => predictionsApi.teamRisk() });
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-0 sm:min-w-56">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+  const roster = adaptRoster(players, teamRisk);
+  const filtered = pos === "ALL" ? roster : roster.filter((p) => p.pos === pos);
+
+  return (
+    <div className="screen">
+      <PageTitle title="Jugadores" subtitle="cada ficha es una persona, no una fila de tabla">
+        <div className="flex items-center gap-2">
+          <ExportButton
+            filename="plantel"
+            sheets={{
+              Plantel: (players ?? []).map((p: any) => ({
+                Numero:       p.jersey_number ?? "",
+                Nombre:       p.first_name,
+                Apellido:     p.last_name,
+                Posicion:     getPositionConfig(p.position).label,
+                Estado:       getStatusConfig(p.status).label,
+                Pie:          p.dominant_foot ?? "",
+                Altura_cm:    p.height_cm ?? "",
+                Peso_kg:      p.weight_kg ?? "",
+                Nacionalidad: p.nationality ?? "",
+              })),
+            }}
+          />
+          <Link href="/players/new" className="btn-primary text-sm">
+            <Plus className="w-4 h-4" />
+            Nuevo jugador
+          </Link>
+        </div>
+      </PageTitle>
+
+      <div className="filter-bar">
+        {POS_FILTERS.map(([k, label]) => (
+          <button key={k} className={"chip" + (pos === k ? " is-on" : "")} onClick={() => setPos(k)}>
+            {k !== "ALL" && <span className="chip-dot" style={{ background: POS_COLOR[k as LupiPos] }} />}
+            {label}
+          </button>
+        ))}
+
+        <div className="lupi-search">
+          <Search className="w-3.5 h-3.5" style={{ color: "var(--ink-faint)" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar jugador..."
-            className="input w-full pl-10 pr-8"
+            placeholder="Buscar jugador…"
+            aria-label="Buscar jugador"
           />
           {search && (
-            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
+            <button onClick={() => setSearch("")} aria-label="Limpiar búsqueda">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -84,7 +96,7 @@ export default function PlayersPage() {
         <select
           value={categoryId ?? ""}
           onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : undefined)}
-          className="input text-sm py-2"
+          className="lupi-select"
         >
           <option value="">Todas las categorías</option>
           {categories?.map((c: { id: number; name: string }) => (
@@ -92,60 +104,60 @@ export default function PlayersPage() {
           ))}
         </select>
 
-        <div className="flex gap-1.5 flex-wrap">
-          {STATUS_OPTS.map((opt) => (
+        <Note style={{ fontSize: 15, marginLeft: "auto", opacity: 0.75 }}>{filtered.length} jugadores</Note>
+      </div>
+
+      {isLoading ? (
+        <Note style={{ fontSize: 17, opacity: 0.7, display: "block", padding: "32px 4px" }}>
+          leyendo el cuaderno del plantel…
+        </Note>
+      ) : filtered.length === 0 ? (
+        <div className="coming" style={{ padding: "48px 0" }}>
+          <svg width="96" height="96" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="34" fill="none" stroke="var(--ink-faint)" strokeWidth="2"
+              strokeDasharray="3 5" filter="url(#wobble)" />
+            <circle cx="60" cy="60" r="10" fill="var(--ochre)" filter="url(#wobble)" />
+          </svg>
+          <Note style={{ fontSize: 18, marginTop: 8 }}>
+            No hay jugadores con estos filtros.<br />Prueba con otra posición o nombre.
+          </Note>
+        </div>
+      ) : (
+        <div className="players-grid">
+          {filtered.map((p) => (
             <button
-              key={opt.value}
-              onClick={() => setStatus(opt.value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                status === opt.value
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-white/[0.03] border-white/[0.06] text-white/30 hover:text-white/50"
-              }`}
+              key={p.id}
+              className={"player-card" + (sel?.id === p.id ? " is-sel" : "")}
+              onClick={() => setSel(sel?.id === p.id ? null : p)}
             >
-              {opt.label}
+              <PlayerGlyph p={p} box={56} />
+              <div className="player-card-body">
+                <div className="player-card-name">{p.name}</div>
+                <Note style={{ fontSize: 14 }}>{POS_LABEL[p.pos]} · {p.age || "—"}</Note>
+                <div className="player-card-stats">
+                  <span>{p.minutes.toLocaleString("es")}′</span>
+                  <span className="pc-dot" />
+                  <span style={{ color: STATUS_COLOR[p.status] }}>{STATUS_LABEL[p.status]}</span>
+                </div>
+              </div>
+              {p.risk >= 12 && (
+                <span className="player-card-risk" style={{ color: RISK_COLOR[p.riskLevel] }}>{p.risk}</span>
+              )}
             </button>
           ))}
         </div>
-      </div>
+      )}
 
-      {/* Grid */}
-      <AnimatePresence mode="wait">
-        {isLoading ? (
-          <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {Array.from({ length: 15 }).map((_, i) => (
-              <div key={i} className="skeleton rounded-xl h-40" style={{ animationDelay: `${i * 0.04}s` }} />
-            ))}
-          </motion.div>
-        ) : players?.length === 0 ? (
-          <motion.div key="empty" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-4 bg-white/[0.03] border border-white/[0.06]">
-              <Users className="w-7 h-7 text-white/20" />
-            </div>
-            <p className="text-base font-semibold text-white/50">No se encontraron jugadores</p>
-            <p className="text-sm text-white/30 mt-1">Prueba con otros filtros o busca por nombre</p>
-          </motion.div>
-        ) : (
-          <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {players?.map((player: any, i: number) => (
-              <PlayerCard
-                key={player.id}
-                id={player.id}
-                firstName={player.first_name}
-                lastName={player.last_name}
-                jerseyNumber={player.jersey_number}
-                position={player.position}
-                status={player.status}
-                photoUrl={player.photo_url}
-                index={i}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {sel && (
+        <div className="drawer" onClick={() => setSel(null)}>
+          <div className="drawer-card" onClick={(e) => e.stopPropagation()}>
+            <PlayerPeekFull p={sel} onClose={() => setSel(null)} />
+            <Link href={`/players/${sel.id}`} className="btn-primary text-sm" style={{ marginTop: 16 }}>
+              Ver ficha completa
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

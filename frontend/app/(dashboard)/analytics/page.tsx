@@ -1,293 +1,107 @@
-﻿"use client";
+"use client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { analyticsApi, categoriesApi, playersApi, injuriesApi } from "@/lib/api";
-import { PDFExportButton } from "@/components/pdf/PDFExportButton";
-import { TeamReportPDF } from "@/components/pdf/TeamReportPDF";
-import { Card } from "@/components/ui/Card";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
-import { BarChart3, Users, Target, TrendingUp, Shield, ArrowRight } from "lucide-react";
-import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
-  Cell, Legend,
-} from "recharts";
-import { POSITION_LABELS } from "@/lib/design-system";
+import { playersApi, predictionsApi } from "@/lib/api";
+import { adaptRoster } from "@/lib/lupi-adapters";
+import { type LupiPos, POS_COLOR, POS_LABEL } from "@/lib/lupi";
+import { PageTitle, Card } from "@/components/lupi/viz";
+import { Note } from "@/components/lupi/primitives";
 
-const RADAR_KEYS = ["rendimiento", "goles", "asistencias", "minutos", "distancia", "carga"];
-const RADAR_LABELS: Record<string, string> = {
-  rendimiento: "Rendimiento", goles: "Goles", asistencias: "Asistencias",
-  minutos: "Minutos", distancia: "Distancia", carga: "Carga",
-};
-
-const POSITION_COLORS: Record<string, string> = {
-  goalkeeper: "#f59e0b", center_back: "#0ea5e9", left_back: "#0ea5e9",
-  right_back: "#0ea5e9", defensive_mid: "#00ff87", central_mid: "#00ff87",
-  attacking_mid: "#00ff87", left_wing: "#ff3b30", right_wing: "#ff3b30",
-  center_forward: "#ff3b30",
-};
-
-function RadarTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg px-3 py-2 text-xs bg-surface-2 border border-white/[0.08]">
-      <p className="font-medium text-white/60 mb-1">{RADAR_LABELS[payload[0]?.payload?.metric] ?? payload[0]?.payload?.metric}</p>
-      {payload.map((p: any, i: number) => (
-        <p key={i} style={{ color: p.color }} className="font-bold">{p.name}: {p.value}</p>
-      ))}
-    </div>
-  );
-}
+const POSITIONS: LupiPos[] = ["GK", "DEF", "MID", "ATK"];
 
 export default function AnalyticsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
-  const [selectedPlayer, setSelectedPlayer] = useState<number | undefined>();
-  const [comparePlayer, setComparePlayer] = useState<number | undefined>();
+  const { data: players } = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
+  const { data: teamRisk } = useQuery({ queryKey: ["team-risk"], queryFn: () => predictionsApi.teamRisk() });
 
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => categoriesApi.list() });
-  const { data: dash } = useQuery({ queryKey: ["dashboard", selectedCategory], queryFn: () => analyticsApi.dashboard(selectedCategory) });
-  const { data: injuryStats } = useQuery({ queryKey: ["injury-stats"], queryFn: () => analyticsApi.injuryStats() });
-  const { data: players = [] } = useQuery({ queryKey: ["players"], queryFn: () => playersApi.list() });
-  const { data: activeInjuries = [] } = useQuery({ queryKey: ["active-injuries"], queryFn: () => injuriesApi.getActive() });
-  const { data: teamRadar = [] } = useQuery({ queryKey: ["team-radar", selectedCategory], queryFn: () => analyticsApi.teamRadar(selectedCategory) });
-  const { data: playerRadar } = useQuery({ queryKey: ["player-radar", selectedPlayer], queryFn: () => analyticsApi.playerRadar(selectedPlayer!), enabled: !!selectedPlayer });
-  const { data: compareRadar } = useQuery({ queryKey: ["player-radar", comparePlayer], queryFn: () => analyticsApi.playerRadar(comparePlayer!), enabled: !!comparePlayer });
+  const roster = adaptRoster(players, teamRisk);
+  const hasData = roster.length > 0;
 
-  const byPosition = (players as any[]).reduce((acc: Record<string, number>, p: any) => {
-    acc[p.position] = (acc[p.position] || 0) + 1; return acc;
-  }, {});
-  const positionData = Object.entries(byPosition)
-    .map(([pos, count]) => ({ position: POSITION_LABELS[pos] || pos, count: count as number }))
-    .sort((a, b) => b.count - a.count);
+  const top = roster.slice().sort((a, b) => b.minutes - a.minutes).slice(0, 12);
+  const maxMin = hasData ? Math.max(...roster.map((p) => p.minutes), 1) : 1;
 
-  const monthData = injuryStats?.by_month
-    ? Object.entries(injuryStats.by_month).slice(-6).map(([k, v]) => ({ month: k.slice(5), injuries: v as number }))
-    : [];
+  const byPos = POSITIONS.map((pos) => {
+    const ps = roster.filter((p) => p.pos === pos);
+    const n = ps.length;
+    return {
+      pos, n,
+      avgAge: n ? Math.round(ps.reduce((a, p) => a + p.age, 0) / n) : 0,
+      avgMin: n ? Math.round(ps.reduce((a, p) => a + p.minutes, 0) / n) : 0,
+    };
+  });
 
-  const buildRadarData = (radarObj: any, compareObj?: any) =>
-    RADAR_KEYS.map(k => ({
-      metric: k,
-      Jugador: radarObj?.player?.[k] ?? 0,
-      Equipo: radarObj?.team_avg?.[k] ?? 0,
-      ...(compareObj ? { Comparar: compareObj?.player?.[k] ?? 0 } : {}),
-    }));
+  const ages = roster.map((p) => p.age).filter((a) => a > 0);
+  const minAge = ages.length ? Math.min(...ages) : 0;
+  const maxAge = ages.length ? Math.max(...ages) : 0;
+  const ageSpan = maxAge - minAge;
 
-  const top8 = [...(teamRadar as any[])].sort((a, b) => (b.rendimiento ?? 0) - (a.rendimiento ?? 0)).slice(0, 8);
+  if (!hasData) {
+    return (
+      <div className="screen">
+        <PageTitle title="Analítica" subtitle="el plantel leído en conjunto" />
+        <Card>
+          <div className="coming" style={{ padding: "48px 0" }}>
+            <svg width="96" height="96" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="34" fill="none" stroke="var(--ink-faint)" strokeWidth="2" strokeDasharray="3 5" filter="url(#wobble)" />
+              <circle cx="60" cy="60" r="10" fill="var(--ochre)" filter="url(#wobble)" />
+            </svg>
+            <Note style={{ fontSize: 18, marginTop: 8 }}>Aún no hay jugadores para analizar.</Note>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <PageHeader title="Analytics" subtitle="Indicadores, benchmarks y radar de rendimiento" />
-        <div className="flex items-center gap-2">
-          <PDFExportButton
-            document={<TeamReportPDF players={players} activeInjuries={activeInjuries} categoryName={categories?.find((c: any) => c.id === selectedCategory)?.name} />}
-            fileName="reporte-equipo.pdf"
-            label="Reporte equipo"
-          />
-          <select value={selectedCategory ?? ""} onChange={e => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
-            className="input text-sm py-2">
-            <option value="">Todas las categorías</option>
-            {(categories as any[] ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+    <div className="screen">
+      <PageTitle title="Analítica" subtitle="el plantel leído en conjunto" />
+
+      <Card kicker="Línea = minutos jugados · color = posición" title="Quién carga al equipo">
+        <div className="ladder">
+          {top.map((p) => (
+            <div className="ladder-row" key={p.id}>
+              <span className="ladder-name">{p.name}</span>
+              <span className="ladder-track">
+                <span className="ladder-fill" style={{ width: `${(p.minutes / maxMin) * 100}%`, background: POS_COLOR[p.pos] }} />
+              </span>
+              <span className="ladder-val">{p.minutes.toLocaleString("es")}′</span>
+            </div>
+          ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Jugadores" value={dash?.total_players ?? 0} icon={Users} color="#0ea5e9" />
-        <StatCard label="Disponibilidad" value={`${dash?.availability_rate ?? 0}%`} icon={Shield} color="#00ff87" />
-        <StatCard label="Rating promedio" value={dash?.avg_team_rating ? `${dash.avg_team_rating}/10` : "—"} icon={TrendingUp} color="#f59e0b" />
-        <StatCard label="Partidos (30d)" value={dash?.recent_matches ?? 0} icon={BarChart3} color="#a855f7" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Radar de jugador</p>
-            <div className="flex gap-2 flex-wrap">
-              <select value={selectedPlayer ?? ""} onChange={e => setSelectedPlayer(e.target.value ? Number(e.target.value) : undefined)}
-                className="input text-xs py-1.5 px-2">
-                <option value="">Seleccionar jugador...</option>
-                {(players as any[]).map((p: any) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
-              <select value={comparePlayer ?? ""} onChange={e => setComparePlayer(e.target.value ? Number(e.target.value) : undefined)}
-                className="input text-xs py-1.5 px-2">
-                <option value="">Comparar con...</option>
-                {(players as any[]).filter((p: any) => p.id !== selectedPlayer).map((p: any) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
-            </div>
+      <div className="grid-1-1">
+        <Card kicker="Composición del plantel" title="Por posición">
+          <div className="pos-breakdown">
+            {byPos.map((b) => (
+              <div className="pos-bd-row" key={b.pos}>
+                <span className="pos-bd-dot" style={{ background: POS_COLOR[b.pos] }} />
+                <span className="pos-bd-label">{POS_LABEL[b.pos]}</span>
+                <span className="pos-bd-glyphs">
+                  {Array.from({ length: b.n }).map((_, i) => (
+                    <span key={i} className="bd-glyph" style={{ background: POS_COLOR[b.pos] }} />
+                  ))}
+                </span>
+                <span className="pos-bd-meta">{b.n}{b.avgAge ? ` · ${b.avgAge} años prom.` : ""}</span>
+              </div>
+            ))}
           </div>
-
-          {!selectedPlayer ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <Target className="w-10 h-10 mx-auto mb-3 text-white/10" />
-                <p className="text-sm text-white/30">Selecciona un jugador para ver su radar</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={260}>
-                <RadarChart data={buildRadarData(playerRadar, compareRadar)}>
-                  <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                  <PolarAngleAxis dataKey="metric"
-                    tick={({ x, y, payload }: any) => (
-                      <text x={x} y={y} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize={9} fontWeight={600}>
-                        {RADAR_LABELS[payload.value]}
-                      </text>
-                    )} />
-                  <Radar name="Equipo (prom.)" dataKey="Equipo" stroke="rgba(255,255,255,0.2)" fill="rgba(255,255,255,0.04)" strokeWidth={1.5} />
-                  <Radar name="Jugador" dataKey="Jugador" stroke="#00ff87" fill="rgba(0,255,135,0.12)" strokeWidth={2} dot={{ fill: "#00ff87", r: 3 }} />
-                  {comparePlayer && <Radar name="Comparar" dataKey="Comparar" stroke="#A855F7" fill="rgba(168,85,247,0.08)" strokeWidth={2} dot={{ fill: "#A855F7", r: 3 }} />}
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
-                  <Tooltip content={<RadarTooltip />} />
-                </RadarChart>
-              </ResponsiveContainer>
-              {playerRadar && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
-                  {RADAR_KEYS.map(k => {
-                    const val = playerRadar.player?.[k] ?? 0;
-                    const avg = playerRadar.team_avg?.[k] ?? 0;
-                    const color = val >= avg ? "#00ff87" : "#F97316";
-                    return (
-                      <div key={k}>
-                        <div className="flex justify-between mb-0.5">
-                          <span className="text-[9px] text-white/30">{RADAR_LABELS[k]}</span>
-                          <span className="text-[9px] font-bold" style={{ color }}>{val}</span>
-                        </div>
-                        <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${val}%`, background: color }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
         </Card>
 
-        <Card>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/30 mb-4">Benchmark equipo — Top rendimiento</p>
-          {top8.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-sm text-white/30">Sin datos de partidos aún</div>
-          ) : (
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-[400px]">
-              {top8.map((p: any, i: number) => {
-                const color = POSITION_COLORS[p.position] ?? "#64748b";
-                const score = p.rendimiento ?? 0;
-                const isSelected = selectedPlayer === p.player_id;
-                return (
-                  <div key={p.player_id}
-                    className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border transition-colors ${
-                      isSelected ? "bg-white/[0.03] border-white/[0.08]" : "bg-transparent border-transparent hover:bg-white/[0.02]"
-                    }`}
-                    onClick={() => setSelectedPlayer(p.player_id === selectedPlayer ? undefined : p.player_id)}>
-                    <span className="text-xs font-mono font-bold w-5 text-center text-white/20">{i + 1}</span>
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border"
-                      style={{ borderColor: `${color}40`, color, background: `${color}10` }}>
-                      {p.jersey ?? "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white/80 truncate">{p.player_name}</p>
-                      <p className="text-[9px] text-white/20">{POSITION_LABELS[p.position] ?? p.position}</p>
-                    </div>
-                    <div className="flex gap-0.5 items-end h-5">
-                      {RADAR_KEYS.slice(0, 4).map(k => (
-                        <div key={k} className="w-1.5 rounded-sm" style={{ height: `${Math.max(3, (p[k] ?? 0) / 100 * 20)}px`, background: color, opacity: 0.6 }} />
-                      ))}
-                    </div>
-                    <span className="text-sm font-bold w-8 text-right" style={{ color }}>{score}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {selectedPlayer && comparePlayer && playerRadar && compareRadar && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <Card>
-            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Comparación head-to-head</p>
-              <div className="flex items-center gap-3 text-sm font-bold">
-                <span className="text-brand">{(players as any[]).find((p: any) => p.id === selectedPlayer)?.full_name ?? "Jugador A"}</span>
-                <ArrowRight className="w-4 h-4 text-white/20" />
-                <span className="text-purple-400">{(players as any[]).find((p: any) => p.id === comparePlayer)?.full_name ?? "Jugador B"}</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {RADAR_KEYS.map(k => {
-                const a = playerRadar.player?.[k] ?? 0;
-                const b = compareRadar.player?.[k] ?? 0;
-                const total = (a + b) || 1;
-                const aWins = a >= b;
-                return (
-                  <div key={k}>
-                    <div className="flex items-center justify-between mb-1.5 text-xs">
-                      <span className={`font-bold w-10 text-right ${aWins ? "text-brand" : "text-white/30"}`}>{a.toFixed(0)}</span>
-                      <span className="flex-1 text-center font-medium text-white/30">{RADAR_LABELS[k]}</span>
-                      <span className={`font-bold w-10 text-left ${!aWins ? "text-purple-400" : "text-white/30"}`}>{b.toFixed(0)}</span>
-                    </div>
-                    <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
-                      <div className="rounded-l-full transition-all duration-700" style={{ width: `${(a / total) * 100}%`, background: "#00ff87", opacity: aWins ? 1 : 0.4 }} />
-                      <div className="rounded-r-full transition-all duration-700" style={{ width: `${(b / total) * 100}%`, background: "#A855F7", opacity: !aWins ? 1 : 0.4 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {(() => {
-              const aWins = RADAR_KEYS.filter(k => (playerRadar.player?.[k] ?? 0) >= (compareRadar.player?.[k] ?? 0)).length;
-              const bWins = RADAR_KEYS.length - aWins;
-              const playerA = (players as any[]).find((p: any) => p.id === selectedPlayer);
-              const playerB = (players as any[]).find((p: any) => p.id === comparePlayer);
+        <Card kicker="Cada punto es un jugador" title="Edades del plantel">
+          <div className="age-strip">
+            {roster.slice().filter((p) => p.age > 0).sort((a, b) => a.age - b.age).map((p) => {
+              const t = ageSpan > 0 ? (p.age - minAge) / ageSpan : 0.5;
               return (
-                <div className="mt-5 pt-4 flex items-center justify-center gap-6 border-t border-white/[0.06]">
-                  <div className="text-center"><p className="text-2xl font-bold" style={{ color: "#00ff87" }}>{aWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerA?.first_name ?? "A"}</p></div>
-                  <div className="text-center px-4 border-x" style={{ borderColor: "var(--border-subtle)" }}><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>métricas ganadas</p></div>
-                  <div className="text-center"><p className="text-2xl font-bold text-purple-400">{bWins}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{playerB?.first_name ?? "B"}</p></div>
+                <div key={p.id} className="age-dot-wrap" style={{ left: `${t * 100}%` }} title={`${p.name} · ${p.age}`}>
+                  <span className="age-dot" style={{ background: POS_COLOR[p.pos] }} />
                 </div>
               );
-            })()}
-          </Card>
-        </motion.div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/30 mb-4">Jugadores por posición</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={positionData} layout="vertical" margin={{ left: 10 }}>
-              <XAxis type="number" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="position" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9 }} width={90} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" radius={[0, 5, 5, 0]}>
-                {positionData.map((_, i) => <Cell key={i} fill={["#00ff87", "#00ff87", "#ff3b30", "#F59E0B", "#A855F7"][i % 5]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Tendencia lesiones (6m)</p>
-            <div className="flex gap-3 text-xs text-white/30">
-              <span>Total: <strong className="text-white">{injuryStats?.total ?? 0}</strong></span>
-              <span>Prom.: <strong className="text-white">{injuryStats?.avg_days_out?.toFixed(0) ?? "—"}d</strong></span>
-            </div>
+            })}
+            <div className="age-axis" />
+            <div className="age-labels"><span>{minAge || "—"}</span><span>edad →</span><span>{maxAge || "—"}</span></div>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={monthData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: "#0a0f1e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="injuries" name="Lesiones" stroke="#ff3b30" strokeWidth={2} dot={{ fill: "#ff3b30", r: 3, strokeWidth: 0 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <Note style={{ fontSize: 15, opacity: 0.75, display: "block", marginTop: 28 }}>
+            cada punto, un jugador · color según su posición
+          </Note>
         </Card>
       </div>
     </div>
