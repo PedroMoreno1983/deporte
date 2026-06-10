@@ -121,8 +121,8 @@ export function PitchHeatmap({
           <radialGradient id="heat" cx="50%" cy="50%" r="50%">
             <stop offset="0%"  stopColor="#ff3b30" stopOpacity="0.95" />
             <stop offset="40%" stopColor="#f59e0b" stopOpacity="0.55" />
-            <stop offset="75%" stopColor="#00ff87" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="#00ff87" stopOpacity="0" />
+            <stop offset="75%" stopColor="#c0432b" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="#c0432b" stopOpacity="0" />
           </radialGradient>
           <filter id="heatBlur" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.6" />
@@ -146,7 +146,7 @@ export function PitchHeatmap({
                 y={i * (154 / 8)}
                 width="100"
                 height={154 / 8}
-                fill={i % 2 === 0 ? "rgba(0,255,135,0.025)" : "rgba(0,255,135,0.012)"}
+                fill={i % 2 === 0 ? "rgba(192,67,43,0.025)" : "rgba(192,67,43,0.012)"}
               />
             ))}
           </g>
@@ -165,7 +165,7 @@ export function PitchHeatmap({
             <line x1="3" y1="77" x2="97" y2="77" />
             {/* Center circle */}
             <circle cx="50" cy="77" r="9.15" />
-            <circle cx="50" cy="77" r="0.6" fill="rgba(0,255,135,0.6)" stroke="none" />
+            <circle cx="50" cy="77" r="0.6" fill="rgba(192,67,43,0.6)" stroke="none" />
             {/* Penalty boxes */}
             <rect x="22" y="3"   width="56" height="16.5" />
             <rect x="22" y="134.5" width="56" height="16.5" />
@@ -176,8 +176,8 @@ export function PitchHeatmap({
             <path d="M 41 19.5 Q 50 27 59 19.5" />
             <path d="M 41 134.5 Q 50 127 59 134.5" />
             {/* Goals */}
-            <line x1="44" y1="3"   x2="56" y2="3"   strokeWidth="0.6" stroke="rgba(0,255,135,0.5)" />
-            <line x1="44" y1="151" x2="56" y2="151" strokeWidth="0.6" stroke="rgba(0,255,135,0.5)" />
+            <line x1="44" y1="3"   x2="56" y2="3"   strokeWidth="0.6" stroke="rgba(192,67,43,0.5)" />
+            <line x1="44" y1="151" x2="56" y2="151" strokeWidth="0.6" stroke="rgba(192,67,43,0.5)" />
           </g>
         )}
 
@@ -209,8 +209,8 @@ export function PitchHeatmap({
             className="flex-1 h-1.5 rounded-full"
             style={{
               background:
-                "linear-gradient(90deg, rgba(0,255,135,0.55), rgba(245,158,11,0.7), rgba(255,59,48,0.9))",
-              boxShadow: "0 0 8px rgba(0,255,135,0.25)",
+                "linear-gradient(90deg, rgba(192,67,43,0.55), rgba(245,158,11,0.7), rgba(255,59,48,0.9))",
+              boxShadow: "0 0 8px rgba(192,67,43,0.25)",
             }}
           />
           <span>Alta</span>
