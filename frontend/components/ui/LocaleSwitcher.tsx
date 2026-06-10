@@ -70,9 +70,9 @@ export function LocaleSwitcher({ compact = false }: LocaleSwitcherProps) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors"
         style={{
-          background: open ? "rgba(0,255,135,0.10)" : "rgba(255,255,255,0.03)",
-          border: `1px solid ${open ? "rgba(0,255,135,0.30)" : "rgba(255,255,255,0.08)"}`,
-          color: open ? "#00ff87" : "rgba(255,255,255,0.65)",
+          background: open ? "rgba(192,67,43,0.10)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${open ? "rgba(192,67,43,0.30)" : "rgba(255,255,255,0.08)"}`,
+          color: open ? "#c0432b" : "rgba(255,255,255,0.65)",
         }}
         aria-label="Idioma"
         aria-expanded={open}
@@ -104,9 +104,9 @@ export function LocaleSwitcher({ compact = false }: LocaleSwitcherProps) {
                   width: MENU_WIDTH,
                   background: "rgba(8,15,32,0.96)",
                   backdropFilter: "blur(20px) saturate(180%)",
-                  border: "1px solid rgba(0,255,135,0.25)",
+                  border: "1px solid rgba(192,67,43,0.25)",
                   boxShadow:
-                    "0 12px 32px rgba(0,0,0,0.6), 0 0 16px rgba(0,255,135,0.15)",
+                    "0 12px 32px rgba(0,0,0,0.6), 0 0 16px rgba(192,67,43,0.15)",
                 }}
               >
                 {LOCALES.map((l) => {
@@ -117,7 +117,7 @@ export function LocaleSwitcher({ compact = false }: LocaleSwitcherProps) {
                       key={l}
                       onClick={() => { setLocale(l as Locale); setOpen(false); }}
                       className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.05]"
-                      style={{ color: active ? "#00ff87" : "rgba(255,255,255,0.8)" }}
+                      style={{ color: active ? "#c0432b" : "rgba(255,255,255,0.8)" }}
                     >
                       <span className="flex items-center gap-2 min-w-0">
                         <span className="text-base leading-none">{info.flag}</span>

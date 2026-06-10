@@ -206,9 +206,9 @@ export function OnboardingTour() {
             height={targetRect.height + 12}
             rx={12}
             fill="none"
-            stroke="#00ff87"
+            stroke="#c0432b"
             strokeWidth={2}
-            style={{ filter: "drop-shadow(0 0 12px rgba(0,255,135,0.7))" }}
+            style={{ filter: "drop-shadow(0 0 12px rgba(192,67,43,0.7))" }}
           />
         )}
       </svg>
@@ -221,16 +221,16 @@ export function OnboardingTour() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -6 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute glass rounded-2xl shadow-card-hover"
+          className="absolute rounded-2xl"
           style={{
             left: tipLeft,
             top: tipTop,
             transform: tipTransform,
             width: TOOLTIP_W,
             padding: 20,
-            border: "1px solid rgba(0,255,135,0.30)",
-            boxShadow:
-              "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,135,0.15), 0 0 32px rgba(0,255,135,0.18)",
+            background: "var(--paper-card)",
+            border: "1.5px solid var(--rule)",
+            boxShadow: "4px 8px 0 rgba(44,38,32,0.10), 0 24px 64px rgba(44,38,32,0.22)",
           }}
         >
           {/* Header */}
@@ -242,20 +242,21 @@ export function OnboardingTour() {
                 <div
                   className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
                   style={{
-                    background: "rgba(0,255,135,0.12)",
-                    border: "1px solid rgba(0,255,135,0.30)",
+                    background: "rgba(192,67,43,0.12)",
+                    border: "1px solid rgba(192,67,43,0.30)",
                   }}
                 >
-                  <Sparkles className="w-3.5 h-3.5" style={{ color: "#00ff87" }} />
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: "#c0432b" }} />
                 </div>
               )}
-              <h3 className="text-sm font-bold text-white tracking-tight truncate">
+              <h3 className="text-sm font-bold tracking-tight truncate" style={{ color: "var(--ink)" }}>
                 {current.title}
               </h3>
             </div>
             <button
               onClick={finish}
-              className="p-1 rounded-md text-white/30 hover:text-white/80 transition-colors shrink-0"
+              className="p-1 rounded-md transition-colors shrink-0"
+              style={{ color: "var(--ink-faint)" }}
               aria-label="Cerrar tour"
             >
               <X className="w-4 h-4" />
@@ -263,7 +264,7 @@ export function OnboardingTour() {
           </div>
 
           {/* Body */}
-          <p className="text-sm leading-relaxed text-white/70">{current.body}</p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--ink-soft)" }}>{current.body}</p>
 
           {/* Footer */}
           <div className="flex items-center justify-between mt-5">
@@ -276,12 +277,11 @@ export function OnboardingTour() {
                     width: i === step ? 18 : 6,
                     height: 6,
                     background:
-                      i === step ? "#00ff87" : i < step ? "rgba(0,255,135,0.5)" : "rgba(255,255,255,0.18)",
-                    boxShadow: i === step ? "0 0 8px rgba(0,255,135,0.6)" : undefined,
+                      i === step ? "#c0432b" : i < step ? "rgba(192,67,43,0.5)" : "rgba(44,38,32,0.18)",
                   }}
                 />
               ))}
-              <span className="text-[10px] font-mono text-white/35 ml-2 tabular-nums">
+              <span className="text-[10px] font-mono ml-2 tabular-nums" style={{ color: "var(--ink-faint)" }}>
                 {step + 1}/{total}
               </span>
             </div>
@@ -289,7 +289,8 @@ export function OnboardingTour() {
               {!isLast && (
                 <button
                   onClick={finish}
-                  className="text-xs font-semibold text-white/40 hover:text-white/70 transition-colors px-2 py-1"
+                  className="text-xs font-semibold transition-colors px-2 py-1"
+                  style={{ color: "var(--ink-soft)" }}
                 >
                   Saltar
                 </button>
@@ -298,9 +299,8 @@ export function OnboardingTour() {
                 onClick={() => (isLast ? finish() : setStep((s) => s + 1))}
                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
                 style={{
-                  background: "#00ff87",
-                  color: "#020817",
-                  boxShadow: "0 0 16px rgba(0,255,135,0.45)",
+                  background: "#c0432b",
+                  color: "#faf4e8",
                 }}
               >
                 {isLast ? "Comenzar" : "Siguiente"}

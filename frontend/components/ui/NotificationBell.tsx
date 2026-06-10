@@ -30,7 +30,7 @@ const SEV_COLOR: Record<string, string> = {
   critica: "#ff3b30",
   alta:    "#f97316",
   media:   "#f59e0b",
-  baja:    "#00ff87",
+  baja:    "#c0432b",
 };
 
 const PANEL_WIDTH = 340;
@@ -169,8 +169,8 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
         aria-expanded={open}
         className="relative flex items-center gap-2 p-2 rounded-xl transition-all duration-150 w-full"
         style={{
-          color: open ? "#00ff87" : "rgba(255,255,255,0.45)",
-          background: open ? "rgba(0,255,135,0.08)" : "transparent",
+          color: open ? "#c0432b" : "rgba(255,255,255,0.45)",
+          background: open ? "rgba(192,67,43,0.08)" : "transparent",
         }}
         onMouseEnter={(e) => { if (!open) e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}
@@ -220,9 +220,9 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                   maxHeight: "min(540px, calc(100vh - 32px))",
                   background: "rgba(8,15,32,0.96)",
                   backdropFilter: "blur(20px) saturate(180%)",
-                  border: "1px solid rgba(0,255,135,0.20)",
+                  border: "1px solid rgba(192,67,43,0.20)",
                   boxShadow:
-                    "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), 0 0 24px rgba(0,255,135,0.10)",
+                    "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), 0 0 24px rgba(192,67,43,0.10)",
                 }}
               >
                 {/* Header */}
@@ -231,7 +231,7 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Bell className="w-3.5 h-3.5 shrink-0" style={{ color: "#00ff87" }} />
+                    <Bell className="w-3.5 h-3.5 shrink-0" style={{ color: "#c0432b" }} />
                     <span className="text-sm font-bold">Alertas</span>
                     {unread.length > 0 && (
                       <span
@@ -247,7 +247,7 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                       <button
                         onClick={markAllRead}
                         className="text-[10px] font-semibold transition-colors"
-                        style={{ color: "#00ff87" }}
+                        style={{ color: "#c0432b" }}
                       >
                         Marcar leídas
                       </button>
@@ -269,9 +269,9 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                     <div className="flex flex-col items-center justify-center py-10 gap-2">
                       <div
                         className="p-3 rounded-xl"
-                        style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}
+                        style={{ background: "rgba(192,67,43,0.06)", border: "1px solid rgba(192,67,43,0.15)" }}
                       >
-                        <Bell className="w-5 h-5" style={{ color: "#00ff87" }} />
+                        <Bell className="w-5 h-5" style={{ color: "#c0432b" }} />
                       </div>
                       <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.4)" }}>
                         Sin alertas activas
@@ -363,7 +363,7 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
                       onClick={() => emailInput && sendMutation.mutate(emailInput)}
                       disabled={!emailInput || sendMutation.isPending}
                       className="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1 shrink-0"
-                      style={{ background: emailSent ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.08)", color: emailSent ? "#00ff87" : "white" }}
+                      style={{ background: emailSent ? "rgba(192,67,43,0.15)" : "rgba(255,255,255,0.08)", color: emailSent ? "#c0432b" : "white" }}
                       aria-label="Enviar"
                     >
                       {sendMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : emailSent ? <Check className="w-3 h-3" /> : <Mail className="w-3 h-3" />}

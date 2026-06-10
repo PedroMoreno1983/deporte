@@ -52,9 +52,9 @@ export function ExportButton({
         disabled={disabled || isEmpty}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40"
         style={{
-          background: open ? "rgba(0,255,135,0.15)" : "rgba(0,255,135,0.08)",
-          border: `1px solid ${open ? "rgba(0,255,135,0.45)" : "rgba(0,255,135,0.25)"}`,
-          color: "#00ff87",
+          background: open ? "rgba(192,67,43,0.15)" : "rgba(192,67,43,0.08)",
+          border: `1px solid ${open ? "rgba(192,67,43,0.45)" : "rgba(192,67,43,0.25)"}`,
+          color: "#c0432b",
         }}
       >
         <Download className="w-3.5 h-3.5" />
@@ -72,8 +72,8 @@ export function ExportButton({
             className="absolute right-0 top-full mt-1.5 rounded-xl overflow-hidden glass z-30"
             style={{
               width: 200,
-              border: "1px solid rgba(0,255,135,0.25)",
-              boxShadow: "0 12px 32px rgba(0,0,0,0.6), 0 0 16px rgba(0,255,135,0.15)",
+              border: "1px solid rgba(192,67,43,0.25)",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.6), 0 0 16px rgba(192,67,43,0.15)",
             }}
           >
             <button
@@ -81,7 +81,7 @@ export function ExportButton({
               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.04]"
               style={{ color: "rgba(255,255,255,0.85)" }}
             >
-              <FileSpreadsheet className="w-4 h-4" style={{ color: "#00ff87" }} />
+              <FileSpreadsheet className="w-4 h-4" style={{ color: "#c0432b" }} />
               <div>
                 <div className="font-bold">Excel (.xlsx)</div>
                 <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>

@@ -110,19 +110,19 @@ const FORMATIONS: Record<string, { label: string; players: Player[] }> = {
 const TYPE_COLORS: Record<PosType, { bg: string; border: string; text: string; glow: string; label: string }> = {
   GK:  { bg: "rgba(251,191,36,0.18)",  border: "rgba(251,191,36,0.85)", text: "#fbbf24", glow: "rgba(251,191,36,0.5)",  label: "Portero" },
   DEF: { bg: "rgba(59,130,246,0.18)",  border: "rgba(59,130,246,0.85)", text: "#60a5fa", glow: "rgba(59,130,246,0.5)",  label: "Defensa" },
-  MID: { bg: "rgba(0,255,135,0.15)",   border: "rgba(0,255,135,0.85)",  text: "#00ff87", glow: "rgba(0,255,135,0.5)",   label: "Mediocampo" },
+  MID: { bg: "rgba(60,107,101,0.20)",  border: "rgba(109,179,164,0.85)", text: "#6db3a4", glow: "rgba(60,107,101,0.5)",  label: "Mediocampo" },
   FWD: { bg: "rgba(239,68,68,0.18)",   border: "rgba(239,68,68,0.85)",  text: "#f87171", glow: "rgba(239,68,68,0.5)",   label: "Delantero" },
 };
 
 const STATUS_DOT: Record<string, string> = {
-  available:  "#00ff87",
+  available:  "#6db3a4",
   injured:    "#ff3b30",
   recovering: "#f97316",
   suspended:  "#f59e0b",
   inactive:   "#475569",
 };
 
-const DRAW_COLORS = ["#00ff87", "#ffffff", "#3b82f6", "#f59e0b", "#ff3b30", "#a78bfa"];
+const DRAW_COLORS = ["#c0432b", "#ffffff", "#3b82f6", "#f59e0b", "#ff3b30", "#a78bfa"];
 
 // ─── SVG Pitch ────────────────────────────────────────────────────────────────
 function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
@@ -505,7 +505,7 @@ export function TacticalBoard() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div ref={wrapperRef} className="flex flex-col h-full" style={{ position: "relative" }}
+    <div ref={wrapperRef} className="flex flex-col h-full" style={{ position: "relative", background: "#211d18", borderRadius: 14 }}
       onClick={() => { setShowFormMenu(false); setPickerFor(null); setShowPlays(false); }}>
 
       {/* ── Toolbar ──────────────────────────────────────── */}
@@ -516,7 +516,7 @@ export function TacticalBoard() {
         <div className="relative" onClick={e => e.stopPropagation()}>
           <button onClick={() => setShowFormMenu(v => !v)}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-bold"
-            style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.3)", color: "#00ff87" }}>
+            style={{ background: "rgba(192,67,43,0.08)", border: "1px solid rgba(192,67,43,0.3)", color: "#c0432b" }}>
             {FORMATIONS[formKey].label} <ChevronDown className="w-3.5 h-3.5" />
           </button>
           <AnimatePresence>
@@ -527,7 +527,7 @@ export function TacticalBoard() {
                 {Object.entries(FORMATIONS).map(([key, f]) => (
                   <button key={key} onClick={() => changeFormation(key)}
                     className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-semibold"
-                    style={{ color: key === formKey ? "#00ff87" : "rgba(255,255,255,0.65)", background: key === formKey ? "rgba(0,255,135,0.08)" : "transparent" }}
+                    style={{ color: key === formKey ? "#c0432b" : "rgba(255,255,255,0.65)", background: key === formKey ? "rgba(192,67,43,0.08)" : "transparent" }}
                     onMouseEnter={e => { if (key !== formKey) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                     onMouseLeave={e => { if (key !== formKey) e.currentTarget.style.background = "transparent"; }}>
                     {f.label} {key === formKey && <Check className="w-3.5 h-3.5" />}
@@ -545,7 +545,7 @@ export function TacticalBoard() {
           {(["move", "draw"] as const).map(m => (
             <button key={m} onClick={() => setMode(m)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold"
-              style={{ background: mode === m ? "rgba(0,255,135,0.12)" : "transparent", color: mode === m ? "#00ff87" : "rgba(255,255,255,0.4)", borderRight: m === "move" ? "1px solid rgba(255,255,255,0.1)" : undefined }}>
+              style={{ background: mode === m ? "rgba(192,67,43,0.12)" : "transparent", color: mode === m ? "#c0432b" : "rgba(255,255,255,0.4)", borderRight: m === "move" ? "1px solid rgba(255,255,255,0.1)" : undefined }}>
               {m === "move" ? <MousePointer className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
               {m === "move" ? "Mover" : "Dibujar"}
             </button>
@@ -569,9 +569,9 @@ export function TacticalBoard() {
           {assignedCount > 0 && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-              style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.2)" }}>
-              <UserCheck className="w-3.5 h-3.5" style={{ color: "#00ff87" }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#00ff87" }}>{assignedCount}/11</span>
+              style={{ background: "rgba(192,67,43,0.08)", border: "1px solid rgba(192,67,43,0.2)" }}>
+              <UserCheck className="w-3.5 h-3.5" style={{ color: "#c0432b" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#c0432b" }}>{assignedCount}/11</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -611,9 +611,9 @@ export function TacticalBoard() {
         {/* Save */}
         <button onClick={e => { e.stopPropagation(); setSaveModal(true); setSaveName(""); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ color: "#00ff87", background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.25)" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,255,135,0.15)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,255,135,0.08)")}>
+          style={{ color: "#c0432b", background: "rgba(192,67,43,0.08)", border: "1px solid rgba(192,67,43,0.25)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(192,67,43,0.15)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(192,67,43,0.08)")}>
           <Save className="w-3.5 h-3.5" /> Guardar
         </button>
 
@@ -621,7 +621,7 @@ export function TacticalBoard() {
         <button onClick={resetFormation}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
           style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#00ff87")}
+          onMouseEnter={e => (e.currentTarget.style.color = "#c0432b")}
           onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.35)")}>
           <RotateCcw className="w-3.5 h-3.5" /> Resetear
         </button>
@@ -633,7 +633,7 @@ export function TacticalBoard() {
         {/* Pitch */}
         <div className="flex-1 flex items-center justify-center overflow-hidden">
           <div ref={pitchContainerRef}
-            style={{ position: "relative", width: "min(calc(100% - 8px), calc((100vh - 260px) * 700 / 460))", aspectRatio: "700 / 460", flexShrink: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(0,255,135,0.1), 0 8px 48px rgba(0,0,0,0.7), 0 0 80px rgba(0,100,40,0.15)" }}>
+            style={{ position: "relative", width: "min(calc(100% - 8px), calc((100vh - 260px) * 700 / 460))", aspectRatio: "700 / 460", flexShrink: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(192,67,43,0.1), 0 8px 48px rgba(0,0,0,0.7), 0 0 80px rgba(0,100,40,0.15)" }}>
             <div style={{ position: "absolute", inset: 0 }}><PitchSVG /></div>
 
             {/* Interaction layer */}
@@ -709,7 +709,7 @@ export function TacticalBoard() {
                 <BookOpen className="w-3 h-3" />
                 <p className="text-[9px] font-bold uppercase tracking-[0.18em]">Jugadas guardadas</p>
               </div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff87" }}>{(savedPlays as any[]).length}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#c0432b" }}>{(savedPlays as any[]).length}</span>
             </button>
 
             <AnimatePresence>
@@ -772,10 +772,10 @@ export function TacticalBoard() {
           <div>
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "rgba(100,116,139,0.8)" }}>Instrucciones</p>
             <div className="flex flex-col gap-2">
-              <div className="rounded-lg p-2.5" style={{ background: "rgba(0,255,135,0.05)", border: "1px solid rgba(0,255,135,0.12)" }}>
+              <div className="rounded-lg p-2.5" style={{ background: "rgba(192,67,43,0.05)", border: "1px solid rgba(192,67,43,0.12)" }}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <MousePointer className="w-3 h-3" style={{ color: "#00ff87" }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff87" }}>Mover</span>
+                  <MousePointer className="w-3 h-3" style={{ color: "#c0432b" }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#c0432b" }}>Mover</span>
                 </div>
                 <p style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>Arrastra para reposicionar. Clic para asignar nombre real.</p>
               </div>
@@ -790,8 +790,8 @@ export function TacticalBoard() {
           </div>
 
           {assignedCount > 0 && (
-            <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(0,255,135,0.06)", border: "1px solid rgba(0,255,135,0.15)" }}>
-              <p style={{ fontSize: 20, fontWeight: 900, color: "#00ff87" }}>{assignedCount}<span style={{ fontSize: 12, color: "rgba(0,255,135,0.5)" }}>/11</span></p>
+            <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(192,67,43,0.06)", border: "1px solid rgba(192,67,43,0.15)" }}>
+              <p style={{ fontSize: 20, fontWeight: 900, color: "#c0432b" }}>{assignedCount}<span style={{ fontSize: 12, color: "rgba(192,67,43,0.5)" }}>/11</span></p>
               <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>jugadores asignados</p>
             </div>
           )}
@@ -815,14 +815,14 @@ export function TacticalBoard() {
                 top:  Math.min(pickerPos.y + 14, (wrapperRef.current?.offsetHeight ?? 600) - 320),
                 zIndex: 40, width: 228, borderRadius: 14,
                 background: "rgba(6,12,18,0.97)",
-                border: "1px solid rgba(0,255,135,0.2)",
-                boxShadow: "0 20px 56px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,255,135,0.06)",
+                border: "1px solid rgba(192,67,43,0.2)",
+                boxShadow: "0 20px 56px rgba(0,0,0,0.85), 0 0 0 1px rgba(192,67,43,0.06)",
                 overflow: "hidden",
               }}>
               <div className="flex items-center justify-between px-3 pt-3 pb-2">
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.9)" }}>Asignar jugador</p>
-                  <p style={{ fontSize: 9, color: "rgba(0,255,135,0.6)", marginTop: 1 }}>
+                  <p style={{ fontSize: 9, color: "rgba(192,67,43,0.6)", marginTop: 1 }}>
                     {players.find(p => p.id === pickerFor)?.abbr} · {FORMATIONS[formKey].label}
                   </p>
                 </div>
@@ -838,7 +838,7 @@ export function TacticalBoard() {
                   <Search className="w-3.5 h-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} />
                   <input autoFocus value={pickerSearch} onChange={e => setPickerSearch(e.target.value)}
                     placeholder="Buscar por nombre o número..."
-                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: "rgba(255,255,255,0.85)", caretColor: "#00ff87" }} />
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: "rgba(255,255,255,0.85)", caretColor: "#c0432b" }} />
                 </div>
               </div>
 
@@ -870,17 +870,17 @@ export function TacticalBoard() {
                         style={{ opacity: usedElsewhere ? 0.35 : 1, cursor: usedElsewhere ? "not-allowed" : "pointer" }}
                         onMouseEnter={e => { if (!usedElsewhere) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: isMine ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.07)", border: `1.5px solid ${isMine ? "rgba(0,255,135,0.6)" : "rgba(255,255,255,0.12)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isMine ? "#00ff87" : "rgba(255,255,255,0.7)", flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: isMine ? "rgba(192,67,43,0.15)" : "rgba(255,255,255,0.07)", border: `1.5px solid ${isMine ? "rgba(192,67,43,0.6)" : "rgba(255,255,255,0.12)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isMine ? "#c0432b" : "rgba(255,255,255,0.7)", flexShrink: 0 }}>
                           {p.jersey_number ?? "?"}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: isMine ? "#00ff87" : "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.full_name}</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: isMine ? "#c0432b" : "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.full_name}</p>
                           <div className="flex items-center gap-1">
                             <Circle style={{ width: 6, height: 6, fill: STATUS_DOT[p.status] ?? "#475569", color: "transparent", flexShrink: 0 }} />
                             <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{p.position ?? "—"}</p>
                           </div>
                         </div>
-                        {isMine && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#00ff87" }} />}
+                        {isMine && <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#c0432b" }} />}
                       </button>
                     );
                   })
@@ -984,7 +984,7 @@ export function TacticalBoard() {
                       else { startAutoTimer(); setAiAutoEnabled(true); }
                     }}
                     className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                    style={{ background: aiAutoEnabled ? "rgba(0,255,135,0.12)" : "rgba(255,255,255,0.06)", color: aiAutoEnabled ? "#00ff87" : "rgba(255,255,255,0.5)", border: `1px solid ${aiAutoEnabled ? "rgba(0,255,135,0.3)" : "rgba(255,255,255,0.1)"}` }}>
+                    style={{ background: aiAutoEnabled ? "rgba(192,67,43,0.12)" : "rgba(255,255,255,0.06)", color: aiAutoEnabled ? "#c0432b" : "rgba(255,255,255,0.5)", border: `1px solid ${aiAutoEnabled ? "rgba(192,67,43,0.3)" : "rgba(255,255,255,0.1)"}` }}>
                     {aiAutoEnabled ? "Activo" : "Inactivo"}
                   </button>
                 </div>
@@ -1026,10 +1026,10 @@ export function TacticalBoard() {
 
                   {/* Urgency header */}
                   <div className="px-3 py-2 flex items-center justify-between"
-                    style={{ background: ({ baja: "rgba(0,255,135,0.08)", media: "rgba(245,158,11,0.08)", alta: "rgba(249,115,22,0.08)", critica: "rgba(239,68,68,0.10)" } as any)[aiRec.urgency] ?? "rgba(167,139,250,0.08)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    style={{ background: ({ baja: "rgba(192,67,43,0.08)", media: "rgba(245,158,11,0.08)", alta: "rgba(249,115,22,0.08)", critica: "rgba(239,68,68,0.10)" } as any)[aiRec.urgency] ?? "rgba(167,139,250,0.08)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3" style={{ color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency] }} />
-                      <span style={{ fontSize: 10, fontWeight: 800, color: ({ baja: "#00ff87", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency], textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                      <AlertTriangle className="w-3 h-3" style={{ color: ({ baja: "#c0432b", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency] }} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: ({ baja: "#c0432b", media: "#f59e0b", alta: "#f97316", critica: "#ff3b30" } as any)[aiRec.urgency], textTransform: "uppercase", letterSpacing: "0.1em" }}>
                         Urgencia {aiRec.urgency}
                       </span>
                     </div>
@@ -1060,7 +1060,7 @@ export function TacticalBoard() {
                               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                               <span style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa" }}>{ch.current_abbr}</span>
                               <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>→</span>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff87" }}>{ch.suggested_abbr}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#c0432b" }}>{ch.suggested_abbr}</span>
                               {ch.player_name && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{ch.player_name}</span>}
                               <span style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", marginLeft: "auto", maxWidth: 80, textAlign: "right", lineHeight: 1.3 }}>{ch.reason}</span>
                             </div>
@@ -1093,7 +1093,7 @@ export function TacticalBoard() {
                       </button>
                       <button onClick={acceptRecommendation}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
-                        style={{ background: "rgba(0,255,135,0.12)", color: "#00ff87", border: "1px solid rgba(0,255,135,0.3)" }}>
+                        style={{ background: "rgba(192,67,43,0.12)", color: "#c0432b", border: "1px solid rgba(192,67,43,0.3)" }}>
                         <CheckCircle2 className="w-3.5 h-3.5" /> Aplicar
                       </button>
                     </div>
@@ -1123,19 +1123,19 @@ export function TacticalBoard() {
                 transform: "translate(-50%, -50%)",
                 zIndex: 60, width: 320, borderRadius: 18,
                 background: "rgba(6,12,22,0.98)",
-                border: "1px solid rgba(0,255,135,0.2)",
+                border: "1px solid rgba(192,67,43,0.2)",
                 boxShadow: "0 24px 64px rgba(0,0,0,0.9)",
                 padding: 24,
               }}>
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl" style={{ background: "rgba(0,255,135,0.1)", border: "1px solid rgba(0,255,135,0.2)" }}>
-                    <Save className="w-4 h-4" style={{ color: "#00ff87" }} />
+                  <div className="p-2 rounded-xl" style={{ background: "rgba(192,67,43,0.1)", border: "1px solid rgba(192,67,43,0.2)" }}>
+                    <Save className="w-4 h-4" style={{ color: "#c0432b" }} />
                   </div>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.95)" }}>Guardar jugada</p>
-                    <p style={{ fontSize: 10, color: "rgba(0,255,135,0.6)", marginTop: 1 }}>{FORMATIONS[formKey].label} · {assignedCount}/11 jugadores</p>
+                    <p style={{ fontSize: 10, color: "rgba(192,67,43,0.6)", marginTop: 1 }}>{FORMATIONS[formKey].label} · {assignedCount}/11 jugadores</p>
                   </div>
                 </div>
                 <button onClick={() => setSaveModal(false)} style={{ color: "rgba(255,255,255,0.3)", lineHeight: 0 }}
@@ -1156,8 +1156,8 @@ export function TacticalBoard() {
                   onChange={e => setSaveName(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && saveName.trim()) saveMutation.mutate(saveName.trim()); }}
                   placeholder="Ej: Contraataque por derecha..."
-                  style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.9)", outline: "none", caretColor: "#00ff87", boxSizing: "border-box" }}
-                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,135,0.4)")}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.9)", outline: "none", caretColor: "#c0432b", boxSizing: "border-box" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(192,67,43,0.4)")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
                 />
               </div>
@@ -1187,7 +1187,7 @@ export function TacticalBoard() {
                   onClick={() => saveName.trim() && saveMutation.mutate(saveName.trim())}
                   disabled={!saveName.trim() || saveMutation.isPending}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
-                  style={{ background: saveName.trim() ? "rgba(0,255,135,0.15)" : "rgba(255,255,255,0.04)", color: saveName.trim() ? "#00ff87" : "rgba(255,255,255,0.25)", border: `1px solid ${saveName.trim() ? "rgba(0,255,135,0.35)" : "rgba(255,255,255,0.08)"}`, cursor: saveName.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>
+                  style={{ background: saveName.trim() ? "rgba(192,67,43,0.15)" : "rgba(255,255,255,0.04)", color: saveName.trim() ? "#c0432b" : "rgba(255,255,255,0.25)", border: `1px solid ${saveName.trim() ? "rgba(192,67,43,0.35)" : "rgba(255,255,255,0.08)"}`, cursor: saveName.trim() ? "pointer" : "not-allowed", transition: "all 0.15s" }}>
                   {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {saveMutation.isPending ? "Guardando..." : "Guardar"}
                 </button>
