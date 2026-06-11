@@ -15,6 +15,7 @@ from ..core.database import SessionLocal
 from ..models.video_analysis import VideoAnalysis, CVStatus
 from ..websockets import manager, RealtimeEvent
 from .pipeline import run_pipeline, PipelineProgress
+from .transcode import normalise_video
 
 log = logging.getLogger("cv.runner")
 
@@ -54,8 +55,14 @@ def process_video(analysis_id: int, video_path: str, output_dir: str, weights: O
                 _broadcast_progress(analysis_id, p.fraction, p.stage, analysis.club_id)
 
         Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        # Normalise to a decodable, downscaled MP4 first (handles .webm/VP9 and
+        # speeds up CPU detection). Falls back to the original on any failure.
+        _broadcast_progress(analysis_id, 0.0, "preparing", analysis.club_id)
+        proc_video = normalise_video(video_path, output_dir)
+
         result = run_pipeline(
-            video_path=video_path,
+            video_path=proc_video,
             output_dir=output_dir,
             weights=weights,
             on_progress=on_progress,

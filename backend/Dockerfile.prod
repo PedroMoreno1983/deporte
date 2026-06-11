@@ -49,10 +49,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Runtime-only shared libraries:
 #   libpq5            → psycopg2 (Postgres)
 #   libGL/ libglib    → opencv-python-headless needs these even headless
+#   ffmpeg            → normalise any uploaded video to a decodable MP4 (the CV
+#                       pipeline transcodes first so VP9/.webm etc. don't yield
+#                       0 frames in OpenCV)
 #   curl              → container HEALTHCHECK probes
 RUN apt-get update && apt-get install -y --no-install-recommends \
         tini \
         curl \
+        ffmpeg \
         libpq5 \
         libgl1 \
         libglib2.0-0 \
