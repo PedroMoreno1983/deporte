@@ -52,6 +52,56 @@ export default function CVPage() {
   const [dragOver, setDragOver] = useState(false);
   const [notes, setNotes] = useState("");
 
+  const queueRef = useRef<File[]>([]);
+  const [queueLength, setQueueLength] = useState(0);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
+
+  const uploadNext = async () => {
+    if (queueRef.current.length === 0) {
+      setUploadingName(null);
+      return;
+    }
+    const nextFile = queueRef.current[0];
+    setUploadingName(nextFile.name);
+    queueRef.current = queueRef.current.slice(1);
+    setQueueLength(queueRef.current.length);
+    
+    try {
+      await cvApi.upload(nextFile, { notes: notes || undefined });
+      toast.success(`Video "${nextFile.name}" subido con éxito.`);
+      qc.invalidateQueries({ queryKey: ["cv-list"] });
+    } catch (e: any) {
+      toast.error(`Error al subir "${nextFile.name}": ` + (e?.response?.data?.detail || "Error desconocido"));
+    }
+    
+    uploadNext();
+  };
+
+  const handleFiles = (files: File[]) => {
+    const validFiles: File[] = [];
+    for (const f of files) {
+      if (!f.type.startsWith("video/")) {
+        toast.error(`"${f.name}" no es un archivo de video`);
+        continue;
+      }
+      if (f.size > 500 * 1024 * 1024) {
+        toast.error(`"${f.name}" supera los 500 MB y fue omitido`);
+        continue;
+      }
+      validFiles.push(f);
+    }
+    
+    if (validFiles.length === 0) return;
+    
+    const wasEmpty = queueRef.current.length === 0 && uploadingName === null;
+    queueRef.current = [...queueRef.current, ...validFiles];
+    setQueueLength(queueRef.current.length);
+    
+    if (wasEmpty) {
+      uploadNext();
+    }
+  };
+
   const { data: list = [], isLoading } = useQuery<AnalysisRow[]>({
     queryKey: ["cv-list"],
     queryFn: cvApi.list,
@@ -79,20 +129,19 @@ export default function CVPage() {
   });
 
   const onPick = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) handleFile(f);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFiles(Array.from(files));
+    }
     e.target.value = "";
   };
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) handleFile(f);
-  };
-  const handleFile = (f: File) => {
-    if (!f.type.startsWith("video/")) { toast.error("Solo se permiten archivos de video"); return; }
-    if (f.size > 500 * 1024 * 1024) { toast.error("El video supera 500 MB. Comprime antes de subir."); return; }
-    uploadMut.mutate(f);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFiles(Array.from(files));
+    }
   };
 
   return (
@@ -113,19 +162,21 @@ export default function CVPage() {
             border: `2px dashed ${dragOver ? "var(--terracotta)" : "var(--rule)"}`,
           }}
         >
-          <input ref={fileInput} type="file" accept="video/*" onChange={onPick} hidden />
+          <input ref={fileInput} type="file" accept="video/*" onChange={onPick} multiple hidden />
           <div style={{ position: "relative", width: 56, height: 56, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="56" height="56" viewBox="0 0 56 56" style={{ position: "absolute", inset: 0 }}>
               <circle cx="28" cy="28" r="22" fill="none" stroke="var(--terracotta)" strokeWidth="2" strokeDasharray="3 5" filter="url(#wobble)" />
             </svg>
-            {uploadMut.isPending
+            {uploadingName !== null
               ? <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--terracotta)" }} />
               : <UploadCloud className="w-6 h-6" style={{ color: "var(--terracotta)" }} />}
           </div>
           <p style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 18, color: "var(--ink)" }}>
-            {uploadMut.isPending ? "Subiendo video…" : "Arrastra tu video aquí"}
+            {uploadingName !== null ? `Subiendo "${uploadingName}"...` : "Arrastra tus videos aquí"}
           </p>
-          <Note style={{ fontSize: 15, marginTop: 4 }}>o haz click para seleccionarlo</Note>
+          <Note style={{ fontSize: 15, marginTop: 4 }}>
+            {uploadingName !== null ? `Quedan ${queueLength} videos en cola` : "o haz click para seleccionar uno o varios videos"}
+          </Note>
         </div>
 
         <div style={{ marginTop: 14 }}>
