@@ -65,18 +65,18 @@ export function TacticalAIChat() {
         style={{
           width: 56,
           height: 56,
-          background: "linear-gradient(135deg, #c0432b, #0ea5e9)",
+          background: "linear-gradient(135deg, var(--terracotta), #0ea5e9)",
           boxShadow: open
-            ? "0 0 32px rgba(192,67,43,0.55), 0 0 0 3px rgba(192,67,43,0.20)"
-            : "0 0 20px rgba(192,67,43,0.35), 0 8px 24px rgba(0,0,0,0.4)",
+            ? "0 0 32px rgba(37,99,235,0.45), 0 0 0 3px rgba(37,99,235,0.15)"
+            : "0 0 20px rgba(37,99,235,0.30), 0 8px 24px rgba(0,0,0,0.15)",
         }}
         aria-label="Abrir asistente táctico"
         title="Asistente táctico IA"
       >
         {open ? (
-          <X className="w-5 h-5 text-[#020817]" strokeWidth={2.8} />
+          <X className="w-5 h-5 text-white" strokeWidth={2.8} />
         ) : (
-          <Bot className="w-5 h-5 text-[#020817]" strokeWidth={2.5} />
+          <Bot className="w-5 h-5 text-white" strokeWidth={2.5} />
         )}
       </motion.button>
 
@@ -94,29 +94,29 @@ export function TacticalAIChat() {
               maxWidth: "calc(100vw - 32px)",
               height: 560,
               maxHeight: "calc(100vh - 140px)",
-              border: "1px solid rgba(192,67,43,0.28)",
+              border: "1px solid var(--rule)",
               boxShadow:
-                "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(192,67,43,0.12), 0 0 32px rgba(192,67,43,0.16)",
+                "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px var(--rule), 0 0 32px rgba(0,0,0,0.04)",
             }}
           >
             {/* Header */}
             <div
               className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+              style={{ borderBottom: "1px solid var(--rule)" }}
             >
               <div className="flex items-center gap-2.5">
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{
-                    background: "linear-gradient(135deg, rgba(192,67,43,0.20), rgba(14,165,233,0.10))",
-                    border: "1px solid rgba(192,67,43,0.35)",
+                    background: "linear-gradient(135deg, var(--paper-inset), var(--paper))",
+                    border: "1px solid var(--rule)",
                   }}
                 >
-                  <Sparkles className="w-4 h-4" style={{ color: "#c0432b" }} />
+                  <Sparkles className="w-4 h-4" style={{ color: "var(--terracotta)" }} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white leading-none">Asistente táctico</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-sm font-bold leading-none" style={{ color: "var(--ink)" }}>Asistente táctico</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: "var(--ink-soft)" }}>
                     Powered by Groq · Llama 3.3
                   </p>
                 </div>
@@ -125,7 +125,7 @@ export function TacticalAIChat() {
                 onClick={() => setMessages([])}
                 disabled={messages.length === 0}
                 className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors disabled:opacity-30"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--ink-soft)" }}
               >
                 Limpiar
               </button>
@@ -138,16 +138,16 @@ export function TacticalAIChat() {
                   <div
                     className="inline-flex p-3 rounded-2xl mb-3"
                     style={{
-                      background: "rgba(192,67,43,0.06)",
-                      border: "1px solid rgba(192,67,43,0.20)",
+                      background: "var(--paper-inset)",
+                      border: "1px solid var(--rule)",
                     }}
                   >
-                    <Bot className="w-6 h-6" style={{ color: "#c0432b" }} />
+                    <Bot className="w-6 h-6" style={{ color: "var(--terracotta)" }} />
                   </div>
-                  <p className="text-sm font-bold text-white/85">Hola, soy tu asistente táctico</p>
+                  <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Hola, soy tu asistente táctico</p>
                   <p
                     className="text-xs mt-1 mb-4 max-w-xs mx-auto"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--ink-soft)" }}
                   >
                     Tengo el contexto del plantel (wellness, lesiones, últimos partidos). Pregúntame lo que necesites.
                   </p>
@@ -156,19 +156,21 @@ export function TacticalAIChat() {
                       <button
                         key={s}
                         onClick={() => send(s)}
-                        className="block w-full text-left text-xs px-3 py-2 rounded-lg transition-colors"
+                        className="block w-full text-left text-xs px-3 py-2 rounded-lg transition-all"
                         style={{
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          color: "rgba(255,255,255,0.75)",
+                          background: "var(--paper)",
+                          border: "1px solid var(--rule)",
+                          color: "var(--ink-soft)",
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "rgba(192,67,43,0.06)";
-                          e.currentTarget.style.borderColor = "rgba(192,67,43,0.25)";
+                          e.currentTarget.style.background = "var(--paper-inset)";
+                          e.currentTarget.style.borderColor = "var(--ink-faint)";
+                          e.currentTarget.style.color = "var(--ink)";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                          e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                          e.currentTarget.style.background = "var(--paper)";
+                          e.currentTarget.style.borderColor = "var(--rule)";
+                          e.currentTarget.style.color = "var(--ink-soft)";
                         }}
                       >
                         {s}
@@ -190,15 +192,15 @@ export function TacticalAIChat() {
                         m.role === "user"
                           ? {
                               maxWidth: "85%",
-                              background: "rgba(192,67,43,0.12)",
-                              border: "1px solid rgba(192,67,43,0.30)",
-                              color: "#e6fff3",
+                              background: "var(--terracotta)",
+                              border: "1px solid var(--terracotta)",
+                              color: "#ffffff",
                             }
                           : {
                               maxWidth: "92%",
-                              background: "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.08)",
-                              color: "rgba(255,255,255,0.88)",
+                              background: "var(--paper-inset)",
+                              border: "1px solid var(--rule)",
+                              color: "var(--ink)",
                             }
                       }
                     >
@@ -208,8 +210,8 @@ export function TacticalAIChat() {
                 ))
               )}
               {ask.isPending && (
-                <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "#c0432b" }} />
+                <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ink-soft)" }}>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "var(--terracotta)" }} />
                   Analizando contexto y respondiendo...
                 </div>
               )}
@@ -222,7 +224,7 @@ export function TacticalAIChat() {
                 send(input);
               }}
               className="flex items-center gap-2 px-3 py-3"
-              style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+              style={{ borderTop: "1px solid var(--rule)" }}
             >
               <input
                 value={input}
@@ -230,9 +232,9 @@ export function TacticalAIChat() {
                 placeholder="Pregunta algo táctico..."
                 className="flex-1 text-sm px-3 py-2 rounded-xl outline-none"
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  color: "white",
+                  background: "var(--paper)",
+                  border: "1px solid var(--rule)",
+                  color: "var(--ink)",
                 }}
               />
               <button
@@ -240,9 +242,9 @@ export function TacticalAIChat() {
                 disabled={!input.trim() || ask.isPending}
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
                 style={{
-                  background: "#c0432b",
-                  color: "#020817",
-                  boxShadow: "0 0 12px rgba(192,67,43,0.45)",
+                  background: "var(--terracotta)",
+                  color: "#ffffff",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                 }}
                 aria-label="Enviar"
               >
