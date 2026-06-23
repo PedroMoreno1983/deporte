@@ -87,6 +87,7 @@ def process_video(analysis_id: int, video_path: str, output_dir: str, weights: O
                 "tracks":      result.tracks,
                 "team_colors": result.team_colors,
                 "sample":      _relative(result.sample_path, output_dir),
+                "identities":  result.identities,
             }
         analysis.finished_at = datetime.utcnow()
         db.commit()

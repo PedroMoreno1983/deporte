@@ -44,12 +44,14 @@ interface Track {
   max_speed_kmh: number;
   avg_speed_kmh: number;
   positions: { frame: number; x: number; y: number }[];
+  jersey?: number | null;
 }
 
 interface CVResults {
   tracks: RawTrack[];
   team_colors?: { A?: string | null; B?: string | null } | null;
   sample?: string | null;
+  identities?: any[] | null;
 }
 
 function normaliseTeam(raw: string | number | null | undefined): "A" | "B" | null {
@@ -74,6 +76,7 @@ function normaliseTrack(t: RawTrack): Track {
     max_speed_kmh,
     avg_speed_kmh,
     positions:       t.positions ?? [],
+    jersey:          (t as any).jersey ?? null,
   };
 }
 
@@ -107,6 +110,29 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
   );
   const teamColors = data?.results?.team_colors ?? { A: null, B: null };
 
+  const playerTracks: Track[] = useMemo(() => {
+    const idents = data?.results?.identities;
+    if (idents && idents.length > 0) {
+      return idents.map((id: any) => {
+        const team = normaliseTeam(id.team);
+        const teamColor = team === "A" ? (teamColors?.A ?? null) : team === "B" ? (teamColors?.B ?? null) : null;
+        return {
+          track_id: id.identity,
+          cls: "player",
+          team,
+          team_color: teamColor,
+          appearances: 100,
+          total_distance_m: id.distance_m ?? 0,
+          max_speed_kmh: id.top_speed_kmh ?? id.speed_kmh ?? 0,
+          avg_speed_kmh: id.speed_kmh ?? 0,
+          positions: [],
+          jersey: id.jersey,
+        };
+      });
+    }
+    return tracks.filter((t) => (t.total_distance_m ?? 0) >= 5 || (t.max_speed_kmh ?? 0) >= 5);
+  }, [data?.results?.identities, tracks, teamColors]);
+
   const heat = useMemo<{ A: HeatPoint[]; B: HeatPoint[] }>(() => {
     const a: HeatPoint[] = [];
     const b: HeatPoint[] = [];
@@ -121,13 +147,7 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
     return { A: a, B: b };
   }, [tracks]);
 
-  // A track is "real" if it moved at least 5 m or had a useful peak speed.
-  // The raw tracker reports a lot of single-frame ghosts that we don't want
-  // to count as separate players.
-  const realTracks = useMemo(
-    () => tracks.filter((t) => (t.total_distance_m ?? 0) >= 5 || (t.max_speed_kmh ?? 0) >= 5),
-    [tracks],
-  );
+  const realTracks = playerTracks;
 
   const visibleTracks = showAllTracks ? tracks : realTracks;
 
@@ -424,7 +444,7 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                             >
                               {i + 1}
                             </span>
-                            <span className="text-[11px] font-mono text-white/55 w-10 shrink-0">#{t.track_id}</span>
+                            <span className="text-[11px] font-mono text-white/55 w-16 shrink-0">{t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`}</span>
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                               <motion.div
                                 initial={{ width: 0 }}
@@ -462,7 +482,7 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                             >
                               {i + 1}
                             </span>
-                            <span className="text-[11px] font-mono text-white/55 w-10 shrink-0">#{t.track_id}</span>
+                            <span className="text-[11px] font-mono text-white/55 w-16 shrink-0">{t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`}</span>
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                               <motion.div
                                 initial={{ width: 0 }}
