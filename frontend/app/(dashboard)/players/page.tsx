@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, X, Upload, AlertCircle } from "lucide-react";
 import { playersApi, categoriesApi, predictionsApi } from "@/lib/api";
 import { adaptRoster } from "@/lib/lupi-adapters";
 import {
@@ -27,6 +27,31 @@ export default function PlayersPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>();
   const [pos, setPos] = useState<LupiPos | "ALL">("ALL");
   const [sel, setSel] = useState<LupiPlayer | null>(null);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedCatId, setSelectedCatId] = useState<number | "">("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+  const queryClient = useQueryClient();
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importFile) return;
+    if (!selectedCatId) return;
+    setIsImporting(true);
+    setImportResult(null);
+    try {
+      const res = await playersApi.importPlayers(importFile, Number(selectedCatId));
+      setImportResult(res);
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Error desconocido al importar";
+      alert(msg);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -63,6 +88,13 @@ export default function PlayersPage() {
               })),
             }}
           />
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="btn-secondary text-sm flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Importar Excel/CSV
+          </button>
           <Link href="/players/new" className="btn-primary text-sm">
             <Plus className="w-4 h-4" />
             Nuevo jugador
@@ -155,6 +187,139 @@ export default function PlayersPage() {
             <Link href={`/players/${sel.id}`} className="btn-primary text-sm" style={{ marginTop: 16 }}>
               Ver ficha completa
             </Link>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="drawer" onClick={() => { if (!isImporting) setShowImportModal(false); }}>
+          <div className="drawer-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450 }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white">Importar Plantel desde Excel/CSV</h3>
+              <button 
+                onClick={() => setShowImportModal(false)}
+                disabled={isImporting}
+                className="text-white/40 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {!importResult ? (
+              <form onSubmit={handleImport} className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider text-white/60">
+                    1. Categoría de Destino
+                  </label>
+                  <select
+                    value={selectedCatId}
+                    onChange={(e) => setSelectedCatId(e.target.value ? Number(e.target.value) : "")}
+                    required
+                    className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="">Selecciona una categoría...</option>
+                    {categories?.map((c: { id: number; name: string }) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider text-white/60">
+                    2. Archivo (.xlsx, .csv)
+                  </label>
+                  <div 
+                    className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors"
+                    style={{
+                      borderColor: importFile ? "rgba(0,255,135,0.40)" : "var(--border-subtle)",
+                      background: importFile ? "rgba(0,255,135,0.04)" : "rgba(255,255,255,0.02)",
+                    }}
+                    onClick={() => document.getElementById("excel-file-input")?.click()}
+                  >
+                    <Upload className="w-8 h-8 mb-2" style={{ color: importFile ? "#00ff87" : "var(--text-secondary)" }} />
+                    <span className="text-xs text-center text-white/80 font-medium">
+                      {importFile ? importFile.name : "Haz clic para seleccionar o arrastra un archivo"}
+                    </span>
+                    <span className="text-[10px] text-center text-white/40 mt-1">
+                      Columnas soportadas: Nombre, Apellido, Dorsal, Posición, Nacimiento, Perfil, Altura, Peso
+                    </span>
+                    <input
+                      id="excel-file-input"
+                      type="file"
+                      accept=".xlsx,.xlsm,.csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setImportFile(file);
+                      }}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(false)}
+                    disabled={isImporting}
+                    className="btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isImporting || !importFile || !selectedCatId}
+                    className="btn-primary text-xs flex items-center gap-1.5"
+                  >
+                    {isImporting ? "Importando..." : "Importar"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl" style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.20)" }}>
+                  <p className="text-sm font-bold text-white">¡Importación Completada!</p>
+                  <p className="text-xs mt-1 text-white/70">
+                    Se han importado <strong className="text-[#00ff87] font-black">{importResult.imported}</strong> jugadores exitosamente.
+                  </p>
+                  {importResult.skipped > 0 && (
+                    <p className="text-xs text-white/60 mt-0.5">
+                      Se omitieron {importResult.skipped} filas por falta de datos.
+                    </p>
+                  )}
+                </div>
+
+                {importResult.errors && importResult.errors.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/60 mb-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-yellow-500" /> Advertencias/Errores ({importResult.errors.length})
+                    </p>
+                    <div className="max-h-36 overflow-y-auto rounded-xl p-3 text-xs space-y-1 font-mono text-white/60" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                      {importResult.errors.map((err, i) => (
+                        <div key={i}>• {err}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end pt-2">
+                  <button
+                    onClick={() => {
+                      setImportFile(null);
+                      setImportResult(null);
+                      setShowImportModal(false);
+                    }}
+                    className="btn-primary text-xs"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
