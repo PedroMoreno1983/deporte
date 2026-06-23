@@ -12,6 +12,8 @@ from app.models.player import Player
 from app.models.injury import Injury
 from app.models.wellness import WellnessEntry
 from app.models.match import Match
+from app.agent import run_agent
+from app.agent.provider import GroqProvider
 
 router = APIRouter()
 
@@ -133,51 +135,24 @@ def tactical_chat(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Free-form conversation with the tactical assistant.
-
-    Always grounds the model with current team context (wellness, injuries,
-    last matches) so coaches don't have to repeat themselves.
-    """
+    """Free-form conversation with the tactical assistant. Runs the tool-calling agent loop."""
     if not settings.GROQ_API_KEY:
         raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
     try:
-        from groq import Groq
+        provider = GroqProvider(api_key=settings.GROQ_API_KEY)
     except ImportError:
-        raise HTTPException(status_code=503, detail="groq package no instalado")
+        raise HTTPException(status_code=503, detail="Paquete 'groq' no instalado")
     if not body.messages:
         raise HTTPException(status_code=400, detail="Enviar al menos un mensaje")
 
-    ctx_block = ""
-    if body.include_team_context:
-        team_ctx = _build_team_context(db)
-        ctx_block = (
-            "\n\nCONTEXTO DEL EQUIPO (úsalo solo si es relevante a la pregunta):\n"
-            f"Wellness últimos 3 días: {json.dumps(team_ctx['wellness'], ensure_ascii=False)}\n"
-            f"Lesiones activas: {json.dumps(team_ctx['injuries'], ensure_ascii=False)}\n"
-            f"Últimos 5 partidos: {json.dumps(team_ctx['recent_matches'], ensure_ascii=False)}"
-        )
-
-    system_prompt = (
-        "Eres un asistente táctico experto en fútbol latinoamericano para el cuerpo "
-        "técnico de Deporte FC. Respondes en español neutro, breve y accionable. "
-        "Si no tienes datos suficientes, lo dices honestamente. "
-        "No inventes nombres de jugadores ni partidos."
-        + ctx_block
+    messages_list = [{"role": m.role, "content": m.content} for m in body.messages]
+    result = run_agent(
+        messages_list,
+        db=db,
+        current_user=current_user,
+        provider=provider,
     )
-
-    chat_messages = [{"role": "system", "content": system_prompt}]
-    for m in body.messages[-10:]:  # last 10 turns to bound tokens
-        role = m.role if m.role in ("user", "assistant") else "user"
-        chat_messages.append({"role": role, "content": m.content})
-
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=chat_messages,
-        temperature=0.6,
-        max_tokens=700,
-    )
-    return TacticalChatResponse(reply=response.choices[0].message.content or "")
+    return TacticalChatResponse(reply=result.reply)
 
 
 @router.post("/recommend", response_model=AIRecommendResponse)

@@ -9,26 +9,29 @@
    Papel cálido · tinta · glifos a mano
    ============================================================ */
 :root {
-  /* paper + ink */
-  --paper:        #f0e5d0;
-  --paper-card:   #faf4e8;
-  --paper-inset:  #e8dcc4;
-  --ink:          #2c2620;
-  --ink-soft:     #5e5446;
-  --ink-faint:    #9c8e78;
-  --rule:         rgba(44, 38, 32, 0.16);
-  --rule-soft:    rgba(44, 38, 32, 0.09);
+  /* surfaces + text (corporate light) */
+  --paper:        #f4f6f8;
+  --paper-card:   #ffffff;
+  --paper-inset:  #eef1f5;
+  --ink:          #1f2937;
+  --ink-soft:     #4b5563;
+  --ink-faint:    #98a2b3;
+  --rule:         rgba(31, 41, 55, 0.13);
+  --rule-soft:    rgba(31, 41, 55, 0.07);
 
-  /* accents (terracota — default) */
-  --terracotta: #c0432b;
-  --ochre:      #dca43c;
-  --pine:       #3c6b65;
-  --slate:      #3f6080;
-  --plum:       #80405f;
-  --olive:      #71743d;
-  --burnt:      #c8702f;
+  /* accent (blue) + categorical data palette */
+  --terracotta: #2563eb;   /* brand accent — name kept for back-compat */
+  --burnt:      #1d4ed8;   /* accent darker (hover) */
+  --red:        #e5484d;   /* danger: injured / critical / loss / ATK */
+  --orange:     #f97316;   /* risk: high */
+  --ochre:      #f59e0b;   /* amber: GK / recovering / medium */
+  --pine:       #16a34a;   /* green: MID / available / low */
+  --slate:      #475569;   /* slate: DEF */
+  --plum:       #9333ea;   /* purple: suspended */
+  --olive:      #65a30d;
 
-  --hand:  "Caveat", cursive;
+  /* "hand" annotations now use the clean sans (de-notebook, corporate) */
+  --hand:  "Archivo", system-ui, sans-serif;
   --serif: "Newsreader", Georgia, serif;
   --sans:  "Archivo", system-ui, sans-serif;
 
@@ -60,7 +63,7 @@
   --color-neon-dim: var(--terracotta);
   --color-neon-dark:var(--burnt);
   --color-sky:      var(--slate);
-  --color-danger:   var(--terracotta);
+  --color-danger:   var(--red);
   --color-warning:  var(--ochre);
   --color-purple:   var(--plum);
 
@@ -69,23 +72,23 @@
   --cyan:      var(--slate);
   --success:   var(--pine);
   --warning:   var(--ochre);
-  --danger:    var(--terracotta);
+  --danger:    var(--red);
   --purple:    var(--plum);
   --neon:      var(--terracotta);
 
   --risk-low:      var(--pine);
   --risk-medium:   var(--ochre);
-  --risk-high:     var(--burnt);
-  --risk-critical: var(--terracotta);
+  --risk-high:     var(--orange);
+  --risk-critical: var(--red);
 
   --pos-gk:  var(--ochre);
   --pos-def: var(--slate);
   --pos-mid: var(--pine);
-  --pos-atk: var(--terracotta);
+  --pos-atk: var(--red);
 
-  /* soft paper shadows (replace neon glows) */
-  --shadow-card:        2px 3px 0 rgba(44,38,32,0.06);
-  --shadow-card-hover:  3px 5px 0 rgba(44,38,32,0.10);
+  /* soft corporate shadows */
+  --shadow-card:        0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.10);
+  --shadow-card-hover:  0 4px 8px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);
   --shadow-sidebar:     none;
   --glow-green:         none;
   --glow-green-sm:      none;
