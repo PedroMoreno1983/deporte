@@ -202,8 +202,25 @@ def run_pipeline(
     # Set via env DEPORTE_CV_STRIDE; default 3 is a sweet spot on CPU.
     # `imgsz` controls YOLO inference resolution (default 640 vs 1280 reduces
     # cost ~2× with marginal recall loss on standard broadcast footage).
-    stride = max(1, int(os.getenv("DEPORTE_CV_STRIDE", "3")))
-    imgsz  = max(320, int(os.getenv("DEPORTE_CV_IMGSZ", "640")))
+    stride = max(1, int(os.getenv("DEPORTE_CV_STRIDE", "5")))
+    imgsz  = max(320, int(os.getenv("DEPORTE_CV_IMGSZ", "480")))
+
+    # ── CPU resource limiting ─────────────────────────────────────────────
+    # Cap PyTorch inter-op / intra-op threads so YOLO doesn't spawn N×CPU
+    # threads and saturate the VPS. Defaults to 2; override with env.
+    _torch_threads = max(1, int(os.getenv("DEPORTE_CV_TORCH_THREADS", "2")))
+    try:
+        import torch
+        torch.set_num_threads(_torch_threads)
+        torch.set_num_interop_threads(1)
+        log.info("PyTorch threads capped to %d intra-op, 1 inter-op", _torch_threads)
+    except Exception:  # noqa: BLE001
+        pass
+    # Lower process niceness so the CV worker doesn't starve the API.
+    try:
+        os.nice(10)
+    except (AttributeError, OSError):
+        pass  # Windows / permission error — ignore
 
     # ── Annotated output video (optional) ────────────────────────────────
     # Render a full output.mp4 with team-coloured boxes, "#jersey speed" labels
