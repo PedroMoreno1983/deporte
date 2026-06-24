@@ -30,6 +30,7 @@ class VideoAnalysisSummary(BaseModel):
     status:      CVStatus
     progress:    float
     duration_s:  Optional[float] = None
+    match_id:    Optional[int] = None
     created_at:  datetime
     finished_at: Optional[datetime] = None
 

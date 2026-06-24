@@ -6,9 +6,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   UploadCloud, Film, Clock, CheckCircle2, XCircle,
-  Loader2, AlertTriangle, Trash2, ArrowRight,
+  Loader2, AlertTriangle, Trash2, ArrowRight, X,
 } from "lucide-react";
-import { cvApi } from "@/lib/api";
+import { cvApi, matchesApi, categoriesApi } from "@/lib/api";
 import { useRealtime } from "@/lib/ws";
 import { PageTitle, Card } from "@/components/lupi/viz";
 import { Note } from "@/components/lupi/primitives";
@@ -52,6 +52,48 @@ export default function CVPage() {
   const [dragOver, setDragOver] = useState(false);
   const [notes, setNotes] = useState("");
 
+  const [matchId, setMatchId] = useState<number | null>(null);
+  const [showQuickMatch, setShowQuickMatch] = useState(false);
+  const [quickOpponent, setQuickOpponent] = useState("");
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().split("T")[0]);
+  const [quickCategory, setQuickCategory] = useState<number | null>(null);
+  const [quickIsHome, setQuickIsHome] = useState(true);
+
+  const { data: matches = [], refetch: refetchMatches } = useQuery<any[]>({
+    queryKey: ["matches-list"],
+    queryFn: () => matchesApi.list()
+  });
+
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ["categories-list"],
+    queryFn: categoriesApi.list
+  });
+
+  const handleCreateQuickMatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickOpponent || !quickCategory) {
+      toast.error("Por favor completa el rival y la categoría");
+      return;
+    }
+    try {
+      const newMatch = await matchesApi.create({
+        date: quickDate,
+        opponent: quickOpponent,
+        category_id: Number(quickCategory),
+        is_home: quickIsHome,
+        goals_for: null,
+        goals_against: null,
+      });
+      toast.success(`Partido vs ${quickOpponent} creado.`);
+      await refetchMatches();
+      setMatchId(newMatch.id);
+      setShowQuickMatch(false);
+      setQuickOpponent("");
+    } catch (err) {
+      toast.error("Error al crear el partido");
+    }
+  };
+
   const queueRef = useRef<File[]>([]);
   const [queueLength, setQueueLength] = useState(0);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
@@ -67,7 +109,7 @@ export default function CVPage() {
     setQueueLength(queueRef.current.length);
     
     try {
-      await cvApi.upload(nextFile, { notes: notes || undefined });
+      await cvApi.upload(nextFile, { match_id: matchId || undefined, notes: notes || undefined });
       toast.success(`Video "${nextFile.name}" subido con éxito.`);
       qc.invalidateQueries({ queryKey: ["cv-list"] });
     } catch (e: any) {
@@ -111,7 +153,7 @@ export default function CVPage() {
   useRealtime("cv", () => { qc.invalidateQueries({ queryKey: ["cv-list"] }); });
 
   const uploadMut = useMutation({
-    mutationFn: (file: File) => cvApi.upload(file, { notes: notes || undefined }),
+    mutationFn: (file: File) => cvApi.upload(file, { match_id: matchId || undefined, notes: notes || undefined }),
     onSuccess: () => {
       toast.success("Video subido. Procesamiento iniciado.");
       setNotes("");
@@ -178,6 +220,110 @@ export default function CVPage() {
             {uploadingName !== null ? `Quedan ${queueLength} videos en cola` : "o haz click para seleccionar uno o varios videos"}
           </Note>
         </div>
+
+        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+          <Note style={{ fontSize: 14, display: "block", marginBottom: 2 }}>Asociar a un Partido</Note>
+          <select
+            value={matchId || ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "new") {
+                setShowQuickMatch(true);
+                setMatchId(null);
+              } else {
+                setMatchId(v ? Number(v) : null);
+              }
+            }}
+            className="input"
+            style={{ width: "100%" }}
+          >
+            <option value="">-- Sin asociar a partido (Suelta) --</option>
+            {matches.map((m: any) => (
+              <option key={m.id} value={m.id}>
+                {m.date} - vs {m.opponent} ({m.is_home ? "Local" : "Visita"})
+              </option>
+            ))}
+            <option value="new" style={{ color: "var(--terracotta)", fontWeight: "bold" }}>
+              [+ Crear nuevo partido...]
+            </option>
+          </select>
+        </div>
+
+        {showQuickMatch && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              borderRadius: "var(--radius)",
+              border: "1.5px solid var(--rule)",
+              background: "var(--paper-inset)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h4 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 15 }}>Nuevo Partido Rápido</h4>
+              <button onClick={() => setShowQuickMatch(false)} className="theme-toggle">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateQuickMatch} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Fecha</label>
+                  <input
+                    type="date"
+                    value={quickDate}
+                    onChange={(e) => setQuickDate(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Rival</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Colo Colo"
+                    value={quickOpponent}
+                    onChange={(e) => setQuickOpponent(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Categoría</label>
+                  <select
+                    value={quickCategory || ""}
+                    onChange={(e) => setQuickCategory(e.target.value ? Number(e.target.value) : null)}
+                    className="input"
+                    required
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {categories.map((c: any) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 2 }}>Localía</label>
+                  <select
+                    value={quickIsHome ? "home" : "away"}
+                    onChange={(e) => setQuickIsHome(e.target.value === "home")}
+                    className="input"
+                  >
+                    <option value="home">Local</option>
+                    <option value="away">Visita</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" className="chip is-on" style={{ alignSelf: "flex-end", marginTop: 4 }}>
+                Crear Partido
+              </button>
+            </form>
+          </div>
+        )}
 
         <div style={{ marginTop: 14 }}>
           <Note style={{ fontSize: 14, display: "block", marginBottom: 4 }}>Notas (opcional)</Note>

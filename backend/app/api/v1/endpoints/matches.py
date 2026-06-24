@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ....core.database import get_db
-from ....core.deps import get_current_user, require_roles, scoped_query
+from ....core.deps import get_current_user, require_roles, scoped_query, get_current_club_id
 from ....models.match import Match, MatchStat
 from ....models.match_event import MatchEvent
 from ....models.player import Player
@@ -31,9 +31,12 @@ def list_matches(
 def create_match(
     data: MatchCreate,
     db: Session = Depends(get_db),
+    club_id: int = Depends(get_current_club_id),
     _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH, UserRole.ANALYST)),
 ):
-    match = Match(**data.model_dump())
+    payload = data.model_dump()
+    payload["club_id"] = club_id
+    match = Match(**payload)
     db.add(match)
     db.commit()
     db.refresh(match)
@@ -55,6 +58,17 @@ def create_match_stat(
     db: Session = Depends(get_db),
     _=Depends(require_roles(UserRole.ADMIN, UserRole.COACH, UserRole.ANALYST)),
 ):
+    existing = db.query(MatchStat).filter(
+        MatchStat.match_id == data.match_id,
+        MatchStat.player_id == data.player_id
+    ).first()
+    if existing:
+        for k, v in data.model_dump().items():
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     stat = MatchStat(**data.model_dump())
     db.add(stat)
     db.commit()
