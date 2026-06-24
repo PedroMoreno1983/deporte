@@ -50,6 +50,13 @@ x-data-volumes: &data-volumes
   - import_data:/data/imports
   - ml_models:/data/ml_models
 
+# Limit log files so they never eat VPS disk. 10 MB × 3 files = 30 MB max per service.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ── datastores ─────────────────────────────────────────────────────────────
   postgres:
@@ -120,6 +127,7 @@ services:
       resources:
         limits:
           cpus: "${API_CPU_LIMIT:-0.8}"
+    logging: *logging
 
   # ── Celery worker (consumes every queue) ─────────────────────────────────────
   worker:
@@ -142,7 +150,8 @@ services:
       # resolution, disable EasyOCR (heavy), and cap PyTorch CPU threads.
       DEPORTE_CV_STRIDE: "${DEPORTE_CV_STRIDE:-6}"
       DEPORTE_CV_IMGSZ: "${DEPORTE_CV_IMGSZ:-480}"
-      DEPORTE_CV_OCR: "${DEPORTE_CV_OCR:-0}"
+      DEPORTE_CV_OCR: "${DEPORTE_CV_OCR:-1}"
+      DEPORTE_CV_OCR_EVERY: "${DEPORTE_CV_OCR_EVERY:-20}"
       DEPORTE_CV_VIDEO: "${DEPORTE_CV_VIDEO:-0}"
       DEPORTE_CV_TORCH_THREADS: "${DEPORTE_CV_TORCH_THREADS:-2}"
     volumes: *data-volumes
@@ -161,6 +170,7 @@ services:
       resources:
         limits:
           cpus: "${WORKER_CPU_LIMIT:-1.5}"
+    logging: *logging
 
   # ── Celery beat (periodic scheduler) ─────────────────────────────────────────
   # Exactly ONE beat instance must run, else schedules double-fire. Its schedule
@@ -186,6 +196,7 @@ services:
         condition: service_healthy
       init:
         condition: service_completed_successfully
+    logging: *logging
 
   # ── periodic Postgres backups ────────────────────────────────────────────────
   backup:
