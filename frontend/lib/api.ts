@@ -237,7 +237,7 @@ export const notificationsApi = {
 };
 
 export const cvApi = {
-  list: () => api.get("/cv").then((r) => r.data),
+  list: (params?: { match_id?: number }) => api.get("/cv", { params }).then((r) => r.data),
   get:  (id: number) => api.get(`/cv/${id}`).then((r) => r.data),
   upload: (file: File, opts?: { match_id?: number; notes?: string }) => {
     const fd = new FormData();

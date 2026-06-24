@@ -2,14 +2,14 @@
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { matchesApi, playersApi } from "@/lib/api";
+import { useState, useMemo } from "react";
+import { matchesApi, playersApi, cvApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   ArrowLeft, Trophy, Home, Plane, Plus, X, Loader2,
   Target, Zap, Shield, Footprints, Star, ChevronDown, ChevronUp,
-  Timer, Flag,
+  Timer, Flag, Film, Upload, CheckCircle2, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -601,6 +601,244 @@ export default function MatchDetailPage() {
           </GlowCard>
         </motion.div>
       )}
+
+      {/* ── Video Analysis IA (CV) ── */}
+      <CVMatchSection matchId={matchId} players={players as any[]} />
     </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CV Match Section — loads video clips linked to this match, aggregates
+ * physical stats per jersey across all clips, and lets the user sync
+ * the aggregated GPS data into official match stats.
+ * ────────────────────────────────────────────────────────────────────── */
+
+function CVMatchSection({ matchId, players }: { matchId: number; players: any[] }) {
+  const qc = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+
+  // All video analyses linked to this match
+  const { data: clips = [], isLoading: loadingClips } = useQuery<any[]>({
+    queryKey: ["cv-match", matchId],
+    queryFn: () => cvApi.list({ match_id: matchId }),
+  });
+
+  // Load full results for each "done" clip
+  const doneClips = clips.filter((c: any) => c.status === "done");
+  const doneIds = doneClips.map((c: any) => c.id).sort().join(",");
+
+  const { data: clipDetails = [] } = useQuery<any[]>({
+    queryKey: ["cv-match-details", doneIds],
+    queryFn: async () => {
+      if (!doneClips.length) return [];
+      return Promise.all(doneClips.map((c: any) => cvApi.get(c.id)));
+    },
+    enabled: doneClips.length > 0,
+  });
+
+  // Aggregate identities/tracks across all clips by jersey number
+  const aggregated = useMemo(() => {
+    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | null }>();
+
+    for (const detail of clipDetails) {
+      const idents = detail?.results?.identities;
+      const rows = idents && idents.length > 0
+        ? idents
+        : (detail?.results?.tracks ?? []).filter((t: any) => (t.total_distance_m ?? t.distance_m ?? 0) >= 5);
+
+      for (const row of rows) {
+        const jersey = row.jersey ?? row.jersey_number ?? null;
+        if (jersey == null) continue;
+
+        const dist = row.distance_m ?? row.total_distance_m ?? 0;
+        const speed = row.top_speed_kmh ?? row.max_speed_kmh ?? row.speed_kmh ?? 0;
+        const team = row.team ?? null;
+
+        const existing = byJersey.get(jersey);
+        if (existing) {
+          existing.distance_m += dist;
+          existing.max_speed_kmh = Math.max(existing.max_speed_kmh, speed);
+          existing.clips += 1;
+        } else {
+          byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clips: 1, team });
+        }
+      }
+    }
+
+    return Array.from(byJersey.values()).sort((a, b) => b.distance_m - a.distance_m);
+  }, [clipDetails]);
+
+  // Map jersey → player from the DB
+  const jerseyToPlayer = useMemo(() => {
+    const m = new Map<number, any>();
+    for (const p of players) {
+      if (p.jersey_number != null) m.set(p.jersey_number, p);
+    }
+    return m;
+  }, [players]);
+
+  const handleSyncStats = async () => {
+    if (!aggregated.length) return;
+    setSyncing(true);
+    let ok = 0;
+    let fail = 0;
+    for (const row of aggregated) {
+      const player = jerseyToPlayer.get(row.jersey);
+      if (!player) continue;
+      try {
+        await matchesApi.createStat({
+          match_id: matchId,
+          player_id: player.id,
+          minutes_played: 0,
+          started: false,
+          total_distance_m: Math.round(row.distance_m),
+          max_speed_kmh: Math.round(row.max_speed_kmh * 10) / 10,
+        });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setSyncing(false);
+    if (ok > 0) {
+      toast.success(`${ok} estadísticas GPS sincronizadas desde video.`);
+      qc.invalidateQueries({ queryKey: ["match-stats", matchId] });
+    }
+    if (fail > 0) toast.error(`${fail} fallaron al sincronizar.`);
+  };
+
+  if (loadingClips) return null;
+  if (!clips.length) return null;
+
+  const statusMeta: Record<string, { color: string; label: string; Icon: any }> = {
+    pending:    { color: "var(--text-muted)",  label: "en cola",    Icon: Clock },
+    processing: { color: "#f59e0b",           label: "procesando", Icon: Loader2 },
+    done:       { color: "#00ff87",            label: "listo",      Icon: CheckCircle2 },
+    failed:     { color: "#ff3b30",            label: "falló",      Icon: X },
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+      <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+        <Film className="w-4 h-4" style={{ color: "#a78bfa" }} />
+        Análisis de Video IA (CV)
+        <span className="text-xs font-normal opacity-40 ml-1">{clips.length} clip{clips.length !== 1 ? "s" : ""}</span>
+      </h3>
+
+      {/* Clip list */}
+      <GlowCard className="rounded-2xl overflow-hidden mb-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                {["Clip", "Duración", "Estado", "Subido"].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {clips.map((c: any) => {
+                const meta = statusMeta[c.status] ?? statusMeta.pending;
+                const { Icon } = meta;
+                return (
+                  <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>
+                      <Film className="w-3.5 h-3.5 inline-block mr-1.5 -translate-y-0.5" style={{ color: meta.color }} />
+                      {c.name}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                      {c.duration_s != null ? `${Math.floor(c.duration_s / 60)}:${String(Math.floor(c.duration_s % 60)).padStart(2, "0")}` : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: meta.color }}>
+                        <Icon className={"w-3 h-3" + (c.status === "processing" ? " animate-spin" : "")} />
+                        {meta.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                      {new Date(c.created_at).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </GlowCard>
+
+      {/* Aggregated physical stats */}
+      {aggregated.length > 0 && (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>
+              Métricas físicas agregadas (CV)
+              <span className="text-xs font-normal opacity-40 ml-2">{aggregated.length} jugadores detectados · {doneClips.length} clips procesados</span>
+            </h4>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handleSyncStats}
+              disabled={syncing}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.3)" }}
+            >
+              {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              Cargar a estadísticas oficiales
+            </motion.button>
+          </div>
+          <GlowCard className="rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    {["Dorsal", "Jugador", "Distancia Total", "Vel. Máxima", "Clips"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregated.map((row) => {
+                    const player = jerseyToPlayer.get(row.jersey);
+                    const name = player ? `${player.first_name} ${player.last_name}` : null;
+                    return (
+                      <tr
+                        key={row.jersey}
+                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <td className="px-4 py-3 font-black tabular-nums" style={{ color: "#a78bfa" }}>#{row.jersey}</td>
+                        <td className="px-4 py-3">
+                          {name ? (
+                            <Link href={`/players/${player.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
+                              {name}
+                            </Link>
+                          ) : (
+                            <span className="text-xs italic" style={{ color: "var(--text-muted)" }}>Sin mapear</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "var(--neon)" }}>
+                          {(row.distance_m / 1000).toFixed(2)} km
+                        </td>
+                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "#f97316" }}>
+                          {row.max_speed_kmh.toFixed(1)} km/h
+                        </td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {row.clips}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </GlowCard>
+        </>
+      )}
+    </motion.div>
   );
 }

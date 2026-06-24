@@ -46,11 +46,14 @@ MAX_BYTES   = 500 * 1024 * 1024  # 500 MB
 
 @router.get("/", response_model=List[VideoAnalysisSummary])
 def list_analyses(
+    match_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(VideoAnalysis).order_by(VideoAnalysis.created_at.desc())
     q = scoped_query(q, VideoAnalysis, current_user)
+    if match_id is not None:
+        q = q.filter(VideoAnalysis.match_id == match_id)
     return q.limit(100).all()
 
 
