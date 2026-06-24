@@ -98,7 +98,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *backend-env
-      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
     # Default image CMD already runs gunicorn; expose it on the host.
     ports:
       - "${API_PORT:-8000}:8000"
@@ -116,6 +116,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU_LIMIT:-0.8}"
 
   # ── Celery worker (consumes every queue) ─────────────────────────────────────
   worker:
@@ -129,10 +133,18 @@ services:
       - -Q
       - cv,ml,imports,maintenance,default
       - --concurrency
-      - "2"
+      - "1"
       - --loglevel
       - INFO
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      # Throttle the CV pipeline: process 1 of every 6 frames, use 480px inference
+      # resolution, disable EasyOCR (heavy), and cap PyTorch CPU threads.
+      DEPORTE_CV_STRIDE: "${DEPORTE_CV_STRIDE:-6}"
+      DEPORTE_CV_IMGSZ: "${DEPORTE_CV_IMGSZ:-480}"
+      DEPORTE_CV_OCR: "${DEPORTE_CV_OCR:-0}"
+      DEPORTE_CV_VIDEO: "${DEPORTE_CV_VIDEO:-0}"
+      DEPORTE_CV_TORCH_THREADS: "${DEPORTE_CV_TORCH_THREADS:-2}"
     volumes: *data-volumes
     depends_on:
       redis:
@@ -145,6 +157,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "${WORKER_CPU_LIMIT:-1.5}"
 
   # ── Celery beat (periodic scheduler) ─────────────────────────────────────────
   # Exactly ONE beat instance must run, else schedules double-fire. Its schedule
