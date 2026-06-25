@@ -116,8 +116,9 @@ export const categoriesApi = {
 };
 
 export const clubsApi = {
-  me:   () => api.get("/clubs/me").then((r) => r.data),
-  list: () => api.get("/clubs").then((r) => r.data),
+  me:     () => api.get("/clubs/me").then((r) => r.data),
+  list:   () => api.get("/clubs").then((r) => r.data),
+  update: (id: number, data: unknown) => api.patch(`/clubs/${id}`, data).then((r) => r.data),
 };
 
 export const kinesiologyApi = {

@@ -5,7 +5,7 @@ from typing import List
 from ....core.database import get_db
 from ....core.deps import get_current_user, get_superadmin
 from ....models.club import Club
-from ....models.user import User
+from ....models.user import User, UserRole
 from ....schemas.club import ClubOut, ClubCreate, ClubUpdate
 
 router = APIRouter()
@@ -48,11 +48,20 @@ def update_club(
     club_id: int,
     data: ClubUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_superadmin),
+    current_user: User = Depends(get_current_user),
 ):
     club = db.query(Club).filter(Club.id == club_id).first()
     if not club:
         raise HTTPException(404, "Club no encontrado")
+    
+    # Allow superadmin, or the admin of this club
+    if not current_user.is_superadmin:
+        if current_user.role != UserRole.ADMIN or current_user.club_id != club_id:
+            raise HTTPException(status_code=403, detail="Permisos insuficientes")
+        # Prevent non-superadmins from changing the active status
+        if data.is_active is not None:
+            raise HTTPException(status_code=403, detail="Solo los súper-administradores pueden activar/desactivar clubes")
+
     for k, v in data.model_dump(exclude_none=True).items():
         setattr(club, k, v)
     db.commit()
