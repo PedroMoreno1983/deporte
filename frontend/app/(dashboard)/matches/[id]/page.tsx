@@ -1101,54 +1101,29 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                             </select>
                           </td>
                           <td className="px-4 py-3">
-                            {name ? (
-                              <div className="flex items-center gap-2">
-                                <Link href={`/players/${player.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
-                                  {name}
-                                </Link>
-                                <button 
-                                  onClick={() => {
-                                    const newOvr = {
-                                      ...overrides,
-                                      [row.jersey]: {
-                                        ...overrides[row.jersey],
-                                        playerId: null
-                                      }
-                                    };
-                                    saveOverrides(newOvr);
-                                    toast.success("Mapeo desvinculado para este partido");
-                                  }}
-                                  className="text-[10px] text-white/30 hover:text-white/70 hover:underline"
-                                >
-                                  (Desvincular)
-                                </button>
-                              </div>
-                            ) : (
-                              <select
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (!val) return;
-                                  const newOvr = {
-                                    ...overrides,
-                                    [row.jersey]: {
-                                      ...overrides[row.jersey],
-                                      playerId: Number(val)
-                                    }
-                                  };
-                                  saveOverrides(newOvr);
-                                  toast.success("Mapeo guardado para este partido");
-                                }}
-                                className="bg-white/[0.04] border border-white/10 text-xs px-2 py-1 rounded-lg text-white/70 outline-none max-w-[200px]"
-                                defaultValue=""
-                              >
-                                <option value="" className="bg-[#18181b]">-- Vincular a jugador --</option>
-                                {players.map((p) => (
-                                  <option key={p.id} value={p.id} className="bg-[#18181b]">
-                                    {p.first_name} {p.last_name} {p.jersey_number ? `(#${p.jersey_number})` : ""}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                            <select
+                              value={player?.id ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const newOvr = {
+                                  ...overrides,
+                                  [row.jersey]: {
+                                    ...overrides[row.jersey],
+                                    playerId: val === "" ? null : Number(val)
+                                  }
+                                };
+                                saveOverrides(newOvr);
+                                toast.success(val === "" ? "Desvinculado para este partido" : "Mapeo guardado para este partido");
+                              }}
+                              className="bg-white/[0.04] border border-white/10 text-xs px-2 py-1 rounded-lg text-white/70 outline-none max-w-[220px] cursor-pointer"
+                            >
+                              <option value="" className="bg-[#18181b]">-- No jugó / Sin asignar --</option>
+                              {players.map((p: any) => (
+                                <option key={p.id} value={p.id} className="bg-[#18181b]">
+                                  {p.first_name} {p.last_name} {p.jersey_number ? `(#${p.jersey_number})` : ""}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "var(--neon)" }}>
                             {(row.distance_m / 1000).toFixed(2)} km
