@@ -1,8 +1,8 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Eye, EyeOff, Loader2, Check } from "lucide-react";
-import { categoriesApi, api } from "@/lib/api";
+import { categoriesApi, clubsApi, api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store";
 import { resetOnboarding } from "@/components/onboarding/OnboardingTour";
@@ -25,6 +25,28 @@ export default function SettingsPage() {
   const [userForm, setUserForm] = useState({ email: "", full_name: "", password: "", role: "coach" });
   const [showPwd, setShowPwd] = useState(false);
   const [createdUser, setCreatedUser] = useState<any>(null);
+  const [clubName, setClubName] = useState("");
+
+  const { data: club } = useQuery({
+    queryKey: ["my-club"],
+    queryFn: () => clubsApi.me(),
+    enabled: !!user?.club_id,
+  });
+
+  useEffect(() => {
+    if (club?.name) {
+      setClubName(club.name);
+    }
+  }, [club]);
+
+  const updateClub = useMutation({
+    mutationFn: (data: { name: string }) => clubsApi.update(user!.club_id!, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-club"] });
+      toast.success("Nombre del club actualizado");
+    },
+    onError: () => toast.error("Error al actualizar el nombre del club"),
+  });
 
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: () => categoriesApi.list() });
   const { data: users = [] } = useQuery({
@@ -86,6 +108,35 @@ export default function SettingsPage() {
               <span className="chip-dot" style={{ background: ROLE_CFG[user.role]?.color }} />
               {ROLE_CFG[user.role]?.label ?? user.role}
             </span>
+          )}
+        </div>
+      </Card>
+
+      <Card kicker="Institución" title="Datos del Club">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: 12 }}>
+          <div>
+            <Note style={{ fontSize: 14, display: "block", marginBottom: 4 }}>Nombre del Club / Equipo</Note>
+            <input 
+              value={clubName} 
+              onChange={(e) => setClubName(e.target.value)} 
+              placeholder="Ej. Petroleros" 
+              className="input" 
+              style={{ width: "100%" }}
+              disabled={user?.role !== "admin" || updateClub.isPending}
+            />
+          </div>
+          {user?.role === "admin" && (
+            <div className="flex items-end">
+              <button
+                onClick={() => updateClub.mutate({ name: clubName })}
+                disabled={!clubName || clubName === club?.name || updateClub.isPending}
+                className="btn-primary text-sm disabled:opacity-40"
+                style={{ height: 42 }}
+              >
+                {updateClub.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Guardar Cambios
+              </button>
+            </div>
           )}
         </div>
       </Card>
