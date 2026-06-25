@@ -2,7 +2,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { matchesApi, playersApi, cvApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -652,7 +652,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
 
   // Aggregate identities/tracks across all clips by jersey number
   const aggregated = useMemo(() => {
-    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | null }>();
+    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | number | null }>();
 
     for (const detail of clipDetails) {
       const idents = detail?.results?.identities;
@@ -673,6 +673,9 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
           existing.distance_m += dist;
           existing.max_speed_kmh = Math.max(existing.max_speed_kmh, speed);
           existing.clips += 1;
+          if (existing.team == null && team != null) {
+            existing.team = team;
+          }
         } else {
           byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clips: 1, team });
         }
@@ -690,6 +693,64 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     }
     return m;
   }, [players]);
+
+  // Find white team
+  const parsedTeamColors = useMemo(() => {
+    for (const detail of clipDetails) {
+      const tc = detail?.results?.team_colors;
+      if (tc && tc.length >= 2) {
+        return tc as [[number, number, number], [number, number, number]];
+      }
+    }
+    return null;
+  }, [clipDetails]);
+
+  const whiteTeamIndex = useMemo(() => {
+    if (!parsedTeamColors) return null;
+    const colorDistanceToWhite = (bgr: [number, number, number]) => {
+      const r = bgr[2];
+      const g = bgr[1];
+      const b = bgr[0];
+      return Math.sqrt((r - 255) ** 2 + (g - 255) ** 2 + (b - 255) ** 2);
+    };
+    const d0 = colorDistanceToWhite(parsedTeamColors[0]);
+    const d1 = colorDistanceToWhite(parsedTeamColors[1]);
+    return d0 < d1 ? 0 : 1;
+  }, [parsedTeamColors]);
+
+  const getTeamDisplayName = (teamVal: string | number | null) => {
+    if (teamVal == null) return "Sin asignar";
+    const idx = (teamVal === "A" || teamVal === 0 || teamVal === "0") ? 0 : 1;
+    if (whiteTeamIndex === null) {
+      return idx === 0 ? "Equipo A" : "Equipo B";
+    }
+    return idx === whiteTeamIndex ? "Petroleros (Blanco)" : "Beauchef SS (Rival)";
+  };
+
+  const getTeamColorStyle = (teamVal: string | number | null) => {
+    if (teamVal == null || !parsedTeamColors) return {};
+    const idx = (teamVal === "A" || teamVal === 0 || teamVal === "0") ? 0 : 1;
+    const bgr = parsedTeamColors[idx];
+    const rgbStr = `rgb(${bgr[2]}, ${bgr[1]}, ${bgr[0]})`;
+    return { backgroundColor: rgbStr };
+  };
+
+  const [teamFilter, setTeamFilter] = useState<"all" | 0 | 1>("all");
+
+  useEffect(() => {
+    if (whiteTeamIndex !== null) {
+      setTeamFilter(whiteTeamIndex);
+    }
+  }, [whiteTeamIndex]);
+
+  const filteredAggregated = useMemo(() => {
+    if (teamFilter === "all") return aggregated;
+    return aggregated.filter((row) => {
+      if (row.team == null) return false;
+      const idx = (row.team === "A" || row.team === 0 || row.team === "0") ? 0 : 1;
+      return idx === teamFilter;
+    });
+  }, [aggregated, teamFilter]);
 
   const handleLinkClip = async (clipId: number) => {
     try {
@@ -888,7 +949,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
       {/* Aggregated physical stats */}
       {aggregated.length > 0 && (
         <>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>
               Métricas físicas agregadas (CV)
               <span className="text-xs font-normal opacity-40 ml-2">{aggregated.length} jugadores detectados · {doneClips.length} clips procesados</span>
@@ -904,12 +965,40 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
               Cargar a estadísticas oficiales
             </motion.button>
           </div>
+
+          {/* Team Filter Tabs */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              onClick={() => setTeamFilter("all")}
+              className={`chip ${teamFilter === "all" ? "is-on" : ""}`}
+              style={{ fontSize: 11, padding: "3px 8px" }}
+            >
+              Todos ({aggregated.length})
+            </button>
+            <button
+              onClick={() => setTeamFilter(0)}
+              className={`chip ${teamFilter === 0 ? "is-on" : ""}`}
+              style={{ fontSize: 11, padding: "3px 8px" }}
+            >
+              <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(0), border: "1px solid rgba(255,255,255,0.2)" }} />
+              <span className="align-middle">{getTeamDisplayName(0)} ({aggregated.filter(r => (r.team === "A" || r.team === 0 || r.team === "0")).length})</span>
+            </button>
+            <button
+              onClick={() => setTeamFilter(1)}
+              className={`chip ${teamFilter === 1 ? "is-on" : ""}`}
+              style={{ fontSize: 11, padding: "3px 8px" }}
+            >
+              <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(1), border: "1px solid rgba(255,255,255,0.2)" }} />
+              <span className="align-middle">{getTeamDisplayName(1)} ({aggregated.filter(r => (r.team === "B" || r.team === 1 || r.team === "1")).length})</span>
+            </button>
+          </div>
+
           <GlowCard className="rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    {["Dorsal", "Jugador", "Distancia Total", "Vel. Máxima", "Clips"].map(h => (
+                    {["Dorsal", "Camiseta / Equipo", "Jugador", "Distancia Total", "Vel. Máxima", "Clips"].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                         {h}
                       </th>
@@ -917,38 +1006,89 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                   </tr>
                 </thead>
                 <tbody>
-                  {aggregated.map((row) => {
-                    const player = jerseyToPlayer.get(row.jersey);
-                    const name = player ? `${player.first_name} ${player.last_name}` : null;
-                    return (
-                      <tr
-                        key={row.jersey}
-                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <td className="px-4 py-3 font-black tabular-nums" style={{ color: "#a78bfa" }}>#{row.jersey}</td>
-                        <td className="px-4 py-3">
-                          {name ? (
-                            <Link href={`/players/${player.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
-                              {name}
-                            </Link>
-                          ) : (
-                            <span className="text-xs italic" style={{ color: "var(--text-muted)" }}>Sin mapear</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "var(--neon)" }}>
-                          {(row.distance_m / 1000).toFixed(2)} km
-                        </td>
-                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "#f97316" }}>
-                          {row.max_speed_kmh.toFixed(1)} km/h
-                        </td>
-                        <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
-                          {row.clips}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredAggregated.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-6 text-xs text-white/30 italic">
+                        No hay jugadores detectados para esta selección.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAggregated.map((row) => {
+                      const player = jerseyToPlayer.get(row.jersey);
+                      const name = player ? `${player.first_name} ${player.last_name}` : null;
+                      return (
+                        <tr
+                          key={row.jersey}
+                          style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td className="px-4 py-3 font-black tabular-nums" style={{ color: "#a78bfa" }}>#{row.jersey}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="w-2.5 h-2.5 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(row.team), border: "1px solid rgba(255,255,255,0.2)" }} />
+                            <span className="text-xs font-semibold align-middle" style={{ color: "var(--text-muted)" }}>{getTeamDisplayName(row.team)}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {name ? (
+                              <div className="flex items-center gap-2">
+                                <Link href={`/players/${player.id}`} className="font-semibold hover:underline" style={{ color: "var(--text-primary)" }}>
+                                  {name}
+                                </Link>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await playersApi.update(player.id, { jersey_number: null });
+                                      qc.invalidateQueries({ queryKey: ["players"] });
+                                      toast.success("Mapeo de dorsal eliminado");
+                                    } catch {
+                                      toast.error("Error al desvincular");
+                                    }
+                                  }}
+                                  className="text-[10px] text-white/30 hover:text-white/70 hover:underline"
+                                >
+                                  (Desvincular)
+                                </button>
+                              </div>
+                            ) : (
+                              <select
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  if (!val) return;
+                                  try {
+                                    await playersApi.update(Number(val), { jersey_number: row.jersey });
+                                    qc.invalidateQueries({ queryKey: ["players"] });
+                                    toast.success("Jugador vinculado al dorsal");
+                                  } catch {
+                                    toast.error("Error al vincular jugador");
+                                  }
+                                }}
+                                className="bg-white/[0.04] border border-white/10 text-xs px-2 py-1 rounded-lg text-white/70 outline-none max-w-[200px]"
+                                defaultValue=""
+                              >
+                                <option value="" className="bg-[#18181b]">-- Vincular a jugador --</option>
+                                {players
+                                  .filter((p) => p.jersey_number == null)
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id} className="bg-[#18181b]">
+                                      {p.first_name} {p.last_name}
+                                    </option>
+                                  ))}
+                              </select>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "var(--neon)" }}>
+                            {(row.distance_m / 1000).toFixed(2)} km
+                          </td>
+                          <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "#f97316" }}>
+                            {row.max_speed_kmh.toFixed(1)} km/h
+                          </td>
+                          <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                            {row.clips}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
