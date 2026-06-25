@@ -650,51 +650,22 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     enabled: doneClips.length > 0,
   });
 
-  // Aggregate identities/tracks across all clips by jersey number
-  const aggregated = useMemo(() => {
-    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | number | null }>();
-
-    for (const detail of clipDetails) {
-      const idents = detail?.results?.identities;
-      const rows = idents && idents.length > 0
-        ? idents
-        : (detail?.results?.tracks ?? []).filter((t: any) => (t.total_distance_m ?? t.distance_m ?? 0) >= 5);
-
-      for (const row of rows) {
-        const jersey = row.jersey ?? row.jersey_number ?? null;
-        if (jersey == null) continue;
-
-        const dist = row.distance_m ?? row.total_distance_m ?? 0;
-        const speed = row.top_speed_kmh ?? row.max_speed_kmh ?? row.speed_kmh ?? 0;
-        const team = row.team ?? null;
-
-        const existing = byJersey.get(jersey);
-        if (existing) {
-          existing.distance_m += dist;
-          existing.max_speed_kmh = Math.max(existing.max_speed_kmh, speed);
-          existing.clips += 1;
-          if (existing.team == null && team != null) {
-            existing.team = team;
-          }
-        } else {
-          byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clips: 1, team });
-        }
-      }
+  // Local overrides and scale factor calibration
+  const [scaleFactor, setScaleFactor] = useState<number>(0.65);
+  const [overrides, setOverrides] = useState<Record<number, { team?: number | null; playerId?: number | null }>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`cv-match-overrides-${matchId}`);
+      return saved ? JSON.parse(saved) : {};
     }
+    return {};
+  });
 
-    return Array.from(byJersey.values()).sort((a, b) => b.distance_m - a.distance_m);
-  }, [clipDetails]);
+  const saveOverrides = (newOverrides: typeof overrides) => {
+    setOverrides(newOverrides);
+    localStorage.setItem(`cv-match-overrides-${matchId}`, JSON.stringify(newOverrides));
+  };
 
-  // Map jersey → player from the DB
-  const jerseyToPlayer = useMemo(() => {
-    const m = new Map<number, any>();
-    for (const p of players) {
-      if (p.jersey_number != null) m.set(p.jersey_number, p);
-    }
-    return m;
-  }, [players]);
-
-  // Find white team
+  // Find white team BGR color centroids
   const parsedTeamColors = useMemo(() => {
     for (const detail of clipDetails) {
       const tc = detail?.results?.team_colors;
@@ -733,6 +704,73 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     const bgr = parsedTeamColors[idx];
     const rgbStr = `rgb(${bgr[2]}, ${bgr[1]}, ${bgr[0]})`;
     return { backgroundColor: rgbStr };
+  };
+
+  // Aggregate identities/tracks across all clips by jersey number
+  const aggregated = useMemo(() => {
+    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | number | null }>();
+
+    for (const detail of clipDetails) {
+      const idents = detail?.results?.identities;
+      const rows = idents && idents.length > 0
+        ? idents
+        : (detail?.results?.tracks ?? []).filter((t: any) => (t.total_distance_m ?? t.distance_m ?? 0) >= 5);
+
+      for (const row of rows) {
+        const jersey = row.jersey ?? row.jersey_number ?? null;
+        if (jersey == null) continue;
+
+        const dist = (row.distance_m ?? row.total_distance_m ?? 0) * scaleFactor;
+        const speed = (row.top_speed_kmh ?? row.max_speed_kmh ?? row.speed_kmh ?? 0) * scaleFactor;
+        
+        // Apply team override
+        let team = row.team ?? null;
+        const ovr = overrides[jersey];
+        if (ovr && ovr.team !== undefined && ovr.team !== null) {
+          team = ovr.team;
+        }
+
+        const existing = byJersey.get(jersey);
+        if (existing) {
+          existing.distance_m += dist;
+          existing.max_speed_kmh = Math.max(existing.max_speed_kmh, speed);
+          existing.clips += 1;
+          if (existing.team == null && team != null) {
+            existing.team = team;
+          }
+        } else {
+          byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clips: 1, team });
+        }
+      }
+    }
+
+    // Apply team overrides to the aggregated list as well to be sure
+    byJersey.forEach((row) => {
+      const ovr = overrides[row.jersey];
+      if (ovr && ovr.team !== undefined && ovr.team !== null) {
+        row.team = ovr.team;
+      }
+    });
+
+    return Array.from(byJersey.values()).sort((a, b) => b.distance_m - a.distance_m);
+  }, [clipDetails, overrides, scaleFactor]);
+
+  // Map jersey → player from the DB
+  const jerseyToPlayer = useMemo(() => {
+    const m = new Map<number, any>();
+    for (const p of players) {
+      if (p.jersey_number != null) m.set(p.jersey_number, p);
+    }
+    return m;
+  }, [players]);
+
+  const getPlayerForRow = (jersey: number) => {
+    const ovr = overrides[jersey];
+    if (ovr && ovr.playerId !== undefined) {
+      if (ovr.playerId === null) return null;
+      return players.find(p => p.id === ovr.playerId) || null;
+    }
+    return jerseyToPlayer.get(jersey) || null;
   };
 
   const [teamFilter, setTeamFilter] = useState<"all" | 0 | 1>("all");
@@ -786,7 +824,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     let ok = 0;
     let fail = 0;
     for (const row of aggregated) {
-      const player = jerseyToPlayer.get(row.jersey);
+      const player = getPlayerForRow(row.jersey);
       if (!player) continue;
       try {
         await matchesApi.createStat({
@@ -966,31 +1004,47 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
             </motion.button>
           </div>
 
-          {/* Team Filter Tabs */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            <button
-              onClick={() => setTeamFilter("all")}
-              className={`chip ${teamFilter === "all" ? "is-on" : ""}`}
-              style={{ fontSize: 11, padding: "3px 8px" }}
-            >
-              Todos ({aggregated.length})
-            </button>
-            <button
-              onClick={() => setTeamFilter(0)}
-              className={`chip ${teamFilter === 0 ? "is-on" : ""}`}
-              style={{ fontSize: 11, padding: "3px 8px" }}
-            >
-              <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(0), border: "1px solid rgba(255,255,255,0.2)" }} />
-              <span className="align-middle">{getTeamDisplayName(0)} ({aggregated.filter(r => (r.team === "A" || r.team === 0 || r.team === "0")).length})</span>
-            </button>
-            <button
-              onClick={() => setTeamFilter(1)}
-              className={`chip ${teamFilter === 1 ? "is-on" : ""}`}
-              style={{ fontSize: 11, padding: "3px 8px" }}
-            >
-              <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(1), border: "1px solid rgba(255,255,255,0.2)" }} />
-              <span className="align-middle">{getTeamDisplayName(1)} ({aggregated.filter(r => (r.team === "B" || r.team === 1 || r.team === "1")).length})</span>
-            </button>
+          {/* Team Filter Tabs & Camera Scale Calibration */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-3 border-b border-white/5 pb-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTeamFilter("all")}
+                className={`chip ${teamFilter === "all" ? "is-on" : ""}`}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                Todos ({aggregated.length})
+              </button>
+              <button
+                onClick={() => setTeamFilter(0)}
+                className={`chip ${teamFilter === 0 ? "is-on" : ""}`}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(0), border: "1px solid rgba(255,255,255,0.2)" }} />
+                <span className="align-middle">{getTeamDisplayName(0)} ({aggregated.filter(r => (r.team === "A" || r.team === 0 || r.team === "0")).length})</span>
+              </button>
+              <button
+                onClick={() => setTeamFilter(1)}
+                className={`chip ${teamFilter === 1 ? "is-on" : ""}`}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                <span className="w-2 h-2 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(1), border: "1px solid rgba(255,255,255,0.2)" }} />
+                <span className="align-middle">{getTeamDisplayName(1)} ({aggregated.filter(r => (r.team === "B" || r.team === 1 || r.team === "1")).length})</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-white/50">Ajuste de Zoom / Escala:</span>
+              <select
+                value={scaleFactor}
+                onChange={(e) => setScaleFactor(Number(e.target.value))}
+                className="bg-white/[0.04] border border-white/10 text-[11px] px-2 py-1 rounded-lg text-white/70 outline-none focus:ring-1 focus:ring-purple-500/30"
+              >
+                <option value={1.0} className="bg-[#18181b]">Cancha Completa (1.0x)</option>
+                <option value={0.8} className="bg-[#18181b]">Plano Medio (0.8x)</option>
+                <option value={0.65} className="bg-[#18181b]">Repeticiones / Highlights (0.65x)</option>
+                <option value={0.5} className="bg-[#18181b]">Zoom Corto (0.5x)</option>
+              </select>
+            </div>
           </div>
 
           <GlowCard className="rounded-2xl overflow-hidden">
@@ -1014,7 +1068,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                     </tr>
                   ) : (
                     filteredAggregated.map((row) => {
-                      const player = jerseyToPlayer.get(row.jersey);
+                      const player = getPlayerForRow(row.jersey);
                       const name = player ? `${player.first_name} ${player.last_name}` : null;
                       return (
                         <tr
@@ -1026,7 +1080,25 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                           <td className="px-4 py-3 font-black tabular-nums" style={{ color: "#a78bfa" }}>#{row.jersey}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="w-2.5 h-2.5 rounded-full inline-block mr-1.5 align-middle" style={{ ...getTeamColorStyle(row.team), border: "1px solid rgba(255,255,255,0.2)" }} />
-                            <span className="text-xs font-semibold align-middle" style={{ color: "var(--text-muted)" }}>{getTeamDisplayName(row.team)}</span>
+                            <select
+                              value={row.team ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const newOvr = {
+                                  ...overrides,
+                                  [row.jersey]: {
+                                    ...overrides[row.jersey],
+                                    team: val === "" ? null : Number(val)
+                                  }
+                                };
+                                saveOverrides(newOvr);
+                                toast.success("Equipo modificado para dorsal #" + row.jersey);
+                              }}
+                              className="bg-transparent border-none text-xs font-semibold text-white/70 outline-none cursor-pointer hover:text-white transition-all align-middle"
+                            >
+                              <option value={0} className="bg-[#18181b]">{getTeamDisplayName(0)}</option>
+                              <option value={1} className="bg-[#18181b]">{getTeamDisplayName(1)}</option>
+                            </select>
                           </td>
                           <td className="px-4 py-3">
                             {name ? (
@@ -1035,14 +1107,16 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                                   {name}
                                 </Link>
                                 <button 
-                                  onClick={async () => {
-                                    try {
-                                      await playersApi.update(player.id, { jersey_number: null });
-                                      qc.invalidateQueries({ queryKey: ["players"] });
-                                      toast.success("Mapeo de dorsal eliminado");
-                                    } catch {
-                                      toast.error("Error al desvincular");
-                                    }
+                                  onClick={() => {
+                                    const newOvr = {
+                                      ...overrides,
+                                      [row.jersey]: {
+                                        ...overrides[row.jersey],
+                                        playerId: null
+                                      }
+                                    };
+                                    saveOverrides(newOvr);
+                                    toast.success("Mapeo desvinculado para este partido");
                                   }}
                                   className="text-[10px] text-white/30 hover:text-white/70 hover:underline"
                                 >
@@ -1051,28 +1125,28 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                               </div>
                             ) : (
                               <select
-                                onChange={async (e) => {
+                                onChange={(e) => {
                                   const val = e.target.value;
                                   if (!val) return;
-                                  try {
-                                    await playersApi.update(Number(val), { jersey_number: row.jersey });
-                                    qc.invalidateQueries({ queryKey: ["players"] });
-                                    toast.success("Jugador vinculado al dorsal");
-                                  } catch {
-                                    toast.error("Error al vincular jugador");
-                                  }
+                                  const newOvr = {
+                                    ...overrides,
+                                    [row.jersey]: {
+                                      ...overrides[row.jersey],
+                                      playerId: Number(val)
+                                    }
+                                  };
+                                  saveOverrides(newOvr);
+                                  toast.success("Mapeo guardado para este partido");
                                 }}
                                 className="bg-white/[0.04] border border-white/10 text-xs px-2 py-1 rounded-lg text-white/70 outline-none max-w-[200px]"
                                 defaultValue=""
                               >
                                 <option value="" className="bg-[#18181b]">-- Vincular a jugador --</option>
-                                {players
-                                  .filter((p) => p.jersey_number == null)
-                                  .map((p) => (
-                                    <option key={p.id} value={p.id} className="bg-[#18181b]">
-                                      {p.first_name} {p.last_name}
-                                    </option>
-                                  ))}
+                                {players.map((p) => (
+                                  <option key={p.id} value={p.id} className="bg-[#18181b]">
+                                    {p.first_name} {p.last_name} {p.jersey_number ? `(#${p.jersey_number})` : ""}
+                                  </option>
+                                ))}
                               </select>
                             )}
                           </td>
