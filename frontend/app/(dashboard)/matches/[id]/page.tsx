@@ -2,7 +2,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { matchesApi, playersApi, cvApi } from "@/lib/api";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -617,12 +617,25 @@ export default function MatchDetailPage() {
 function CVMatchSection({ matchId, players }: { matchId: number; players: any[] }) {
   const qc = useQueryClient();
   const [syncing, setSyncing] = useState(false);
+  const [selectedLooseClipId, setSelectedLooseClipId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // All video analyses linked to this match
   const { data: clips = [], isLoading: loadingClips } = useQuery<any[]>({
     queryKey: ["cv-match", matchId],
     queryFn: () => cvApi.list({ match_id: matchId }),
   });
+
+  // All video analyses to find loose ones
+  const { data: allClips = [] } = useQuery<any[]>({
+    queryKey: ["cv-all"],
+    queryFn: () => cvApi.list(),
+  });
+
+  const looseClips = useMemo(() => {
+    return allClips.filter((c: any) => c.match_id === null || c.match_id === undefined);
+  }, [allClips]);
 
   // Load full results for each "done" clip
   const doneClips = clips.filter((c: any) => c.status === "done");
@@ -678,6 +691,34 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     return m;
   }, [players]);
 
+  const handleLinkClip = async (clipId: number) => {
+    try {
+      await cvApi.update(clipId, { match_id: matchId });
+      toast.success("Clip vinculado con éxito.");
+      setSelectedLooseClipId(null);
+      qc.invalidateQueries({ queryKey: ["cv-match", matchId] });
+      qc.invalidateQueries({ queryKey: ["cv-all"] });
+    } catch {
+      toast.error("Error al vincular el clip.");
+    }
+  };
+
+  const handleUploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await cvApi.upload(file, { match_id: matchId });
+      toast.success("Video subido con éxito. El análisis ha comenzado en segundo plano.");
+      qc.invalidateQueries({ queryKey: ["cv-match", matchId] });
+      qc.invalidateQueries({ queryKey: ["cv-all"] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || "Error al subir el video.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSyncStats = async () => {
     if (!aggregated.length) return;
     setSyncing(true);
@@ -709,7 +750,6 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
   };
 
   if (loadingClips) return null;
-  if (!clips.length) return null;
 
   const statusMeta: Record<string, { color: string; label: string; Icon: any }> = {
     pending:    { color: "var(--text-muted)",  label: "en cola",    Icon: Clock },
@@ -726,48 +766,124 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
         <span className="text-xs font-normal opacity-40 ml-1">{clips.length} clip{clips.length !== 1 ? "s" : ""}</span>
       </h3>
 
-      {/* Clip list */}
-      <GlowCard className="rounded-2xl overflow-hidden mb-4">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                {["Clip", "Duración", "Estado", "Subido"].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {clips.map((c: any) => {
-                const meta = statusMeta[c.status] ?? statusMeta.pending;
-                const { Icon } = meta;
-                return (
-                  <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>
-                      <Film className="w-3.5 h-3.5 inline-block mr-1.5 -translate-y-0.5" style={{ color: meta.color }} />
-                      {c.name}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
-                      {c.duration_s != null ? `${Math.floor(c.duration_s / 60)}:${String(Math.floor(c.duration_s % 60)).padStart(2, "0")}` : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: meta.color }}>
-                        <Icon className={"w-3 h-3" + (c.status === "processing" ? " animate-spin" : "")} />
-                        {meta.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                      {new Date(c.created_at).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Clip list or empty state */}
+      {clips.length === 0 ? (
+        <div className="p-8 text-center text-white/50 border border-dashed border-white/10 rounded-2xl mb-4 bg-white/[0.01]">
+          <Film className="w-8 h-8 mx-auto mb-2 text-white/20" />
+          <p className="text-sm font-semibold text-white/80">No hay clips de video vinculados a este partido</p>
+          <p className="text-xs text-white/40 mt-0.5">Sube un video o vincula un análisis existente para comenzar</p>
         </div>
-      </GlowCard>
+      ) : (
+        <GlowCard className="rounded-2xl overflow-hidden mb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Clip", "Duración", "Estado", "Subido"].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {clips.map((c: any) => {
+                  const meta = statusMeta[c.status] ?? statusMeta.pending;
+                  const { Icon } = meta;
+                  return (
+                    <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                      <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>
+                        <Film className="w-3.5 h-3.5 inline-block mr-1.5 -translate-y-0.5" style={{ color: meta.color }} />
+                        <Link href={`/cv/${c.id}`} className="hover:underline hover:text-[#00ff87] transition-all">
+                          {c.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        {c.duration_s != null ? `${Math.floor(c.duration_s / 60)}:${String(Math.floor(c.duration_s % 60)).padStart(2, "0")}` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: meta.color }}>
+                          <Icon className={"w-3 h-3" + (c.status === "processing" ? " animate-spin" : "")} />
+                          {meta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                        {new Date(c.created_at).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </GlowCard>
+      )}
+
+      {/* Upload & Link controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* Upload Control */}
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col justify-between gap-3">
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Subir nuevo video de partido</h4>
+            <p className="text-[11px] text-white/50 mt-1">
+              Sube un archivo de video (MP4, MOV, AVI) para iniciar el análisis automático y asociarlo a este partido.
+            </p>
+          </div>
+          <div>
+            <input
+              type="file"
+              accept="video/*"
+              ref={fileInputRef}
+              onChange={handleUploadVideo}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="btn-primary w-full text-xs py-2 rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {uploading ? "Subiendo..." : "Seleccionar y subir video"}
+            </button>
+          </div>
+        </div>
+
+        {/* Link Control */}
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col justify-between gap-3">
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Vincular análisis existente</h4>
+            <p className="text-[11px] text-white/50 mt-1">
+              Si ya procesaste videos sueltos (sin partido), puedes seleccionarlos aquí para vincularlos a este partido.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={selectedLooseClipId || ""}
+              onChange={(e) => setSelectedLooseClipId(e.target.value ? Number(e.target.value) : null)}
+              className="bg-white/[0.04] border border-white/10 text-xs px-3 py-2 rounded-xl flex-1 text-white outline-none focus:ring-1 focus:ring-[#00ff87]/30"
+            >
+              <option value="" className="bg-[#18181b]">-- Seleccionar clip suelto --</option>
+              {looseClips.map((c: any) => (
+                <option key={c.id} value={c.id} className="bg-[#18181b]">
+                  {c.name} ({new Date(c.created_at).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => selectedLooseClipId && handleLinkClip(selectedLooseClipId)}
+              disabled={!selectedLooseClipId}
+              className="btn-primary text-xs px-4 py-2 rounded-xl disabled:opacity-50 shrink-0"
+            >
+              Vincular
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Excel player roster note */}
+      <p className="text-[11px] text-white/30 mb-6 text-center">
+        * ¿No se reconocen los nombres de los jugadores? Mapea los números de camiseta importando el Excel del plantel en la sección de <Link href="/players" className="underline hover:text-[#00ff87]">Jugadores</Link>.
+      </p>
 
       {/* Aggregated physical stats */}
       {aggregated.length > 0 && (

@@ -6,13 +6,13 @@ import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Video, Users, Trophy, Activity,
-  Gauge, MapPin, Image as ImageIcon, AlertTriangle, ChevronDown,
+  Gauge, MapPin, Image as ImageIcon, AlertTriangle, ChevronDown, Plus,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PitchHeatmap, HeatPoint } from "@/components/tactical/PitchHeatmap";
-import { cvApi } from "@/lib/api";
+import { cvApi, playersApi } from "@/lib/api";
 
 /**
  * Backend's `results.json` is flexible — different runs of the pipeline
@@ -103,6 +103,29 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
     queryFn:  () => cvApi.get(numId),
     refetchInterval: 5_000,
   });
+
+  const { data: players } = useQuery<any[]>({
+    queryKey: ["players"],
+    queryFn: () => playersApi.list(),
+  });
+
+  const jerseyToPlayerMap = useMemo(() => {
+    const map = new Map<number, { first_name: string; last_name: string }>();
+    if (players) {
+      for (const p of players) {
+        if (p.jersey_number != null) {
+          map.set(Number(p.jersey_number), p);
+        }
+      }
+    }
+    return map;
+  }, [players]);
+
+  const getPlayerNameByJersey = (jersey: number | null | undefined) => {
+    if (jersey == null) return null;
+    const p = jerseyToPlayerMap.get(Number(jersey));
+    return p ? `${p.first_name} ${p.last_name}` : null;
+  };
 
   const tracks: Track[] = useMemo(
     () => (data?.results?.tracks ?? []).map(normaliseTrack),
@@ -330,6 +353,23 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
             </Card>
           </div>
 
+          {/* Mapear dorsales importando Excel */}
+          <Card className="border border-dashed border-emerald-500/30 bg-emerald-500/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex gap-3">
+              <Users className="w-5 h-5 text-[#00ff87] shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">¿Faltan nombres de jugadores?</h4>
+                <p className="text-xs text-white/60 mt-0.5">
+                  Mapea los números de camiseta a los jugadores importando el Excel del plantel.
+                </p>
+              </div>
+            </div>
+            <Link href="/players" className="btn-primary text-xs shrink-0 inline-flex items-center gap-1.5 self-start sm:self-auto">
+              <Plus className="w-3.5 h-3.5" />
+              Importar Excel/CSV
+            </Link>
+          </Card>
+
           {/* Sample frame */}
           {sampleUrl && (
             <Card>
@@ -444,7 +484,9 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                             >
                               {i + 1}
                             </span>
-                            <span className="text-[11px] font-mono text-white/55 w-16 shrink-0">{t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`}</span>
+                            <span className="text-[11px] font-medium text-white/70 w-28 shrink-0 truncate text-left" title={getPlayerNameByJersey(t.jersey) || (t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`)}>
+                              {getPlayerNameByJersey(t.jersey) || (t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`)}
+                            </span>
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                               <motion.div
                                 initial={{ width: 0 }}
@@ -482,7 +524,9 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                             >
                               {i + 1}
                             </span>
-                            <span className="text-[11px] font-mono text-white/55 w-16 shrink-0">{t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`}</span>
+                            <span className="text-[11px] font-medium text-white/70 w-28 shrink-0 truncate text-left" title={getPlayerNameByJersey(t.jersey) || (t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`)}>
+                              {getPlayerNameByJersey(t.jersey) || (t.jersey != null ? `Dorsal ${t.jersey}` : `#${t.track_id}`)}
+                            </span>
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                               <motion.div
                                 initial={{ width: 0 }}
@@ -541,7 +585,9 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                     <table className="w-full text-sm">
                       <thead style={{ background: "var(--surface-1)" }} className="sticky top-0">
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                          <th className="px-5 py-2 text-left">#</th>
+                          <th className="px-5 py-2 text-left">Track</th>
+                          <th className="px-5 py-2 text-left">Dorsal</th>
+                          <th className="px-5 py-2 text-left">Jugador</th>
                           <th className="px-5 py-2 text-left">Equipo</th>
                           <th className="px-5 py-2 text-right">Dist. (m)</th>
                           <th className="px-5 py-2 text-right">V. promedio</th>
@@ -552,6 +598,8 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
                         {realTracks.map((t) => (
                           <tr key={t.track_id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
                             <td className="px-5 py-2 font-mono text-white/60">#{t.track_id}</td>
+                            <td className="px-5 py-2 font-mono text-white/70">{t.jersey != null ? `#${t.jersey}` : <span className="text-white/20">—</span>}</td>
+                            <td className="px-5 py-2 text-white/95">{getPlayerNameByJersey(t.jersey) || <span className="text-white/25 text-xs">No asignado</span>}</td>
                             <td className="px-5 py-2">
                               {t.team ? (
                                 <span className="inline-flex items-center gap-1.5">

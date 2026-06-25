@@ -28,7 +28,7 @@ from ....core.permissions import require_permission
 from ....core.audit import audit
 from ....models.user import User
 from ....models.video_analysis import VideoAnalysis, CVStatus
-from ....schemas.video_analysis import VideoAnalysisOut, VideoAnalysisSummary
+from ....schemas.video_analysis import VideoAnalysisOut, VideoAnalysisSummary, VideoAnalysisUpdate
 
 
 router = APIRouter()
@@ -195,3 +195,29 @@ def delete_analysis(
     db.delete(a)
     db.commit()
     audit(db, user=current_user, action="video_analysis.delete", entity="VideoAnalysis", entity_id=analysis_id)
+
+
+@router.patch("/{analysis_id}", response_model=VideoAnalysisOut)
+def update_analysis(
+    analysis_id: int,
+    data: VideoAnalysisUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = db.query(VideoAnalysis).filter(VideoAnalysis.id == analysis_id)
+    q = scoped_query(q, VideoAnalysis, current_user)
+    a = q.first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Análisis no encontrado")
+
+    update_data = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
+    if "name" in update_data:
+        if update_data["name"] is not None:
+            a.name = update_data["name"].strip()
+    if "match_id" in update_data:
+        a.match_id = update_data["match_id"]
+
+    db.commit()
+    db.refresh(a)
+    return a
+

@@ -146,7 +146,7 @@ export default function CVPage() {
 
   const { data: list = [], isLoading } = useQuery<AnalysisRow[]>({
     queryKey: ["cv-list"],
-    queryFn: cvApi.list,
+    queryFn: () => cvApi.list() as Promise<AnalysisRow[]>,
     refetchInterval: 8_000,
   });
 

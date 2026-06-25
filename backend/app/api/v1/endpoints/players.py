@@ -157,24 +157,15 @@ def import_players(
     rows = []
 
     try:
+        all_raw_rows = []
         if filename.endswith((".xlsx", ".xlsm")):
             from openpyxl import load_workbook
             wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
             ws = wb.active
-            rows_iter = ws.iter_rows(values_only=True)
-            try:
-                header_row = next(rows_iter)
-            except StopIteration:
-                raise HTTPException(status_code=400, detail="Archivo Excel vacío")
-            headers = [str(h) if h is not None else "" for h in header_row]
-            norm_headers = [_normalize_key(h) for h in headers]
-            for r in rows_iter:
-                if r is None or all(c is None for c in r):
-                    continue
-                rows.append({norm_headers[i]: (r[i] if i < len(r) else None) for i in range(len(norm_headers))})
+            for r in ws.iter_rows(values_only=True):
+                all_raw_rows.append(list(r))
             wb.close()
         else:
-            # CSV / TSV fallback
             text = ""
             for enc in ("utf-8-sig", "utf-8", "latin-1"):
                 try:
@@ -190,13 +181,46 @@ def import_players(
             except csv.Error:
                 dialect = csv.excel
             reader = csv.reader(io.StringIO(text), dialect)
-            rows_raw = [r for r in reader if any(c.strip() for c in r)]
-            if not rows_raw:
-                raise HTTPException(status_code=400, detail="Archivo CSV vacío")
-            headers = rows_raw[0]
-            norm_headers = [_normalize_key(h) for h in headers]
-            for r in rows_raw[1:]:
-                rows.append({norm_headers[i]: (r[i] if i < len(r) else None) for i in range(len(norm_headers))})
+            all_raw_rows = [r for r in reader]
+
+        # Scan dynamically to locate the header row (skip logo / title rows)
+        concepts = {
+            "nombre", "nombres", "first_name", "apellido", "apellidos", "last_name", 
+            "dorsal", "numero", "camiseta", "polera", "posicion", "position", 
+            "nacimiento", "rut", "dni", "correo", "email", "perfil", "pie", "altura", "peso"
+        }
+        
+        header_idx = -1
+        best_match_count = 0
+        for idx, r in enumerate(all_raw_rows[:15]):
+            if not r:
+                continue
+            match_count = 0
+            for cell in r:
+                if cell is not None:
+                    cell_norm = _normalize_key(str(cell))
+                    for c in concepts:
+                        if c in cell_norm:
+                            match_count += 1
+                            break
+            if match_count > best_match_count:
+                best_match_count = match_count
+                header_idx = idx
+
+        if header_idx == -1:
+            header_idx = 0
+
+        if not all_raw_rows:
+            raise HTTPException(status_code=400, detail="Archivo vacío")
+
+        headers = [str(h) if h is not None else "" for h in all_raw_rows[header_idx]]
+        norm_headers = [_normalize_key(h) for h in headers]
+        
+        for r in all_raw_rows[header_idx + 1:]:
+            if not r or all(c is None or str(c).strip() == "" for c in r):
+                continue
+            rows.append({norm_headers[i]: (r[i] if i < len(r) else None) for i in range(len(norm_headers))})
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al analizar archivo: {str(e)}")
 
@@ -214,18 +238,27 @@ def import_players(
     errors = []
 
     for idx, row in enumerate(rows):
-        first_name = get_field(row, ["first_name", "nombre", "nombres"])
-        last_name = get_field(row, ["last_name", "apellido", "apellidos"])
+        first_name = get_field(row, ["first_name", "nombre", "nombres", "primer_nombre"])
+        
+        paterno = get_field(row, ["apellido_paterno", "primer_apellido"])
+        materno = get_field(row, ["apellido_materno", "segundo_apellido"])
+        last_name = None
+        if paterno or materno:
+            last_name = f"{paterno or ''} {materno or ''}".strip()
+        else:
+            last_name = get_field(row, ["last_name", "apellido", "apellidos"])
 
         if not first_name or not last_name:
             full_name = get_field(row, ["full_name", "nombre_completo", "nombre_y_apellido"])
             if full_name:
                 parts = str(full_name).strip().split(" ", 1)
-                first_name = parts[0]
-                last_name = parts[1] if len(parts) > 1 else "S/A"
+                if not first_name:
+                    first_name = parts[0]
+                if not last_name:
+                    last_name = parts[1] if len(parts) > 1 else "S/A"
             else:
                 skipped += 1
-                errors.append(f"Fila {idx+2}: Faltan nombres o apellidos")
+                errors.append(f"Fila {idx + header_idx + 2}: Faltan nombres o apellidos")
                 continue
 
         # Date of Birth
@@ -281,7 +314,7 @@ def import_players(
             elif foot_str in ("both", "ambos", "ambidiestro", "a"):
                 foot = DominantFoot.BOTH
 
-        jersey = get_field(row, ["jersey_number", "numero", "dorsal", "camiseta"])
+        jersey = get_field(row, ["jersey_number", "numero", "dorsal", "camiseta", "polera", "n_polera", "no_polera"])
         jersey_num = None
         if jersey is not None:
             try:
