@@ -239,6 +239,8 @@ export const notificationsApi = {
 export const cvApi = {
   list: (params?: { match_id?: number }) => api.get("/cv", { params }).then((r) => r.data),
   get:  (id: number) => api.get(`/cv/${id}`).then((r) => r.data),
+  update: (id: number, data: { name?: string; match_id?: number | null }) =>
+    api.patch(`/cv/${id}`, data).then((r) => r.data),
   upload: (file: File, opts?: { match_id?: number; notes?: string }) => {
     const fd = new FormData();
     fd.append("file", file);

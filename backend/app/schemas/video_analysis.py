@@ -35,3 +35,10 @@ class VideoAnalysisSummary(BaseModel):
     finished_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VideoAnalysisUpdate(BaseModel):
+    name: Optional[str] = None
+    notes: Optional[str] = None
+    match_id: Optional[int] = None
+

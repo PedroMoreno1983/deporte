@@ -195,11 +195,12 @@ export default function PlayersPage() {
         <div className="drawer" onClick={() => { if (!isImporting) setShowImportModal(false); }}>
           <div className="drawer-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450 }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white">Importar Plantel desde Excel/CSV</h3>
+              <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Importar Plantel desde Excel/CSV</h3>
               <button 
                 onClick={() => setShowImportModal(false)}
                 disabled={isImporting}
-                className="text-white/40 hover:text-white transition-colors"
+                className="transition-colors"
+                style={{ color: "var(--text-muted)" }}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -208,7 +209,7 @@ export default function PlayersPage() {
             {!importResult ? (
               <form onSubmit={handleImport} className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider text-white/60">
+                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
                     1. Categoría de Destino
                   </label>
                   <select
@@ -217,8 +218,8 @@ export default function PlayersPage() {
                     required
                     className="w-full px-3 py-2 text-sm rounded-xl outline-none"
                     style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid var(--border-subtle)",
+                      background: "var(--paper-inset)",
+                      border: "1px solid var(--border-medium)",
                       color: "var(--text-primary)",
                     }}
                   >
@@ -230,22 +231,22 @@ export default function PlayersPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider text-white/60">
+                  <label className="text-[10px] font-semibold block mb-1 uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
                     2. Archivo (.xlsx, .csv)
                   </label>
                   <div 
                     className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors"
                     style={{
-                      borderColor: importFile ? "rgba(0,255,135,0.40)" : "var(--border-subtle)",
-                      background: importFile ? "rgba(0,255,135,0.04)" : "rgba(255,255,255,0.02)",
+                      borderColor: importFile ? "rgba(0,255,135,0.40)" : "var(--border-medium)",
+                      background: importFile ? "rgba(0,255,135,0.04)" : "rgba(0,0,0,0.02)",
                     }}
                     onClick={() => document.getElementById("excel-file-input")?.click()}
                   >
                     <Upload className="w-8 h-8 mb-2" style={{ color: importFile ? "#00ff87" : "var(--text-secondary)" }} />
-                    <span className="text-xs text-center text-white/80 font-medium">
+                    <span className="text-xs text-center font-medium" style={{ color: "var(--text-primary)" }}>
                       {importFile ? importFile.name : "Haz clic para seleccionar o arrastra un archivo"}
                     </span>
-                    <span className="text-[10px] text-center text-white/40 mt-1">
+                    <span className="text-[10px] text-center mt-1" style={{ color: "var(--text-muted)" }}>
                       Columnas soportadas: Nombre, Apellido, Dorsal, Posición, Nacimiento, Perfil, Altura, Peso
                     </span>
                     <input
@@ -281,13 +282,13 @@ export default function PlayersPage() {
               </form>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,255,135,0.08)", border: "1px solid rgba(0,255,135,0.20)" }}>
-                  <p className="text-sm font-bold text-white">¡Importación Completada!</p>
-                  <p className="text-xs mt-1 text-white/70">
-                    Se han importado <strong className="text-[#00ff87] font-black">{importResult.imported}</strong> jugadores exitosamente.
+                <div className="p-4 rounded-xl" style={{ background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.20)" }}>
+                  <p className="text-sm font-bold" style={{ color: "var(--pine)" }}>¡Importación Completada!</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-primary)" }}>
+                    Se han importado <strong className="font-black" style={{ color: "var(--pine)" }}>{importResult.imported}</strong> jugadores exitosamente.
                   </p>
                   {importResult.skipped > 0 && (
-                    <p className="text-xs text-white/60 mt-0.5">
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
                       Se omitieron {importResult.skipped} filas por falta de datos.
                     </p>
                   )}
@@ -295,10 +296,10 @@ export default function PlayersPage() {
 
                 {importResult.errors && importResult.errors.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/60 mb-1.5 flex items-center gap-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
                       <AlertCircle className="w-3.5 h-3.5 text-yellow-500" /> Advertencias/Errores ({importResult.errors.length})
                     </p>
-                    <div className="max-h-36 overflow-y-auto rounded-xl p-3 text-xs space-y-1 font-mono text-white/60" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}>
+                    <div className="max-h-36 overflow-y-auto rounded-xl p-3 text-xs space-y-1 font-mono" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
                       {importResult.errors.map((err, i) => (
                         <div key={i}>• {err}</div>
                       ))}
