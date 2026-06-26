@@ -1,8 +1,8 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Plus, Eye, EyeOff, Loader2, Check } from "lucide-react";
-import { categoriesApi, clubsApi, api } from "@/lib/api";
+import { Plus, Eye, EyeOff, Loader2, Check, RefreshCw } from "lucide-react";
+import { categoriesApi, clubsApi, api, agentApi } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store";
 import { resetOnboarding } from "@/components/onboarding/OnboardingTour";
@@ -27,6 +27,13 @@ export default function SettingsPage() {
   const [createdUser, setCreatedUser] = useState<any>(null);
   const [clubName, setClubName] = useState("");
 
+  // AI config state
+  const [aiProvider, setAiProvider] = useState("");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiModel, setAiModel] = useState("");
+  const [showAiKey, setShowAiKey] = useState(false);
+  const [testingKey, setTestingKey] = useState(false);
+
   const { data: club } = useQuery({
     queryKey: ["my-club"],
     queryFn: () => clubsApi.me(),
@@ -34,19 +41,24 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (club?.name) {
-      setClubName(club.name);
+    if (club) {
+      setClubName(club.name || "");
+      setAiProvider(club.ai_provider || "offline");
+      setAiApiKey(club.has_ai_api_key ? "••••••••••••••••" : "");
+      setAiModel(club.ai_model || "");
     }
   }, [club]);
 
   const updateClub = useMutation({
-    mutationFn: (data: { name: string }) => clubsApi.update(user!.club_id!, data),
+    mutationFn: (data: { name?: string; ai_provider?: string | null; ai_api_key?: string | null; ai_model?: string | null }) => 
+      clubsApi.update(user!.club_id!, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-club"] });
-      toast.success("Nombre del club actualizado");
+      toast.success("Configuración guardada correctamente");
     },
-    onError: () => toast.error("Error al actualizar el nombre del club"),
+    onError: () => toast.error("Error al guardar configuración"),
   });
+
 
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: () => categoriesApi.list() });
   const { data: users = [] } = useQuery({
@@ -136,6 +148,170 @@ export default function SettingsPage() {
                 {updateClub.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 Guardar Cambios
               </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card kicker="Inteligencia Artificial" title="Configuración de IA">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="filter-bar" style={{ gap: 8 }}>
+            <Note style={{ fontSize: 15, opacity: 0.9 }}>
+              Estado del Asistente:
+            </Note>
+            <span
+              className="chip is-on"
+              style={{
+                background: aiProvider !== "offline" ? "var(--pine)" : "var(--ochre)",
+                color: "#fff",
+                border: "none",
+              }}
+            >
+              {aiProvider === "offline"
+                ? "Modo simulación sin conexión"
+                : `Activo (${aiProvider.toUpperCase()})`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Note style={{ fontSize: 14, display: "block", marginBottom: 4 }}>Proveedor de IA</Note>
+              <select
+                value={aiProvider}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAiProvider(val);
+                  // set default models automatically
+                  if (val === "groq") setAiModel("llama-3.3-70b-versatile");
+                  else if (val === "gemini") setAiModel("gemini-1.5-flash");
+                  else if (val === "claude") setAiModel("claude-3-5-sonnet-20241022");
+                  else setAiModel("");
+                  setAiApiKey("");
+                }}
+                disabled={user?.role !== "admin" || updateClub.isPending}
+                className="input"
+                style={{ width: "100%" }}
+              >
+                <option value="offline">Simulación sin conexión (Heurístico)</option>
+                <option value="groq">Groq (Llama 3)</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="claude">Anthropic Claude</option>
+              </select>
+            </div>
+
+            {aiProvider !== "offline" && (
+              <>
+                <div style={{ position: "relative" }}>
+                  <Note style={{ fontSize: 14, display: "block", marginBottom: 4 }}>API Key del Proveedor</Note>
+                  <input
+                    type={showAiKey ? "text" : "password"}
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    placeholder={club?.has_ai_api_key ? "••••••••••••••••" : "Ingresá tu API Key"}
+                    disabled={user?.role !== "admin" || updateClub.isPending}
+                    className="input"
+                    style={{ width: "100%", paddingRight: 38 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAiKey(!showAiKey)}
+                    style={{ position: "absolute", right: 12, top: 32, color: "var(--ink-faint)" }}
+                  >
+                    {showAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                <div>
+                  <Note style={{ fontSize: 14, display: "block", marginBottom: 4 }}>Modelo de IA</Note>
+                  <input
+                    value={aiModel}
+                    onChange={(e) => setAiModel(e.target.value)}
+                    placeholder="ej. gemini-1.5-flash"
+                    disabled={user?.role !== "admin" || updateClub.isPending}
+                    className="input"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {user?.role === "admin" && (
+            <div className="flex items-center gap-2 pt-2" style={{ borderTop: "1px solid var(--rule)" }}>
+              {aiProvider !== "offline" && (
+                <button
+                  type="button"
+                  disabled={testingKey || !aiApiKey}
+                  onClick={async () => {
+                    setTestingKey(true);
+                    try {
+                      // If placeholder is unchanged, use existing key. We'll send what is in inputs
+                      const keyToSend = aiApiKey === "••••••••••••••••" ? "" : aiApiKey;
+                      if (!keyToSend && aiApiKey !== "••••••••••••••••") {
+                        toast.error("Por favor, ingresá una API Key primero");
+                        setTestingKey(false);
+                        return;
+                      }
+                      
+                      const res = await agentApi.testApiKey({
+                        provider: aiProvider,
+                        api_key: keyToSend || (club?.has_ai_api_key ? "EXISTING" : ""),
+                        model: aiModel,
+                      });
+                      if (res.ok) {
+                        toast.success(`Conexión exitosa! Ping reply: "${res.reply}"`);
+                      } else {
+                        toast.error("Error al probar la clave");
+                      }
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.detail || "Error validando clave");
+                    } finally {
+                      setTestingKey(false);
+                    }
+                  }}
+                  className="chip"
+                  style={{ height: 38, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  {testingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Probar Conexión
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  const keyToSend = aiApiKey === "••••••••••••••••" ? null : aiApiKey;
+                  updateClub.mutate({
+                    ai_provider: aiProvider === "offline" ? null : aiProvider,
+                    ai_api_key: aiProvider === "offline" ? null : keyToSend,
+                    ai_model: aiProvider === "offline" ? null : aiModel,
+                  });
+                }}
+                disabled={updateClub.isPending}
+                className="btn-primary text-sm"
+                style={{ height: 38, marginLeft: "auto" }}
+              >
+                {updateClub.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Guardar Configuración de IA
+              </button>
+
+              {club?.ai_provider && (
+                <button
+                  onClick={() => {
+                    if (confirm("¿Estás seguro de eliminar la configuración de IA? El asistente volverá al modo sin conexión.")) {
+                      updateClub.mutate({
+                        ai_provider: null,
+                        ai_api_key: null,
+                        ai_model: null,
+                      });
+                    }
+                  }}
+                  disabled={updateClub.isPending}
+                  className="chip"
+                  style={{ height: 38, padding: "0 14px", color: "var(--terracotta)" }}
+                >
+                  Eliminar IA
+                </button>
+              )}
             </div>
           )}
         </div>

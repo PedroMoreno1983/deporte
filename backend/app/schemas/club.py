@@ -16,15 +16,22 @@ class ClubCreate(ClubBase):
 
 
 class ClubUpdate(BaseModel):
-    name:      Optional[str] = None
-    country:   Optional[str] = None
-    league:    Optional[str] = None
-    crest_url: Optional[str] = None
-    is_active: Optional[bool] = None
+    name:        Optional[str] = None
+    country:     Optional[str] = None
+    league:      Optional[str] = None
+    crest_url:   Optional[str] = None
+    is_active:   Optional[bool] = None
+    ai_provider: Optional[str] = None
+    ai_api_key:  Optional[str] = None
+    ai_model:    Optional[str] = None
 
 
 class ClubOut(ClubBase):
-    id:         int
-    is_active:  bool
-    created_at: datetime
+    id:              int
+    is_active:       bool
+    ai_provider:     Optional[str] = None
+    ai_model:        Optional[str] = None
+    has_ai_api_key:  bool = False
+    created_at:      datetime
     model_config = ConfigDict(from_attributes=True)
+

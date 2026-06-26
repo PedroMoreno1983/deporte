@@ -63,6 +63,184 @@ class GroqProvider:
         return ProviderResponse(content=msg.content, tool_calls=calls)
 
 
+class GeminiProvider:
+    """Google Gemini OpenAI-compatible completions with tool calling."""
+
+    def __init__(self, api_key: str, model: str = "gemini-1.5-flash",
+                 temperature: float = 0.2, max_tokens: int = 1024) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._temperature = temperature
+        self._max_tokens = max_tokens
+
+    def chat(self, messages: List[dict], tools: List[dict]) -> ProviderResponse:
+        import httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json"
+        }
+        # Gemini expects standard OpenAI JSON
+        payload = {
+            "model": self._model,
+            "messages": messages,
+            "temperature": self._temperature,
+            "max_tokens": self._max_tokens
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+            
+        r = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+        r.raise_for_status()
+        data = r.json()
+        
+        choice = data["choices"][0]
+        msg = choice["message"]
+        content = msg.get("content")
+        
+        calls: List[ToolCall] = []
+        for tc in msg.get("tool_calls", []):
+            fn = tc.get("function", {})
+            try:
+                args = json.loads(fn.get("arguments") or "{}")
+            except (json.JSONDecodeError, TypeError):
+                args = {}
+            calls.append(ToolCall(id=tc.get("id", ""), name=fn.get("name", ""), arguments=args))
+            
+        return ProviderResponse(content=content, tool_calls=calls)
+
+
+class ClaudeProvider:
+    """Anthropic Claude Provider implementing messages + tool calling."""
+
+    def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022",
+                 temperature: float = 0.2, max_tokens: int = 1024) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._temperature = temperature
+        self._max_tokens = max_tokens
+
+    def chat(self, messages: List[dict], tools: List[dict]) -> ProviderResponse:
+        import httpx
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": self._api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        }
+        
+        # Anthropic separate system prompt
+        system_prompt = ""
+        claude_msgs = []
+        for m in messages:
+            if m["role"] == "system":
+                system_prompt = m["content"]
+            elif m["role"] in ("user", "assistant"):
+                # Handle assistants with tool calls
+                if m["role"] == "assistant" and "tool_calls" in m:
+                    content_list = []
+                    if m.get("content"):
+                        content_list.append({"type": "text", "text": m["content"]})
+                    for tc in m["tool_calls"]:
+                        fn = tc.get("function", {})
+                        content_list.append({
+                            "type": "tool_use",
+                            "id": tc.get("id", ""),
+                            "name": fn.get("name", ""),
+                            "input": json.loads(fn.get("arguments") or "{}")
+                        })
+                    claude_msgs.append({"role": "assistant", "content": content_list})
+                else:
+                    claude_msgs.append({"role": m["role"], "content": m["content"]})
+            elif m["role"] == "tool":
+                # A tool response message in Anthropic looks like a user role message containing tool_result content
+                # Search if last message was user (anthropic groups consecutive same roles under same turn if not careful,
+                # but we can just append it as a user message block)
+                try:
+                    res_val = json.loads(m["content"])
+                except Exception:
+                    res_val = m["content"]
+                
+                tool_msg = {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": m.get("tool_call_id", ""),
+                            "content": json.dumps(res_val, ensure_ascii=False)
+                        }
+                    ]
+                }
+                claude_msgs.append(tool_msg)
+
+        # Map OpenAI tool specs to Anthropic tool specs
+        anthropic_tools = []
+        for t in tools:
+            spec = t.get("function", {})
+            anthropic_tools.append({
+                "name": spec.get("name"),
+                "description": spec.get("description", ""),
+                "input_schema": spec.get("parameters", {"type": "object", "properties": {}})
+            })
+
+        payload = {
+            "model": self._model,
+            "messages": claude_msgs,
+            "max_tokens": self._max_tokens,
+            "temperature": self._temperature
+        }
+        if system_prompt:
+            payload["system"] = system_prompt
+        if anthropic_tools:
+            payload["tools"] = anthropic_tools
+
+        r = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+        r.raise_for_status()
+        data = r.json()
+        
+        content = ""
+        calls: List[ToolCall] = []
+        for item in data.get("content", []):
+            if item.get("type") == "text":
+                content += item.get("text", "")
+            elif item.get("type") == "tool_use":
+                calls.append(ToolCall(
+                    id=item.get("id", ""),
+                    name=item.get("name", ""),
+                    arguments=item.get("input", {})
+                ))
+                
+        return ProviderResponse(content=content or None, tool_calls=calls)
+
+
+def get_provider(db: Any, user: Any) -> LLMProvider:
+    """Helper factory to resolve the AI Provider based on club settings or env."""
+    from app.models.club import Club
+    from app.core.config import settings
+
+    if user and getattr(user, "club_id", None):
+        club = db.query(Club).filter(Club.id == user.club_id).first()
+        if club and club.ai_provider and club.ai_api_key:
+            provider_type = club.ai_provider.strip().lower()
+            api_key = club.ai_api_key.strip()
+            model = club.ai_model.strip() if club.ai_model else None
+            
+            if provider_type == "groq":
+                return GroqProvider(api_key=api_key, model=model or "llama-3.3-70b-versatile")
+            elif provider_type == "gemini":
+                return GeminiProvider(api_key=api_key, model=model or "gemini-1.5-flash")
+            elif provider_type == "claude":
+                return ClaudeProvider(api_key=api_key, model=model or "claude-3-5-sonnet-20241022")
+
+    # Fallback to local env variables (which default to Groq)
+    if settings.GROQ_API_KEY:
+        return GroqProvider(api_key=settings.GROQ_API_KEY)
+        
+    return FallbackProvider(db=db, user=user)
+
+
+
 @dataclass
 class _ScriptedTurn:
     """One scripted model turn for tests: either tool calls or a final answer."""

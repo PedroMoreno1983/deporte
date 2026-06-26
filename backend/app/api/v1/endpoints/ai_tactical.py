@@ -136,12 +136,18 @@ def tactical_chat(
     current_user=Depends(get_current_user),
 ):
     """Free-form conversation with the tactical assistant. Runs the tool-calling agent loop."""
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
+    from app.agent.provider import get_provider, FallbackProvider
     try:
-        provider = GroqProvider(api_key=settings.GROQ_API_KEY)
-    except ImportError:
-        raise HTTPException(status_code=503, detail="Paquete 'groq' no instalado")
+        provider = get_provider(db=db, user=current_user)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Error inicializando proveedor de IA: {str(e)}")
+
+    if isinstance(provider, FallbackProvider):
+        raise HTTPException(
+            status_code=503,
+            detail="Se requiere configurar una clave de API de IA válida (Groq, Gemini o Claude) en la sección de Configuración para usar las tácticas."
+        )
+
     if not body.messages:
         raise HTTPException(status_code=400, detail="Enviar al menos un mensaje")
 
@@ -161,13 +167,17 @@ def get_recommendation(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
-
+    from app.agent.provider import get_provider, FallbackProvider
     try:
-        from groq import Groq
-    except ImportError:
-        raise HTTPException(status_code=503, detail="groq package no instalado")
+        provider = get_provider(db=db, user=current_user)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Error inicializando proveedor de IA: {str(e)}")
+
+    if isinstance(provider, FallbackProvider):
+        raise HTTPException(
+            status_code=503,
+            detail="Se requiere configurar una clave de API de IA válida (Groq, Gemini o Claude) en la sección de Configuración para usar las recomendaciones tácticas."
+        )
 
     team_ctx = _build_team_context(db)
     ctx = body.match_context
@@ -191,7 +201,7 @@ El JSON debe tener exactamente estos campos:
   ],
   "tactical_tips": ["tip 1", "tip 2", "tip 3"]
 }
-Máximo 3 player_changes y 4 tactical_tips. Sé concreto y práctico."""
+Máximo 3 player_changes y 4 tactical_tips. Sé concreto y práctico. NUNCA respondas con texto plano fuera del JSON, solo el objeto JSON."""
 
     user_prompt = f"""CONTEXTO DEL PARTIDO:
 - Minuto: {ctx.minute}
@@ -213,23 +223,31 @@ LESIONES ACTIVAS:
 
 Analiza la situación y recomienda ajustes tácticos. Si el equipo va perdiendo en los últimos minutos, sé más agresivo. Si va ganando, sugiere mayor solidez defensiva."""
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+    # Execute a clean JSON completions chat with whatever provider is selected.
+    # Claude / Gemini / Groq will receive it. Gemini and Claude support JSON formatting,
+    # and we can enforce it.
+    res = provider.chat(
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_prompt},
         ],
-        response_format={"type": "json_object"},
-        temperature=0.65,
-        max_tokens=1024,
+        tools=[]
     )
 
-    raw = response.choices[0].message.content
+    raw = res.content or "{}"
+    # Strip markdown block if model accidentally wraps it in ```json
+    if raw.strip().startswith("```"):
+        raw_lines = raw.strip().split("\n")
+        if raw_lines[0].startswith("```"):
+            raw_lines = raw_lines[1:]
+        if raw_lines[-1].startswith("```"):
+            raw_lines = raw_lines[:-1]
+        raw = "\n".join(raw_lines)
+
     try:
         data = json.loads(raw)
     except Exception:
-        raise HTTPException(status_code=500, detail="Respuesta de IA inválida")
+        raise HTTPException(status_code=500, detail=f"Respuesta de IA inválida (no parseó JSON). Contenido devuelto: {raw}")
 
     return AIRecommendResponse(
         analysis=data.get("analysis", "Sin análisis disponible."),
@@ -239,3 +257,4 @@ Analiza la situación y recomienda ajustes tácticos. Si el equipo va perdiendo 
         player_changes=[PlayerChange(**c) for c in data.get("player_changes", [])],
         tactical_tips=data.get("tactical_tips", []),
     )
+

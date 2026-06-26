@@ -61,6 +61,46 @@ class AgentChatResponse(BaseModel):
     iterations: int
 
 
+class TestKeyRequest(BaseModel):
+    provider: str
+    api_key: str
+    model: str
+
+
+@router.post("/test-key")
+def test_api_key(body: TestKeyRequest):
+    """Test a provider API Key by running a simple chat completion ping."""
+    from ....agent.provider import GroqProvider, GeminiProvider, ClaudeProvider
+    prov_type = body.provider.strip().lower()
+    api_key = body.api_key.strip()
+    model = body.model.strip()
+    
+    if not api_key:
+         raise HTTPException(status_code=400, detail="La clave API no puede estar vacía")
+         
+    try:
+        if prov_type == "groq":
+            prov = GroqProvider(api_key=api_key, model=model or "llama-3.3-70b-versatile")
+        elif prov_type == "gemini":
+            prov = GeminiProvider(api_key=api_key, model=model or "gemini-1.5-flash")
+        elif prov_type == "claude":
+            prov = ClaudeProvider(api_key=api_key, model=model or "claude-3-5-sonnet-20241022")
+        else:
+            raise HTTPException(status_code=400, detail=f"Proveedor no soportado: {body.provider}")
+            
+        # Run a simple ping turn
+        res = prov.chat(
+            messages=[{"role": "user", "content": "Responder con una única palabra: 'OK'"}],
+            tools=[]
+        )
+        if res.content:
+            return {"ok": True, "reply": res.content.strip()}
+        else:
+            raise HTTPException(status_code=502, detail="La API no devolvió contenido de texto")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error validando clave: {str(e)}")
+
+
 @router.post("/chat", response_model=AgentChatResponse)
 def agent_chat(
     body: AgentChatRequest,
@@ -70,13 +110,12 @@ def agent_chat(
     """Converse with the data agent. Grounded in your club's data via tools."""
     if not body.messages:
         raise HTTPException(status_code=400, detail="Enviá al menos un mensaje")
-    if not settings.GROQ_API_KEY:
-        provider = FallbackProvider(db=db, user=current_user)
-    else:
-        try:
-            provider = GroqProvider(api_key=settings.GROQ_API_KEY)
-        except ImportError:
-            raise HTTPException(status_code=503, detail="Paquete 'groq' no instalado")
+
+    from ....agent.provider import get_provider
+    try:
+        provider = get_provider(db=db, user=current_user)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Error inicializando proveedor de IA: {str(e)}")
 
     result = run_agent(
         [m.model_dump() for m in body.messages],
@@ -87,6 +126,7 @@ def agent_chat(
         tool_calls=[AgentToolCall(**tc) for tc in result.tool_calls],
         iterations=result.iterations,
     )
+
 
 
 # ── Proactive: the daily squad briefing (level 2) ─────────────────────────────

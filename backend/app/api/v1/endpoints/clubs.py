@@ -62,8 +62,10 @@ def update_club(
         if data.is_active is not None:
             raise HTTPException(status_code=403, detail="Solo los súper-administradores pueden activar/desactivar clubes")
 
-    for k, v in data.model_dump(exclude_none=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
         setattr(club, k, v)
     db.commit()
     db.refresh(club)
     return club
+
