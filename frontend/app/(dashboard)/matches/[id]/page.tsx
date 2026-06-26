@@ -708,7 +708,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
 
   // Aggregate identities/tracks across all clips by jersey number
   const aggregated = useMemo(() => {
-    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clips: number; team: string | number | null }>();
+    const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clipIds: Set<number>; team: string | number | null }>();
 
     for (const detail of clipDetails) {
       const idents = detail?.results?.identities;
@@ -734,12 +734,12 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
         if (existing) {
           existing.distance_m += dist;
           existing.max_speed_kmh = Math.max(existing.max_speed_kmh, speed);
-          existing.clips += 1;
+          existing.clipIds.add(detail.id);
           if (existing.team == null && team != null) {
             existing.team = team;
           }
         } else {
-          byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clips: 1, team });
+          byJersey.set(jersey, { jersey, distance_m: dist, max_speed_kmh: speed, clipIds: new Set([detail.id]), team });
         }
       }
     }
@@ -752,7 +752,15 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
       }
     });
 
-    return Array.from(byJersey.values()).sort((a, b) => b.distance_m - a.distance_m);
+    return Array.from(byJersey.values())
+      .map(row => ({
+        jersey: row.jersey,
+        distance_m: row.distance_m,
+        max_speed_kmh: row.max_speed_kmh,
+        clips: row.clipIds.size,
+        team: row.team
+      }))
+      .sort((a, b) => b.distance_m - a.distance_m);
   }, [clipDetails, overrides, scaleFactor]);
 
   // Map jersey → player from the DB

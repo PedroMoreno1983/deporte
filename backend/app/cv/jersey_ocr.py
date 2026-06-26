@@ -134,7 +134,7 @@ class JerseyVoter:
     def __init__(
         self,
         *,
-        min_votes: int = 3,
+        min_votes: int = 1,
         min_confidence: float = 0.35,
         min_agreement: float = 0.5,
     ) -> None:
