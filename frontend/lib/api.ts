@@ -284,6 +284,8 @@ export const agentApi = {
     api.get("/agent/briefing").then((r) => r.data as AgentBriefing | null),
   runBriefing: () =>
     api.post("/agent/briefing/run").then((r) => r.data as AgentBriefing),
+  testApiKey: (data: { provider: string; api_key: string; model: string }) =>
+    api.post("/agent/test-key", data).then((r) => r.data as { ok: boolean; reply: string }),
   // Open a generated report PDF (authenticated fetch → blob → new tab).
   openReportPdf: async (reportId: number) => {
     const res = await api.get(`/agent/report/${reportId}.pdf`, { responseType: "blob" });

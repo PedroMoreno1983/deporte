@@ -19,5 +19,16 @@ class Club(Base):
     league      = Column(String,  nullable=True)
     crest_url   = Column(String,  nullable=True)
     is_active   = Column(Boolean, default=True)
+    
+    # ── AI Configuration ──────────────────────────────────────────────────
+    ai_provider = Column(String,  nullable=True)  # "groq", "gemini", "claude"
+    ai_api_key  = Column(String,  nullable=True)  # raw API key
+    ai_model    = Column(String,  nullable=True)  # model override
+    
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+
+    @property
+    def has_ai_api_key(self) -> bool:
+        return bool(self.ai_api_key and self.ai_api_key.strip())
+
