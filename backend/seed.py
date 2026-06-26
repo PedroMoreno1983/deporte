@@ -71,6 +71,9 @@ def run():
         {"name": "Sub-20", "code": "U20", "min_age": 18, "max_age": 20, "sort_order": 3},
         {"name": "Reserva", "code": "RES", "min_age": 18, "max_age": 23, "sort_order": 4},
         {"name": "Primera División", "code": "PRD", "min_age": 18, "max_age": 40, "sort_order": 5},
+        {"name": "Junior", "code": "JUN", "min_age": 18, "max_age": 35, "sort_order": 10},
+        {"name": "Senior", "code": "SEN", "min_age": 35, "max_age": 45, "sort_order": 11},
+        {"name": "Super Senior", "code": "SSEN", "min_age": 45, "max_age": 99, "sort_order": 12},
     ]
     categories = []
     for c in cats_data:
