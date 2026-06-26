@@ -15,7 +15,7 @@ from ....core.deps import get_current_user
 from ....core.config import settings
 from ....models.club import Club
 from ....agent import run_agent
-from ....agent.provider import GroqProvider
+from ....agent.provider import GroqProvider, FallbackProvider
 from ....agent.briefing import generate_club_briefing, persist_briefing, latest_briefing
 from ....agent.workflows import (
     run_prematch_workflow, get_report, latest_reports, render_prematch_pdf, render_prematch_docx,
@@ -68,14 +68,15 @@ def agent_chat(
     current_user=Depends(get_current_user),
 ):
     """Converse with the data agent. Grounded in your club's data via tools."""
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=503, detail="GROQ_API_KEY no configurada")
     if not body.messages:
         raise HTTPException(status_code=400, detail="Enviá al menos un mensaje")
-    try:
-        provider = GroqProvider(api_key=settings.GROQ_API_KEY)
-    except ImportError:
-        raise HTTPException(status_code=503, detail="Paquete 'groq' no instalado")
+    if not settings.GROQ_API_KEY:
+        provider = FallbackProvider(db=db, user=current_user)
+    else:
+        try:
+            provider = GroqProvider(api_key=settings.GROQ_API_KEY)
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Paquete 'groq' no instalado")
 
     result = run_agent(
         [m.model_dump() for m in body.messages],
