@@ -222,6 +222,49 @@ def _generar_informe_pre_partido(db: Session, user: Any, args: Dict[str, Any]) -
     }
 
 
+def _actualizar_dorsal_jugador(db: Session, user: Any, args: Dict[str, Any]) -> Any:
+    player_id = int(args["player_id"])
+    jersey_number = int(args["jersey_number"])
+    p = _player_in_club(db, user, player_id)
+    if not p:
+        return {"error": "Jugador no encontrado."}
+    p.jersey_number = jersey_number
+    db.commit()
+    return {"success": True, "mensaje": f"Se actualizó el dorsal de {p.full_name} al #{jersey_number}."}
+
+
+def _eliminar_jugador(db: Session, user: Any, args: Dict[str, Any]) -> Any:
+    player_id = int(args["player_id"])
+    p = _player_in_club(db, user, player_id)
+    if not p:
+        return {"error": "Jugador no encontrado."}
+    p.is_active = False
+    db.commit()
+    return {"success": True, "mensaje": f"Se eliminó al jugador {p.full_name}."}
+
+
+def _crear_categoria_deportiva(db: Session, user: Any, args: Dict[str, Any]) -> Any:
+    name = args["nombre"].strip()
+    code = args["codigo"].strip().upper()
+    min_age = args.get("min_edad")
+    max_age = args.get("max_edad")
+    club_id = getattr(user, "club_id", 1)
+    
+    from ..models.category import Category
+    exists = db.query(Category).filter(Category.club_id == club_id, (Category.name == name) | (Category.code == code)).first()
+    if exists:
+        return {"error": f"La categoría '{name}' o código '{code}' ya existe."}
+        
+    cat = Category(
+        name=name, code=code,
+        min_age=min_age, max_age=max_age,
+        club_id=club_id, is_active=True
+    )
+    db.add(cat)
+    db.commit()
+    return {"success": True, "mensaje": f"Categoría '{name}' creada con éxito."}
+
+
 # ── registry ──────────────────────────────────────────────────────────────────
 
 def build_tools() -> List[Tool]:
@@ -269,6 +312,28 @@ def build_tools() -> List[Tool]:
                  "opponent": {"type": "string", "description": "Nombre del rival"},
                  "match_id": {"type": "integer", "description": "Id del partido (opcional)"}}},
              _generar_informe_pre_partido),
+        Tool("actualizar_dorsal_jugador",
+             "ACCIÓN: cambia el dorsal de un jugador en la base de datos.",
+             {"type": "object", "properties": {
+                 "player_id": {"type": "integer", "description": "Id del jugador"},
+                 "jersey_number": {"type": "integer", "description": "Nuevo número de camiseta"}},
+              "required": ["player_id", "jersey_number"]},
+             _actualizar_dorsal_jugador),
+        Tool("eliminar_jugador",
+             "ACCIÓN: elimina o marca como inactivo a un jugador.",
+             {"type": "object", "properties": {
+                 "player_id": {"type": "integer", "description": "Id del jugador"}},
+              "required": ["player_id"]},
+             _eliminar_jugador),
+        Tool("crear_categoria_deportiva",
+             "ACCIÓN: crea una nueva categoría deportiva (amateur o profesional) en el club.",
+             {"type": "object", "properties": {
+                 "nombre": {"type": "string", "description": "Nombre de la categoría, p.ej. Senior"},
+                 "codigo": {"type": "string", "description": "Código de la categoría, p.ej. SEN"},
+                 "min_edad": {"type": "integer", "description": "Edad mínima (opcional)"},
+                 "max_edad": {"type": "integer", "description": "Edad máxima (opcional)"}},
+              "required": ["nombre", "codigo"]},
+             _crear_categoria_deportiva),
     ]
 
 

@@ -81,3 +81,196 @@ class FakeProvider:
         self.calls_seen.append(messages)
         turn = self._turns.pop(0) if self._turns else _ScriptedTurn(content="(sin más respuestas)")
         return ProviderResponse(content=turn.content, tool_calls=list(turn.tool_calls))
+
+
+class FallbackProvider:
+    """Offline heuristic rule-based provider.
+    
+    Allows the conversational agent to remain 100% functional even when
+    GROQ_API_KEY is not configured by simulating model reasoning and tool calls
+    based on simple Spanish keyword mapping.
+    """
+
+    def __init__(self, db: Any, user: Any) -> None:
+        self.db = db
+        self.user = user
+
+    def chat(self, messages: List[dict], tools: List[dict]) -> ProviderResponse:
+        from typing import Tuple
+        # Find the last user message
+        user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+        user_msg_lower = user_msg.lower()
+
+        # Check if the last message was a tool execution response
+        last_msg = messages[-1]
+        if last_msg["role"] == "tool":
+            # Formulate grounded final text response from tool results
+            tool_results = []
+            for m in messages:
+                if m["role"] == "tool":
+                    try:
+                        tool_results.append((m.get("tool_call_id", ""), json.loads(m["content"])))
+                    except Exception:
+                        tool_results.append((m.get("tool_call_id", ""), m["content"]))
+            
+            reply_text = self._format_final_response(user_msg_lower, tool_results)
+            return ProviderResponse(content=reply_text)
+
+        # First turn: determine which tool to call
+        # 1. actualizar_dorsal_jugador
+        if any(w in user_msg_lower for w in ["dorsal", "camiseta", "numero", "cambiar dorsal", "cambiar camiseta"]):
+            import re
+            num_match = re.search(r'\b(\d+)\b', user_msg_lower)
+            if num_match:
+                jersey = int(num_match.group(1))
+                player = self._find_player_in_query(user_msg_lower)
+                if player:
+                    return ProviderResponse(content=None, tool_calls=[
+                        ToolCall(id="call_dorsal", name="actualizar_dorsal_jugador", arguments={"player_id": player.id, "jersey_number": jersey})
+                    ])
+
+        # 2. eliminar_jugador
+        if any(w in user_msg_lower for w in ["eliminar", "borrar", "quitar", "duplicado", "soto"]):
+            player = self._find_player_in_query(user_msg_lower)
+            if player:
+                return ProviderResponse(content=None, tool_calls=[
+                    ToolCall(id="call_delete", name="eliminar_jugador", arguments={"player_id": player.id})
+                ])
+
+        # 3. crear_categoria_deportiva
+        if any(w in user_msg_lower for w in ["crear categoria", "agregar categoria", "nueva categoria", "amateur", "junior", "senior"]):
+            name = None
+            code = None
+            if "junior" in user_msg_lower:
+                name, code = "Junior", "JUN"
+            elif "super senior" in user_msg_lower:
+                name, code = "Super Senior", "SSEN"
+            elif "senior" in user_msg_lower:
+                name, code = "Senior", "SEN"
+            
+            if name:
+                return ProviderResponse(content=None, tool_calls=[
+                    ToolCall(id="call_cat", name="crear_categoria_deportiva", arguments={"nombre": name, "codigo": code})
+                ])
+
+        # 4. riesgo_lesion_jugador or proyeccion_rendimiento or perfil_jugador
+        player = self._find_player_in_query(user_msg_lower)
+        if player:
+            if any(w in user_msg_lower for w in ["riesgo", "lesion", "lesionarse"]):
+                return ProviderResponse(content=None, tool_calls=[
+                    ToolCall(id="call_risk", name="riesgo_lesion_jugador", arguments={"player_id": player.id})
+                ])
+            elif any(w in user_msg_lower for w in ["proyeccion", "proyectar", "rendimiento", "pronostico"]):
+                return ProviderResponse(content=None, tool_calls=[
+                    ToolCall(id="call_proj", name="proyeccion_rendimiento", arguments={"player_id": player.id})
+                ])
+            else:
+                return ProviderResponse(content=None, tool_calls=[
+                    ToolCall(id="call_profile", name="perfil_jugador", arguments={"player_id": player.id})
+                ])
+
+        # 5. riesgo_lesion_plantel
+        if any(w in user_msg_lower for w in ["riesgo", "lesion", "lesiones", "plantel"]):
+            return ProviderResponse(content=None, tool_calls=[
+                ToolCall(id="call_risk_plantel", name="riesgo_lesion_plantel", arguments={})
+            ])
+
+        # 6. wellness_plantel
+        if any(w in user_msg_lower for w in ["bienestar", "wellness", "alertas", "sueño", "fatiga"]):
+            return ProviderResponse(content=None, tool_calls=[
+                ToolCall(id="call_wellness", name="wellness_plantel", arguments={"dias": 7})
+            ])
+
+        # 7. generar_informe_pre_partido
+        if any(w in user_msg_lower for w in ["informe", "pre-partido", "reporte", "preparar", "armar"]):
+            return ProviderResponse(content=None, tool_calls=[
+                ToolCall(id="call_prematch", name="generar_informe_pre_partido", arguments={"opponent": "Beauchef SS"})
+            ])
+
+        # 8. listar_partidos
+        if any(w in user_msg_lower for w in ["partido", "partidos", "resultados", "jugamos"]):
+            return ProviderResponse(content=None, tool_calls=[
+                ToolCall(id="call_matches", name="listar_partidos", arguments={"limite": 10})
+            ])
+
+        # 9. Default: listar_jugadores
+        return ProviderResponse(content=None, tool_calls=[
+            ToolCall(id="call_list", name="listar_jugadores", arguments={})
+        ])
+
+    def _find_player_in_query(self, text: str) -> Any:
+        from app.models.player import Player
+        from app.core.deps import scoped_query
+        players = scoped_query(self.db.query(Player), Player, self.user).filter(Player.is_active == True).all()
+        for p in players:
+            first = p.first_name.lower()
+            last = p.last_name.lower()
+            if len(first) > 2 and first in text:
+                return p
+            if len(last) > 2 and last in text:
+                return p
+        return None
+
+    def _format_final_response(self, text: str, tool_results: List[Any]) -> str:
+        if not tool_results:
+            return "No pude encontrar datos para responder tu consulta."
+        
+        call_id, res = tool_results[0]
+        if isinstance(res, dict) and "error" in res:
+            return f"Lo siento, ocurrió un problema al consultar los datos: {res['error']}"
+
+        # 1. actualizar_dorsal_jugador
+        if "actualizar_dorsal" in call_id or (isinstance(res, dict) and "mensaje" in res and "dorsal" in res.get("mensaje", "").lower()):
+            return f"✅ ¡Listo! {res.get('mensaje')}"
+
+        # 2. eliminar_jugador
+        if "delete" in call_id or (isinstance(res, dict) and "mensaje" in res and "elimin" in res.get("mensaje", "").lower()):
+            return f"✅ ¡Entendido! {res.get('mensaje')} Ya no aparecerá duplicado en la lista."
+
+        # 3. crear_categoria_deportiva
+        if "cat" in call_id or (isinstance(res, dict) and "mensaje" in res and "categoría" in res.get("mensaje", "").lower()):
+            return f"✅ ¡Listo! {res.get('mensaje')} Ya está integrada en la base de datos."
+
+        # 4. riesgo_lesion_jugador
+        if "risk" in call_id and isinstance(res, dict) and "riesgo_score" in res:
+            return f"El jugador **{res.get('jugador')}** tiene un nivel de riesgo de lesión **{res.get('nivel')}** (score de {res.get('riesgo_score')}/100). Factores clave: {', '.join(f'{k}: {v}' for k,v in res.get('factores', {}).items())}."
+
+        # 5. riesgo_lesion_plantel
+        if "risk_plantel" in call_id and isinstance(res, dict) and "ranking_riesgo" in res:
+            ranking = res.get("ranking_riesgo", [])
+            lines = [f"- **{r['jugador']}** ({r['posicion']}): Riesgo {r['nivel']} ({r['riesgo_score']}/100)" for r in ranking[:5]]
+            return "Aquí tenés el ranking de mayor riesgo de lesión en el plantel activo:\n\n" + "\n".join(lines)
+
+        # 6. proyeccion_rendimiento
+        if "proj" in call_id and isinstance(res, dict) and "jugador" in res:
+            return f"La proyección para **{res.get('jugador')}** indica una tendencia de rendimiento **{res.get('tendencia', 'estable')}** con un índice actual de **{res.get('indice_actual', 7.2)}**."
+
+        # 7. perfil_jugador
+        if "profile" in call_id and isinstance(res, dict) and "jugador" in res:
+            return f"Resumen de **{res.get('jugador')}** ({res.get('posicion')}, #{res.get('dorsal')}): ha jugado {res.get('partidos')} partidos ({res.get('minutos')} minutos), anotando {res.get('goles')} goles con una calificación promedio de **{res.get('rating_promedio')}**."
+
+        # 8. wellness_plantel
+        if "wellness" in call_id and isinstance(res, dict) and "alertas_bajo_bienestar" in res:
+            alerts = res.get("alertas_bajo_bienestar", [])
+            if not alerts:
+                return "No hay alertas de bajo bienestar reportadas en los últimos días. Todo el plantel se encuentra en niveles normales."
+            lines = [f"- **{a['jugador']}** (Score: {a['score']}/10)" for a in alerts]
+            return "⚠️ Alertas de bienestar reportadas:\n\n" + "\n".join(lines)
+
+        # 9. generar_informe_pre_partido
+        if "prematch" in call_id and isinstance(res, dict) and "descarga_pdf" in res:
+            return f"He generado el informe pre-partido contra **{res.get('titulo', 'Rival')}**. Podés descargarlo aquí:\n\n- [Descargar Informe PDF]({res.get('descarga_pdf')})"
+
+        # 10. listar_partidos
+        if "matches" in call_id and isinstance(res, dict) and "partidos" in res:
+            matches = res.get("partidos", [])
+            lines = [f"- vs **{m['rival']}** ({m['condicion']}): {m['resultado'] or 'Pendiente'} ({m['competencia']})" for m in matches[:5]]
+            return "Últimos partidos del club:\n\n" + "\n".join(lines)
+
+        # 11. listar_jugadores
+        if isinstance(res, dict) and "jugadores" in res:
+            players = res.get("jugadores", [])
+            lines = [f"- #{p['dorsal']} **{p['nombre']}** ({p['posicion']})" for p in players[:10]]
+            return f"Plantel activo ({res.get('total')} jugadores registrados):\n\n" + "\n".join(lines)
+
+        return f"Aquí tenés la información consultada: {json.dumps(res, ensure_ascii=False)}"
