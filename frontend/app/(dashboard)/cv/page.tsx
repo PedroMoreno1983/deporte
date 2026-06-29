@@ -6,9 +6,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   UploadCloud, Film, Clock, CheckCircle2, XCircle,
-  Loader2, AlertTriangle, Trash2, ArrowRight, X,
+  Loader2, AlertTriangle, Trash2, ArrowRight, X, Cpu, Server, Gauge,
 } from "lucide-react";
-import { cvApi, matchesApi, categoriesApi } from "@/lib/api";
+import { cvApi, matchesApi, categoriesApi, type CVDiagnostics } from "@/lib/api";
 import { useRealtime } from "@/lib/ws";
 import { PageTitle, Card } from "@/components/lupi/viz";
 import { Note } from "@/components/lupi/primitives";
@@ -39,6 +39,16 @@ const STATUS_META: Record<CVStatus, { color: string; label: string; icon: any }>
 };
 const STATUS_FALLBACK = { color: "var(--ink-faint)", label: "desconocido", icon: AlertTriangle };
 
+function StatusPill({ label, value, tone = "var(--ink)" }: { label: string; value: string; tone?: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <Note style={{ fontSize: 12.5, display: "block", marginBottom: 2 }}>{label}</Note>
+      <div style={{ fontFamily: "var(--serif)", fontWeight: 650, fontSize: 16, color: tone, overflowWrap: "anywhere" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
 function durationHuman(s: number | null) {
   if (s == null) return "—";
   const m = Math.floor(s / 60);
@@ -67,6 +77,11 @@ export default function CVPage() {
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["categories-list"],
     queryFn: categoriesApi.list
+  });
+  const { data: diagnostics } = useQuery<CVDiagnostics>({
+    queryKey: ["cv-diagnostics"],
+    queryFn: cvApi.diagnostics,
+    refetchInterval: 30_000,
   });
 
   const handleCreateQuickMatch = async (e: React.FormEvent) => {
@@ -188,8 +203,55 @@ export default function CVPage() {
 
   return (
     <div className="screen">
-      <PageTitle title="Análisis de video" subtitle="sube un partido y deja que la IA lea las jugadas" />
+      <PageTitle title="Análisis de video" subtitle="sube clips de partido para extraer tracks, equipos y métricas físicas" />
 
+      <Card kicker="Motor CV" title="Estado operativo">
+        {diagnostics ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <Cpu className="w-4 h-4 mt-1" style={{ color: diagnostics.model.is_finetuned ? "var(--pine)" : "var(--ochre)" }} />
+                <StatusPill
+                  label="Modelo"
+                  value={diagnostics.model.is_finetuned ? "Fútbol entrenado" : "YOLO genérico"}
+                  tone={diagnostics.model.is_finetuned ? "var(--pine)" : "var(--ochre)"}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <Server className="w-4 h-4 mt-1" style={{ color: diagnostics.infrastructure.dispatch_mode === "celery-worker" ? "var(--pine)" : "var(--terracotta)" }} />
+                <StatusPill
+                  label="Ejecución"
+                  value={diagnostics.infrastructure.dispatch_mode === "celery-worker" ? "Worker dedicado" : "Fallback API"}
+                  tone={diagnostics.infrastructure.dispatch_mode === "celery-worker" ? "var(--pine)" : "var(--terracotta)"}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <Gauge className="w-4 h-4 mt-1" style={{ color: "var(--slate)" }} />
+                <StatusPill
+                  label="Hostinger CPU"
+                  value={`stride ${diagnostics.runtime.stride} · ${diagnostics.runtime.imgsz}px · OCR ${diagnostics.runtime.ocr_enabled ? "on" : "off"}`}
+                  tone="var(--slate)"
+                />
+              </div>
+            </div>
+            <Note style={{ fontSize: 13.5, display: "block", overflowWrap: "anywhere" }}>
+              Checkpoint: {diagnostics.model.path}. ffmpeg: {diagnostics.infrastructure.ffmpeg}. Video anotado: {diagnostics.runtime.video_enabled ? "on" : "off"}.
+            </Note>
+            {diagnostics.warnings.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {diagnostics.warnings.map((warning) => (
+                  <div key={warning} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--ochre)" }} />
+                    <Note style={{ fontSize: 14, color: "var(--ink)", opacity: 0.88 }}>{warning}</Note>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <Note style={{ fontSize: 15 }}>Verificando motor de video...</Note>
+        )}
+      </Card>
       <Card kicker="Sube un clip · MP4 · MOV · AVI · máx 500 MB" title="Nuevo análisis">
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -339,8 +401,7 @@ export default function CVPage() {
         <div style={{ marginTop: 12, display: "flex", alignItems: "flex-start", gap: 8 }}>
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--ochre)" }} />
           <Note style={{ fontSize: 14.5, opacity: 0.85 }}>
-            El procesamiento puede tardar 1–3× la duración del clip. El pipeline detecta jugadores (YOLO),
-            asigna equipos por color de camiseta (K-means) y calcula velocidades/distancias.
+            En Hostinger CPU usa clips cortos. La precisión depende del checkpoint activo: con YOLO genérico detecta personas; con players.pt mejora lectura futbolística.
           </Note>
         </div>
       </Card>

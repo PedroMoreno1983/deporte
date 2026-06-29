@@ -52,18 +52,13 @@ API works without them. To enable the pipeline:
 pip install ultralytics opencv-python-headless supervision Pillow
 ```
 
-The pipeline auto-downloads `yolov8n.pt` on first use (≈ 6 MB). For better
-sport-specific accuracy point the env var `CV_YOLO_WEIGHTS` to a fine-tuned
-checkpoint (e.g. the one trained on
-[Roboflow's football dataset](https://universe.roboflow.com/) and shipped in
-Tarek's repo as `models/best.pt`).
+The pipeline auto-downloads `yolov8n.pt` on first use (≈ 6 MB). For better football-specific accuracy, place `players.pt` plus `players.meta.json` under `DEPORTE_CV_MODEL_ROOT` or `<DEPORTE_CV_ROOT>/models`, or pin a checkpoint with `DEPORTE_YOLO_CKPT`. Without that, the pipeline falls back to stock `yolov8n.pt`, which is useful for person detection but not enough for fine football semantics.
 
 Storage:
 
-- Uploaded videos live in `backend/cv_storage/uploads/<uuid>.mp4`.
-- Annotated samples and tracks JSON live in
-  `backend/cv_storage/results/<analysis_id>/`.
-- Override the root with the env var `CV_STORAGE_DIR`.
+- Uploaded videos live in `<DEPORTE_CV_ROOT>/uploads/<uuid>.<ext>`.
+- Annotated samples, optional `output.mp4`, and `results.json` live in `<DEPORTE_CV_ROOT>/outputs/<uuid>/`.
+- Override the root with `DEPORTE_CV_ROOT` and the model folder with `DEPORTE_CV_MODEL_ROOT`.
 
 ## API surface
 
@@ -121,3 +116,19 @@ from their own club.
 - Reduce inference cost by using `yolov8n.pt` (~6 MB) at the expense of
   detection recall on tight crowds. Use `yolov8s.pt` or `yolov8m.pt` if a
   GPU is available.
+
+## Hostinger CPU profile
+
+For Hostinger VPS/KVM CPU deployments, keep the worker conservative by default:
+
+```env
+DEPORTE_CV_STRIDE=6
+DEPORTE_CV_IMGSZ=480
+DEPORTE_CV_OCR=0
+DEPORTE_CV_VIDEO=0
+DEPORTE_CV_TORCH_THREADS=2
+```
+
+This improves reliability and keeps the API responsive. It does not replace a
+football-trained checkpoint: for better capture quality, install `players.pt`
+and its `players.meta.json` sidecar.

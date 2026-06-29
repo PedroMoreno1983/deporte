@@ -39,11 +39,47 @@ vez baja torch/YOLO, tarda varios minutos) y arranca: postgres, redis, **api**,
 **worker** (procesa los videos), beat y backups. Comprueba:
 
 ```bash
-curl -fsS http://localhost:8000/health      # debe responeder OK
+curl -fsS http://localhost:8000/health      # debe responder OK
 docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 ```
 
-## Paso 4 — HTTPS con Caddy (en el host)
+## Paso 4 — Modo recomendado para video en Hostinger
+
+Este stack debe correr en **Hostinger VPS/KVM**, no en hosting compartido. El
+analisis de video necesita Docker, Redis, worker separado, ffmpeg y escritura en
+volumen persistente.
+
+Defaults recomendados para CPU ya quedan en `docker-compose.prod.yml`:
+
+```env
+DEPORTE_CV_STRIDE=6
+DEPORTE_CV_IMGSZ=480
+DEPORTE_CV_OCR=0
+DEPORTE_CV_VIDEO=0
+DEPORTE_CV_TORCH_THREADS=2
+```
+
+Asi el worker procesa menos frames, evita EasyOCR por defecto y no renderiza un
+MP4 anotado completo salvo que lo actives para clips cortos. Para diagnosticarlo
+desde la plataforma entra a **Analisis de video**: la tarjeta "Estado operativo"
+muestra si el broker esta arriba, si ffmpeg existe y que modelo YOLO se esta
+usando.
+
+Para mejorar precision futbolistica, sube el checkpoint entrenado al volumen CV:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec api mkdir -p /data/cv/models
+# desde tu maquina local, copia players.pt y players.meta.json al VPS
+scp players.pt players.meta.json root@72.62.12.242:/tmp/
+docker compose -f docker-compose.prod.yml --env-file .env.prod cp /tmp/players.pt api:/data/cv/models/players.pt
+docker compose -f docker-compose.prod.yml --env-file .env.prod cp /tmp/players.meta.json api:/data/cv/models/players.meta.json
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart api worker
+```
+
+Si prefieres otra ruta, define `DEPORTE_YOLO_CKPT=/data/cv/models/players.pt` en
+`.env.prod`. Sin ese archivo, el sistema cae a `yolov8n.pt` generico: sirve para
+personas, pero no es suficiente para prometer lectura deportiva fina.
+## Paso 5 — HTTPS con Caddy (en el host)
 
 ```bash
 apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -61,7 +97,7 @@ Caddy saca el certificado Let's Encrypt solo. Prueba en el navegador:
 > El firewall del VPS debe permitir **80 y 443** (Caddy) y, mientras pruebas,
 > opcionalmente 8000. Postgres/Redis quedan en la red interna de Docker (no se exponen).
 
-## Paso 5 — Apuntar el frontend al backend
+## Paso 6 — Apuntar el frontend al backend
 
 En **Vercel → Project → Settings → Environment Variables**:
 

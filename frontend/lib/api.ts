@@ -103,7 +103,7 @@ export const playersApi = {
     fd.append("category_id", String(categoryId));
     return api.post("/players/import", fd, { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
   },
-  list: (params?: { category_id?: number; status?: string; search?: string }) =>
+  list: (params?: { category_id?: number; status?: string; search?: string; skip?: number; limit?: number }) =>
     api.get("/players", { params }).then((r) => r.data),
   get: (id: number) => api.get(`/players/${id}`).then((r) => r.data),
   create: (data: unknown) => api.post("/players", data).then((r) => r.data),
@@ -237,7 +237,41 @@ export const notificationsApi = {
   list: () => api.get("/notifications").then((r) => r.data),
 };
 
+export interface CVDiagnostics {
+  model: {
+    path: string;
+    source: string;
+    is_finetuned: boolean;
+    class_names: Record<string, string> | null;
+    sidecar: string;
+    expected_finetune: string;
+    expected_finetune_exists: boolean;
+    env_checkpoint_set: boolean;
+  };
+  runtime: {
+    cv_root: string;
+    model_root: string;
+    stride: number;
+    imgsz: number;
+    ocr_enabled: boolean;
+    ocr_every: number;
+    video_enabled: boolean;
+    torch_threads: number;
+    max_upload_mb: number;
+    allowed_extensions: string[];
+  };
+  infrastructure: {
+    dispatch_mode: string;
+    broker: { broker: string; eager: boolean; backend: string };
+    ffmpeg: string;
+    ffmpeg_path: string | null;
+    upload_dir_exists: boolean;
+    output_dir_exists: boolean;
+  };
+  warnings: string[];
+}
 export const cvApi = {
+  diagnostics: () => api.get("/cv/diagnostics").then((r) => r.data as CVDiagnostics),
   list: (params?: { match_id?: number }) => api.get("/cv", { params }).then((r) => r.data),
   get:  (id: number) => api.get(`/cv/${id}`).then((r) => r.data),
   update: (id: number, data: { name?: string; match_id?: number | null }) =>
@@ -255,6 +289,10 @@ export const cvApi = {
   sampleUrl: (id: number) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     return `${API_BASE}/cv/${id}/sample.jpg${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  },
+  outputVideoUrl: (id: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    return `${API_BASE}/cv/${id}/output.mp4${token ? `?token=${encodeURIComponent(token)}` : ""}`;
   },
 };
 
