@@ -66,7 +66,7 @@ class GroqProvider:
 class GeminiProvider:
     """Google Gemini OpenAI-compatible completions with tool calling."""
 
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash",
+    def __init__(self, api_key: str, model: str = "gemini-3.5-flash",
                  temperature: float = 0.2, max_tokens: int = 1024) -> None:
         self._api_key = api_key
         self._model = model
@@ -229,7 +229,7 @@ def get_provider(db: Any, user: Any) -> LLMProvider:
             if provider_type == "groq":
                 return GroqProvider(api_key=api_key, model=model or "llama-3.3-70b-versatile")
             elif provider_type == "gemini":
-                return GeminiProvider(api_key=api_key, model=model or "gemini-1.5-flash")
+                return GeminiProvider(api_key=api_key, model=model or "gemini-3.5-flash")
             elif provider_type == "claude":
                 return ClaudeProvider(api_key=api_key, model=model or "claude-3-5-sonnet-20241022")
 
