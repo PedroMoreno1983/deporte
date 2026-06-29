@@ -183,7 +183,7 @@ export default function SettingsPage() {
                   setAiProvider(val);
                   // set default models automatically
                   if (val === "groq") setAiModel("llama-3.3-70b-versatile");
-                  else if (val === "gemini") setAiModel("gemini-1.5-flash");
+                  else if (val === "gemini") setAiModel("gemini-3.5-flash");
                   else if (val === "claude") setAiModel("claude-3-5-sonnet-20241022");
                   else setAiModel("");
                   setAiApiKey("");
@@ -226,7 +226,7 @@ export default function SettingsPage() {
                   <input
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
-                    placeholder="ej. gemini-1.5-flash"
+                    placeholder="ej. gemini-3.5-flash"
                     disabled={user?.role !== "admin" || updateClub.isPending}
                     className="input"
                     style={{ width: "100%" }}
@@ -279,7 +279,13 @@ export default function SettingsPage() {
 
               <button
                 onClick={() => {
-                  const keyToSend = aiApiKey === "••••••••••••••••" ? null : aiApiKey;
+                  if (aiProvider !== "offline" && !aiApiKey.trim() && !club?.has_ai_api_key) {
+                    toast.error("Ingresa una API Key antes de activar Gemini");
+                    return;
+                  }
+                  const keyToSend = aiApiKey === "••••••••••••••••"
+                    ? undefined
+                    : (aiApiKey.trim() ? aiApiKey.trim() : undefined);
                   updateClub.mutate({
                     ai_provider: aiProvider === "offline" ? null : aiProvider,
                     ai_api_key: aiProvider === "offline" ? null : keyToSend,

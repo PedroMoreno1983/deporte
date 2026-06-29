@@ -24,7 +24,16 @@ from ....agent.workflows import (
 router = APIRouter()
 
 
-def _provider_or_none():
+def _provider_or_none(db: Session | None = None, current_user: Any | None = None):
+    if db is not None and current_user is not None:
+        from ....agent.provider import get_provider
+        try:
+            provider = get_provider(db=db, user=current_user)
+            if not isinstance(provider, FallbackProvider):
+                return provider
+        except Exception:
+            pass
+
     if not settings.GROQ_API_KEY:
         return None
     try:
@@ -68,38 +77,50 @@ class TestKeyRequest(BaseModel):
 
 
 @router.post("/test-key")
-def test_api_key(body: TestKeyRequest):
+def test_api_key(
+    body: TestKeyRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """Test a provider API Key by running a simple chat completion ping."""
     from ....agent.provider import GroqProvider, GeminiProvider, ClaudeProvider
     prov_type = body.provider.strip().lower()
     api_key = body.api_key.strip()
     model = body.model.strip()
-    
+
+    if api_key == "EXISTING":
+        club_id = _club_id_or_400(current_user)
+        club = db.query(Club).filter(Club.id == club_id).first()
+        if not club or not club.ai_api_key:
+            raise HTTPException(status_code=400, detail="No hay una clave de IA guardada para este club")
+        api_key = club.ai_api_key.strip()
+        if not model and club.ai_model:
+            model = club.ai_model.strip()
+
     if not api_key:
-         raise HTTPException(status_code=400, detail="La clave API no puede estar vacía")
-         
+        raise HTTPException(status_code=400, detail="La clave API no puede estar vacia")
+
     try:
         if prov_type == "groq":
             prov = GroqProvider(api_key=api_key, model=model or "llama-3.3-70b-versatile")
         elif prov_type == "gemini":
-            prov = GeminiProvider(api_key=api_key, model=model or "gemini-1.5-flash")
+            prov = GeminiProvider(api_key=api_key, model=model or "gemini-3.5-flash")
         elif prov_type == "claude":
             prov = ClaudeProvider(api_key=api_key, model=model or "claude-3-5-sonnet-20241022")
         else:
             raise HTTPException(status_code=400, detail=f"Proveedor no soportado: {body.provider}")
-            
-        # Run a simple ping turn
+
         res = prov.chat(
-            messages=[{"role": "user", "content": "Responder con una única palabra: 'OK'"}],
+            messages=[{"role": "user", "content": "Responder con una unica palabra: 'OK'"}],
             tools=[]
         )
         if res.content:
             return {"ok": True, "reply": res.content.strip()}
-        else:
-            raise HTTPException(status_code=502, detail="La API no devolvió contenido de texto")
+        raise HTTPException(status_code=502, detail="La API no devolvio contenido de texto")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error validando clave: {str(e)}")
-
 
 @router.post("/chat", response_model=AgentChatResponse)
 def agent_chat(
@@ -160,7 +181,7 @@ def get_latest_briefing(db: Session = Depends(get_db), current_user=Depends(get_
 def run_briefing_now(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Genera (y persiste) el briefing de hoy para tu club, en el momento."""
     club_id = _club_id_or_400(current_user)
-    result = generate_club_briefing(db, club_id, provider=_provider_or_none())
+    result = generate_club_briefing(db, club_id, provider=_provider_or_none(db, current_user))
     return _briefing_out(persist_briefing(db, club_id, result))
 
 
@@ -198,7 +219,7 @@ def create_prematch_report(
     club_id = _club_id_or_400(current_user)
     row = run_prematch_workflow(
         db, club_id, opponent=body.opponent, match_id=body.match_id,
-        provider=_provider_or_none(), created_by=getattr(current_user, "id", None),
+        provider=_provider_or_none(db, current_user), created_by=getattr(current_user, "id", None),
     )
     return _report_out(row)
 
