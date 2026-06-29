@@ -33,3 +33,7 @@ deporte.db
 
 # Misc
 .DS_Store
+# Local browser/test artifacts
+.playwright-mcp/
+coco-*.png
+.vercel

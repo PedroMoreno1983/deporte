@@ -51,6 +51,7 @@ interface CVResults {
   tracks: RawTrack[];
   team_colors?: { A?: string | null; B?: string | null } | null;
   sample?: string | null;
+  output_video?: string | null;
   identities?: any[] | null;
 }
 
@@ -106,7 +107,7 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
 
   const { data: players } = useQuery<any[]>({
     queryKey: ["players"],
-    queryFn: () => playersApi.list(),
+    queryFn: () => playersApi.list({ limit: 500 }),
   });
 
   const jerseyToPlayerMap = useMemo(() => {
@@ -261,6 +262,7 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
 
   const isReady = data.status === "done";
   const sampleUrl = isReady && data.results?.sample ? cvApi.sampleUrl(data.id) : null;
+  const outputVideoUrl = isReady && data.results?.output_video ? cvApi.outputVideoUrl(data.id) : null;
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -391,6 +393,24 @@ export default function CVDetailPage({ params }: { params: { id: string } }) {
             </Card>
           )}
 
+          {/* Annotated output video */}
+          {outputVideoUrl && (
+            <Card>
+              <div className="flex items-center gap-2 mb-3">
+                <Video className="w-4 h-4" style={{ color: "#00ff87" }} />
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "var(--text-muted)" }}>
+                  Video anotado completo
+                </p>
+              </div>
+              <video
+                controls
+                preload="metadata"
+                src={outputVideoUrl}
+                className="w-full rounded-lg block"
+                style={{ background: "var(--surface-1)", border: "1px solid rgba(255,255,255,0.06)" }}
+              />
+            </Card>
+          )}
           {/* Heatmap by team */}
           <Card>
             <div className="flex items-center justify-between flex-wrap gap-2 mb-3">

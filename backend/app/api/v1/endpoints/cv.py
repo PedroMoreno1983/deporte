@@ -5,6 +5,7 @@ POST   /cv/upload            multipart video upload → queues a VideoAnalysis
 GET    /cv/                  list current club's analyses
 GET    /cv/{id}              detailed view (results JSON)
 GET    /cv/{id}/sample.jpg   sample annotated frame
+GET    /cv/{id}/output.mp4   annotated video, when enabled
 DELETE /cv/{id}              remove analysis row + files (admin only)
 
 Heavy processing is dispatched as a FastAPI `BackgroundTask`. WS topic `cv`
@@ -125,6 +126,76 @@ def upload_video(
     return analysis
 
 
+
+def _env_flag(name: str, default: str) -> bool:
+    return os.getenv(name, default).lower() not in {"0", "false", "no", "off"}
+
+
+@router.get("/diagnostics")
+def get_cv_diagnostics(
+    current_user: User = Depends(get_current_user),
+):
+    """Operational snapshot for video analysis without loading YOLO/torch."""
+    del current_user  # auth gate only
+
+    from ....cv.model_loader import FINETUNED_BASENAME, cv_model_dir, resolve_weights, sidecar_path_for
+    from ....worker.dispatch import broker_health
+
+    model_dir = cv_model_dir()
+    expected_finetune = model_dir / f"{FINETUNED_BASENAME}.pt"
+    resolved = resolve_weights()
+    broker = broker_health()
+
+    runtime = {
+        "cv_root": str(DATA_ROOT),
+        "model_root": str(model_dir),
+        "stride": int(os.getenv("DEPORTE_CV_STRIDE", "5")),
+        "imgsz": int(os.getenv("DEPORTE_CV_IMGSZ", "480")),
+        "ocr_enabled": _env_flag("DEPORTE_CV_OCR", "1"),
+        "ocr_every": int(os.getenv("DEPORTE_CV_OCR_EVERY", "5")),
+        "video_enabled": _env_flag("DEPORTE_CV_VIDEO", "1"),
+        "torch_threads": int(os.getenv("DEPORTE_CV_TORCH_THREADS", "2")),
+        "max_upload_mb": int(MAX_BYTES / 1024 / 1024),
+        "allowed_extensions": sorted(ALLOWED_EXT),
+    }
+    ffmpeg_path = shutil.which("ffmpeg")
+    dispatch_mode = "celery-worker" if broker.get("broker") == "up" else "api-background-fallback"
+
+    warnings = []
+    if not resolved.is_finetuned:
+        warnings.append("Usando YOLO generico; carga players.pt + players.meta.json para deteccion de futbol.")
+    if dispatch_mode != "celery-worker":
+        warnings.append("Redis/worker no esta disponible; el analisis puede correr dentro del proceso API.")
+    if runtime["ocr_enabled"]:
+        warnings.append("OCR de camisetas encendido: en Hostinger CPU puede duplicar o triplicar el tiempo de proceso.")
+    if runtime["video_enabled"]:
+        warnings.append("Video anotado encendido: genera mas CPU y almacenamiento; dejalo apagado salvo para clips cortos.")
+    if not ffmpeg_path:
+        warnings.append("ffmpeg no esta disponible; algunos formatos pueden fallar antes del analisis.")
+
+    return {
+        "model": {
+            "path": resolved.path,
+            "source": resolved.source,
+            "is_finetuned": resolved.is_finetuned,
+            "class_names": resolved.class_names,
+            "sidecar": str(sidecar_path_for(resolved.path)),
+            "expected_finetune": str(expected_finetune),
+            "expected_finetune_exists": expected_finetune.exists(),
+            "env_checkpoint_set": bool(os.getenv("DEPORTE_YOLO_CKPT")),
+        },
+        "runtime": runtime,
+        "infrastructure": {
+            "dispatch_mode": dispatch_mode,
+            "broker": broker,
+            "ffmpeg": "available" if ffmpeg_path else "missing",
+            "ffmpeg_path": ffmpeg_path,
+            "upload_dir_exists": UPLOAD_DIR.exists(),
+            "output_dir_exists": OUTPUT_DIR.exists(),
+        },
+        "warnings": warnings,
+    }
+
 @router.get("/{analysis_id}", response_model=VideoAnalysisOut)
 def get_analysis(
     analysis_id: int,
@@ -172,6 +243,41 @@ def get_sample(
         raise HTTPException(status_code=404, detail="Sin frame disponible")
     return FileResponse(str(sample), media_type="image/jpeg")
 
+
+
+@router.get("/{analysis_id}/output.mp4")
+def get_output_video(
+    analysis_id: int,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Full annotated output video, when the pipeline generated one."""
+    from ....core.security import decode_token
+
+    user: Optional[User] = None
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("type") == "access" and payload.get("sub"):
+            user = db.query(User).filter(
+                User.id == int(payload["sub"]), User.is_active.is_(True),
+            ).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
+    q = db.query(VideoAnalysis).filter(VideoAnalysis.id == analysis_id)
+    q = scoped_query(q, VideoAnalysis, user)
+    a = q.first()
+    if not a or not a.output_dir:
+        raise HTTPException(status_code=404, detail="Sin video anotado disponible")
+
+    base = Path(a.output_dir).resolve()
+    rel = ((a.results or {}).get("output_video") if isinstance(a.results, dict) else None) or "output.mp4"
+    output = (base / rel).resolve()
+    if base not in output.parents and output != base:
+        raise HTTPException(status_code=400, detail="Ruta de video invalida")
+    if not output.exists() or not output.is_file():
+        raise HTTPException(status_code=404, detail="Sin video anotado disponible")
+    return FileResponse(str(output), media_type="video/mp4", filename=f"analysis-{analysis_id}-annotated.mp4")
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_analysis(

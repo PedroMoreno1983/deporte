@@ -97,7 +97,7 @@ export default function MatchDetailPage() {
 
   const { data: players = [] } = useQuery({
     queryKey: ["players"],
-    queryFn: () => playersApi.list(),
+    queryFn: () => playersApi.list({ limit: 500 }),
   });
 
   const addStatMutation = useMutation({
@@ -619,6 +619,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
   const [syncing, setSyncing] = useState(false);
   const [selectedLooseClipId, setSelectedLooseClipId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [aggregateScope, setAggregateScope] = useState<"match" | "all">("match");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // All video analyses linked to this match
@@ -637,32 +638,38 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     return allClips.filter((c: any) => c.match_id === null || c.match_id === undefined);
   }, [allClips]);
 
-  // Load full results for each "done" clip
-  const doneClips = clips.filter((c: any) => c.status === "done");
-  const doneIds = doneClips.map((c: any) => c.id).sort().join(",");
+  // Load full results for each done clip. The user can inspect either this
+  // match only or the complete processed-video pool for the club.
+  const matchDoneClips = clips.filter((c: any) => c.status === "done");
+  const allDoneClips = allClips.filter((c: any) => c.status === "done");
+  const sourceClips = aggregateScope === "all" ? allDoneClips : matchDoneClips;
+  const doneIds = sourceClips.map((c: any) => c.id).sort().join(",");
 
   const { data: clipDetails = [] } = useQuery<any[]>({
-    queryKey: ["cv-match-details", doneIds],
+    queryKey: ["cv-aggregate-details", aggregateScope, doneIds],
     queryFn: async () => {
-      if (!doneClips.length) return [];
-      return Promise.all(doneClips.map((c: any) => cvApi.get(c.id)));
+      if (!sourceClips.length) return [];
+      return Promise.all(sourceClips.map((c: any) => cvApi.get(c.id)));
     },
-    enabled: doneClips.length > 0,
+    enabled: sourceClips.length > 0,
   });
 
   // Local overrides and scale factor calibration
   const [scaleFactor, setScaleFactor] = useState<number>(0.65);
-  const [overrides, setOverrides] = useState<Record<number, { team?: number | null; playerId?: number | null }>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`cv-match-overrides-${matchId}`);
-      return saved ? JSON.parse(saved) : {};
-    }
-    return {};
-  });
+  const overrideStorageKey = aggregateScope === "all" ? "cv-global-overrides" : `cv-match-overrides-${matchId}`;
+  const [overrides, setOverrides] = useState<Record<number, { team?: number | null; playerId?: number | null }>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem(overrideStorageKey);
+    setOverrides(saved ? JSON.parse(saved) : {});
+  }, [overrideStorageKey]);
 
   const saveOverrides = (newOverrides: typeof overrides) => {
     setOverrides(newOverrides);
-    localStorage.setItem(`cv-match-overrides-${matchId}`, JSON.stringify(newOverrides));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(overrideStorageKey, JSON.stringify(newOverrides));
+    }
   };
 
   // Find white team BGR color centroids
@@ -706,7 +713,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
     return { backgroundColor: rgbStr };
   };
 
-  // Aggregate identities/tracks across all clips by jersey number
+  // Aggregate identities/tracks across the selected clip scope by jersey number
   const aggregated = useMemo(() => {
     const byJersey = new Map<number, { jersey: number; distance_m: number; max_speed_kmh: number; clipIds: Set<number>; team: string | number | null }>();
 
@@ -989,7 +996,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
 
       {/* Excel player roster note */}
       <p className="text-[11px] text-white/30 mb-6 text-center">
-        * ¿No se reconocen los nombres de los jugadores? Mapea los números de camiseta importando el Excel del plantel en la sección de <Link href="/players" className="underline hover:text-[#00ff87]">Jugadores</Link>.
+        * Si el OCR detecta el dorsal pero no el nombre, asígnalo en la tabla: el dorsal se guarda en el plantel y luego se reutiliza en otros clips. También puedes importar el Excel en <Link href="/players" className="underline hover:text-[#00ff87]">Jugadores</Link>.
       </p>
 
       {/* Aggregated physical stats */}
@@ -998,7 +1005,7 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>
               Métricas físicas agregadas (CV)
-              <span className="text-xs font-normal opacity-40 ml-2">{aggregated.length} jugadores detectados · {doneClips.length} clips procesados</span>
+              <span className="text-xs font-normal opacity-40 ml-2">{aggregated.length} jugadores detectados · {sourceClips.length} clips procesados</span>
             </h4>
             <motion.button
               whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -1012,9 +1019,24 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
             </motion.button>
           </div>
 
-          {/* Team Filter Tabs & Camera Scale Calibration */}
+          {/* Scope, Team Filter Tabs & Camera Scale Calibration */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-3 border-b border-white/5 pb-3">
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setAggregateScope("match")}
+                className={`chip ${aggregateScope === "match" ? "is-on" : ""}`}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                Este partido ({matchDoneClips.length})
+              </button>
+              <button
+                onClick={() => setAggregateScope("all")}
+                className={`chip ${aggregateScope === "all" ? "is-on" : ""}`}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                Todos los clips ({allDoneClips.length})
+              </button>
+              <span className="mx-1 h-5 w-px bg-white/10" />
               <button
                 onClick={() => setTeamFilter("all")}
                 className={`chip ${teamFilter === "all" ? "is-on" : ""}`}
@@ -1108,30 +1130,46 @@ function CVMatchSection({ matchId, players }: { matchId: number; players: any[] 
                               <option value={1} className="bg-[#18181b]">{getTeamDisplayName(1)}</option>
                             </select>
                           </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={player?.id ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const newOvr = {
-                                  ...overrides,
-                                  [row.jersey]: {
-                                    ...overrides[row.jersey],
-                                    playerId: val === "" ? null : Number(val)
+                          <td className="px-4 py-3 min-w-[260px]">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-bold" style={{ color: name ? "var(--text-primary)" : "rgba(255,255,255,0.35)" }}>
+                                {name ?? "Sin jugador asignado"}
+                              </span>
+                              <select
+                                value={player?.id ?? ""}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  const playerId = val === "" ? null : Number(val);
+                                  const newOvr = {
+                                    ...overrides,
+                                    [row.jersey]: {
+                                      ...overrides[row.jersey],
+                                      playerId
+                                    }
+                                  };
+                                  saveOverrides(newOvr);
+                                  if (playerId) {
+                                    try {
+                                      await playersApi.update(playerId, { jersey_number: row.jersey });
+                                      qc.invalidateQueries({ queryKey: ["players"] });
+                                      toast.success(`Dorsal #${row.jersey} asignado al jugador en el plantel.`);
+                                    } catch {
+                                      toast.error("El mapeo local se guardó, pero no pude actualizar el plantel.");
+                                    }
+                                  } else {
+                                    toast.success("Dorsal desvinculado en este consolidado.");
                                   }
-                                };
-                                saveOverrides(newOvr);
-                                toast.success(val === "" ? "Desvinculado para este partido" : "Mapeo guardado para este partido");
-                              }}
-                              className="bg-white/[0.04] border border-white/10 text-xs px-2 py-1 rounded-lg text-white/70 outline-none max-w-[220px] cursor-pointer"
-                            >
-                              <option value="" className="bg-[#18181b]">-- No jugó / Sin asignar --</option>
-                              {players.map((p: any) => (
-                                <option key={p.id} value={p.id} className="bg-[#18181b]">
-                                  {p.first_name} {p.last_name} {p.jersey_number ? `(#${p.jersey_number})` : ""}
-                                </option>
-                              ))}
-                            </select>
+                                }}
+                                className="bg-white/[0.08] border border-white/15 text-xs px-2 py-1.5 rounded-lg text-white outline-none max-w-[240px] cursor-pointer"
+                              >
+                                <option value="" className="bg-[#18181b]">Asignar jugador...</option>
+                                {players.map((p: any) => (
+                                  <option key={p.id} value={p.id} className="bg-[#18181b]">
+                                    {p.first_name} {p.last_name} {p.jersey_number ? `(#${p.jersey_number})` : "sin dorsal"}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </td>
                           <td className="px-4 py-3 tabular-nums font-bold" style={{ color: "var(--neon)" }}>
                             {(row.distance_m / 1000).toFixed(2)} km

@@ -41,6 +41,14 @@ x-backend-env: &backend-env
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
   EMAIL_FROM: ${EMAIL_FROM:-Deporte FC <noreply@deportefc.com>}
   EMAIL_ALERTS_ENABLED: ${EMAIL_ALERTS_ENABLED:-false}
+  DEPORTE_CV_ROOT: ${DEPORTE_CV_ROOT:-/data/cv}
+  DEPORTE_CV_STRIDE: ${DEPORTE_CV_STRIDE:-6}
+  DEPORTE_CV_IMGSZ: ${DEPORTE_CV_IMGSZ:-480}
+  DEPORTE_CV_OCR: ${DEPORTE_CV_OCR:-0}
+  DEPORTE_CV_OCR_EVERY: ${DEPORTE_CV_OCR_EVERY:-20}
+  DEPORTE_CV_VIDEO: ${DEPORTE_CV_VIDEO:-0}
+  DEPORTE_CV_TORCH_THREADS: ${DEPORTE_CV_TORCH_THREADS:-2}
+  DEPORTE_YOLO_CKPT: ${DEPORTE_YOLO_CKPT:-}
 
 # Persisted-data volumes shared between API (writer) and worker (reader).
 # The API saves uploaded videos / import files to these paths; the worker must
@@ -150,7 +158,7 @@ services:
       # resolution, disable EasyOCR (heavy), and cap PyTorch CPU threads.
       DEPORTE_CV_STRIDE: "${DEPORTE_CV_STRIDE:-6}"
       DEPORTE_CV_IMGSZ: "${DEPORTE_CV_IMGSZ:-480}"
-      DEPORTE_CV_OCR: "${DEPORTE_CV_OCR:-1}"
+      DEPORTE_CV_OCR: "${DEPORTE_CV_OCR:-0}"
       DEPORTE_CV_OCR_EVERY: "${DEPORTE_CV_OCR_EVERY:-20}"
       DEPORTE_CV_VIDEO: "${DEPORTE_CV_VIDEO:-0}"
       DEPORTE_CV_TORCH_THREADS: "${DEPORTE_CV_TORCH_THREADS:-2}"
