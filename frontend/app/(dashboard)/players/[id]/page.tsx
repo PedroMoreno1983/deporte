@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,8 +26,9 @@ import {
   Plus, X, Loader2, Check
 } from "lucide-react";
 import Link from "next/link";
+import { PlayerClipsPanel } from "@/components/video-lab/PlayerClipsPanel";
 
-const TABS = ["Resumen", "Físico", "Rendimiento", "Lesiones", "Wellness", "Predicción"] as const;
+const TABS = ["Resumen", "Físico", "Rendimiento", "Clips", "Lesiones", "Wellness", "Predicción"] as const;
 type Tab = typeof TABS[number];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -515,6 +516,12 @@ export default function PlayerDetailPage() {
           </motion.div>
         )}
 
+
+        {tab === "Clips" && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <PlayerClipsPanel playerId={playerId} playerName={`${player.first_name} ${player.last_name}`} />
+          </motion.div>
+        )}
         {tab === "Lesiones" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="flex justify-end">

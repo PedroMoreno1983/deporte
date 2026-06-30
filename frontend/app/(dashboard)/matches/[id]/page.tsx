@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { MatchVideoLabPanel } from "@/components/video-lab/MatchVideoLabPanel";
 
 const inputCls = "w-full px-3 py-2 text-sm rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[rgba(0,255,135,0.3)]";
 const inputStyle = {
@@ -601,6 +602,8 @@ export default function MatchDetailPage() {
           </GlowCard>
         </motion.div>
       )}
+
+      <MatchVideoLabPanel matchId={matchId} players={players as any[]} />
 
       {/* ── Video Analysis IA (CV) ── */}
       <CVMatchSection matchId={matchId} players={players as any[]} />

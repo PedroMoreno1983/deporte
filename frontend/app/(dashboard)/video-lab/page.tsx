@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Clapperboard, Download, Film, ListVideo, Loader2, MousePointer2, Play, Plus, Search, Sparkles, Tag, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +34,13 @@ export default function VideoLabPage() {
   const [tagForm, setTagForm] = useState({ action_type: "Pase", event_s: "0", clip_margin_s: "6", player_id: "", team_label: "Propio", note: "" });
   const [pitch, setPitch] = useState<{ x: number; y: number } | null>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryMatchId = params.get("match_id");
+    const queryPlayerId = params.get("player_id");
+    if (queryMatchId) setMatchId(queryMatchId);
+    if (queryPlayerId) setPlayerId(queryPlayerId);
+  }, []);
   const selectedMatchId = matchId === "all" ? undefined : Number(matchId);
   const selectedPlayerId = playerId === "all" ? undefined : Number(playerId);
   const selectedVideoId = videoId ? Number(videoId) : undefined;
