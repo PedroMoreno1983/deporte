@@ -16,7 +16,7 @@ from ....core.deps import get_current_club_id, get_current_user, require_roles, 
 from ....models.match import Match
 from ....models.player import Player
 from ....models.user import User, UserRole
-from ....models.video_analysis import VideoAnalysis
+from ....models.video_analysis import CVStatus, VideoAnalysis
 from ....models.video_lab import (
     VideoClip,
     VideoClipStatus,
@@ -31,6 +31,7 @@ from ....schemas.video_lab import (
     VideoClipCreate,
     VideoClipOut,
     VideoClipUpdate,
+    VideoLabImportResult,
     VideoLabSummary,
     VideoPlaylistCreate,
     VideoPlaylistDetailOut,
@@ -140,6 +141,112 @@ def _gate_optional_refs(db: Session, current_user, *, match_id=None, video_analy
     player = _get_scoped(Player, player_id, db, current_user) if player_id else None
     return match, video, player
 
+
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value) -> int | None:
+    try:
+        if value is None or value == "":
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _cv_action_label(kind: str | None) -> str:
+    labels = {
+        "sprint": "Sprint",
+        "acceleration": "Aceleracion",
+        "deceleration": "Desaceleracion",
+        "direction_change": "Cambio de direccion",
+    }
+    return labels.get(str(kind or "").lower(), "Evento CV")
+
+
+def _cv_candidates(analysis: VideoAnalysis) -> list[dict]:
+    results = analysis.results or {}
+    duration = _safe_float(results.get("duration_s"), analysis.duration_s or 0.0)
+    tracks = results.get("tracks") or []
+    tracks_by_id = {int(t.get("track_id")): t for t in tracks if _safe_int(t.get("track_id")) is not None}
+    identities = results.get("identities") or []
+    rows = identities if identities else tracks
+    candidates: list[dict] = []
+
+    for row in rows:
+        track_ids = row.get("track_ids") or [row.get("track_id")]
+        track_ids = [tid for tid in (_safe_int(tid) for tid in track_ids) if tid is not None]
+        jersey = _safe_int(row.get("jersey"))
+        if jersey is None:
+            for tid in track_ids:
+                jersey = _safe_int((tracks_by_id.get(tid) or {}).get("jersey"))
+                if jersey is not None:
+                    break
+        team = row.get("team")
+        team_label = f"Equipo {team}" if team else None
+        events = []
+        for tid in track_ids:
+            intensity = (tracks_by_id.get(tid) or {}).get("intensity") or {}
+            for ev in intensity.get("events") or []:
+                events.append(ev)
+
+        if events:
+            for ev in sorted(events, key=lambda e: _safe_float(e.get("start_t"), 0.0)):
+                start = max(0.0, _safe_float(ev.get("start_t"), 0.0) - 2.0)
+                raw_end = _safe_float(ev.get("end_t"), start + 2.0) + 2.0
+                end = min(duration, raw_end) if duration > 0 else raw_end
+                if end <= start:
+                    end = start + 6.0
+                candidates.append({
+                    "action_type": _cv_action_label(ev.get("kind")),
+                    "start_s": round(start, 2),
+                    "end_s": round(end, 2),
+                    "event_s": round((start + end) / 2, 2),
+                    "jersey": jersey,
+                    "team_label": team_label,
+                    "track_ids": track_ids,
+                    "note": f"Importado desde CV: tracks={track_ids}; evento={ev}",
+                })
+        else:
+            distance = _safe_float(row.get("distance_m"), _safe_float(row.get("total_distance_m"), 0.0))
+            top_speed = _safe_float(row.get("top_speed_kmh"), _safe_float(row.get("max_speed_kmh"), 0.0))
+            if distance < 5 and top_speed < 5:
+                continue
+            end = min(duration, 30.0) if duration > 0 else 30.0
+            candidates.append({
+                "action_type": "Resumen CV",
+                "start_s": 0.0,
+                "end_s": max(6.0, end),
+                "event_s": 0.0,
+                "jersey": jersey,
+                "team_label": team_label,
+                "track_ids": track_ids,
+                "note": f"Importado desde CV: tracks={track_ids}; distancia={distance:.1f}m, vel_max={top_speed:.1f}km/h",
+            })
+
+    return candidates[:200]
+
+
+def _clip_exists(db: Session, analysis_id: int, player_id: int | None, action_type: str, start_s: float, end_s: float, note: str | None) -> bool:
+    q = db.query(VideoClip).filter(
+        VideoClip.video_analysis_id == analysis_id,
+        VideoClip.action_type == action_type,
+        VideoClip.start_s == start_s,
+        VideoClip.end_s == end_s,
+        VideoClip.note == note,
+    )
+    if player_id is None:
+        q = q.filter(VideoClip.player_id.is_(None))
+    else:
+        q = q.filter(VideoClip.player_id == player_id)
+    return q.first() is not None
+
 def _clip_title(action_type: str, event_s: float, player: Player | None) -> str:
     minute = int(event_s // 60)
     second = int(event_s % 60)
@@ -168,6 +275,85 @@ def summary(
         playlists=playlists_q.count(),
         exported_clips=clips_q.filter(VideoClip.status == VideoClipStatus.READY).count(),
         unassigned_clips=clips_q.filter(VideoClip.player_id.is_(None)).count(),
+    )
+
+
+@router.post("/import-cv/{analysis_id}", response_model=VideoLabImportResult)
+def import_cv_analysis(
+    analysis_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.COACH, UserRole.ANALYST)),
+):
+    analysis = _get_scoped(VideoAnalysis, analysis_id, db, current_user)
+    if analysis.status != CVStatus.DONE or not analysis.results:
+        raise HTTPException(status_code=400, detail="El analisis CV aun no tiene resultados listos")
+
+    candidates = _cv_candidates(analysis)
+    if not candidates:
+        raise HTTPException(status_code=400, detail="El analisis CV no trae tracks/eventos suficientes para crear clips")
+
+    players = scoped_query(db.query(Player), Player, current_user).filter(Player.jersey_number.isnot(None)).all()
+    by_jersey = {int(p.jersey_number): p for p in players if p.jersey_number is not None}
+    created_tags = 0
+    created_clips = 0
+    matched_players = set()
+    skipped_existing = 0
+
+    for cand in candidates:
+        player = by_jersey.get(cand.get("jersey"))
+        player_id = player.id if player else None
+        if _clip_exists(db, analysis.id, player_id, cand["action_type"], cand["start_s"], cand["end_s"], cand.get("note")):
+            skipped_existing += 1
+            continue
+        if player_id:
+            matched_players.add(player_id)
+        who = player.full_name if player else (f"Dorsal #{cand['jersey']}" if cand.get("jersey") else f"Track {','.join(map(str, cand.get('track_ids') or []))}")
+        tag = VideoTag(
+            club_id=analysis.club_id,
+            match_id=analysis.match_id,
+            video_analysis_id=analysis.id,
+            player_id=player_id,
+            created_by=current_user.id,
+            action_type=cand["action_type"],
+            team_label=cand.get("team_label"),
+            event_s=cand["event_s"],
+            start_s=cand["start_s"],
+            end_s=cand["end_s"],
+            confidence=0.65 if player_id else 0.35,
+            source=VideoTagSource.IMPORT,
+            status=VideoTagStatus.SUGGESTED,
+            note=cand.get("note"),
+        )
+        db.add(tag)
+        db.flush()
+        clip = VideoClip(
+            club_id=analysis.club_id,
+            tag_id=tag.id,
+            match_id=analysis.match_id,
+            video_analysis_id=analysis.id,
+            player_id=player_id,
+            created_by=current_user.id,
+            title=f"{cand['action_type']} - {who}",
+            action_type=cand["action_type"],
+            team_label=cand.get("team_label"),
+            start_s=cand["start_s"],
+            end_s=cand["end_s"],
+            duration_s=max(0.0, cand["end_s"] - cand["start_s"]),
+            status=VideoClipStatus.VIRTUAL,
+            note=cand.get("note"),
+        )
+        db.add(clip)
+        created_tags += 1
+        created_clips += 1
+
+    db.commit()
+    return VideoLabImportResult(
+        analysis_id=analysis.id,
+        total_candidates=len(candidates),
+        created_tags=created_tags,
+        created_clips=created_clips,
+        matched_players=len(matched_players),
+        skipped_existing=skipped_existing,
     )
 
 @router.get("/clips", response_model=List[VideoClipOut])
