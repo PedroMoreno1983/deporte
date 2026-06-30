@@ -33,7 +33,9 @@ from ....schemas.video_lab import (
     VideoClipUpdate,
     VideoLabSummary,
     VideoPlaylistCreate,
+    VideoPlaylistDetailOut,
     VideoPlaylistOut,
+    VideoPlaylistUpdate,
     VideoTagCreate,
     VideoTagOut,
     VideoTagUpdate,
@@ -41,23 +43,19 @@ from ....schemas.video_lab import (
 
 router = APIRouter()
 
-
 def _enum_value(value):
     return getattr(value, "value", value)
-
 
 def _player_label(player: Player | None) -> tuple[str | None, int | None]:
     if not player:
         return None, None
     return player.full_name, player.jersey_number
 
-
 def _match_label(match: Match | None) -> str | None:
     if not match:
         return None
     date = match.date.isoformat() if match.date else "sin fecha"
     return f"{date} vs {match.opponent}"
-
 
 def _clip_out(clip: VideoClip) -> VideoClipOut:
     player_name, jersey = _player_label(clip.player)
@@ -87,7 +85,6 @@ def _clip_out(clip: VideoClip) -> VideoClipOut:
         video_name=clip.video_analysis.name if clip.video_analysis else None,
     )
 
-
 def _tag_out(tag: VideoTag) -> VideoTagOut:
     clip = tag.clips[0] if tag.clips else None
     return VideoTagOut(
@@ -113,7 +110,6 @@ def _tag_out(tag: VideoTag) -> VideoTagOut:
         clip=_clip_out(clip) if clip else None,
     )
 
-
 def _playlist_out(row: VideoPlaylist) -> VideoPlaylistOut:
     return VideoPlaylistOut(
         id=row.id,
@@ -127,6 +123,10 @@ def _playlist_out(row: VideoPlaylist) -> VideoPlaylistOut:
         clips_count=len(row.items or []),
     )
 
+def _playlist_detail_out(row: VideoPlaylist) -> VideoPlaylistDetailOut:
+    clips = [item.clip for item in sorted(row.items or [], key=lambda i: (i.sort_order, i.id)) if item.clip]
+    base = _playlist_out(row).model_dump()
+    return VideoPlaylistDetailOut(**base, clips=[_clip_out(clip) for clip in clips])
 
 def _get_scoped(model, obj_id: int, db: Session, current_user):
     obj = scoped_query(db.query(model), model, current_user).filter(model.id == obj_id).first()
@@ -134,20 +134,17 @@ def _get_scoped(model, obj_id: int, db: Session, current_user):
         raise HTTPException(status_code=404, detail="Registro no encontrado")
     return obj
 
-
 def _gate_optional_refs(db: Session, current_user, *, match_id=None, video_analysis_id=None, player_id=None):
     match = _get_scoped(Match, match_id, db, current_user) if match_id else None
     video = _get_scoped(VideoAnalysis, video_analysis_id, db, current_user) if video_analysis_id else None
     player = _get_scoped(Player, player_id, db, current_user) if player_id else None
     return match, video, player
 
-
 def _clip_title(action_type: str, event_s: float, player: Player | None) -> str:
     minute = int(event_s // 60)
     second = int(event_s % 60)
     who = player.full_name if player else "Sin jugador asignado"
     return f"{action_type} - {who} - {minute:02d}:{second:02d}"
-
 
 @router.get("/summary", response_model=VideoLabSummary)
 def summary(
@@ -173,7 +170,6 @@ def summary(
         unassigned_clips=clips_q.filter(VideoClip.player_id.is_(None)).count(),
     )
 
-
 @router.get("/clips", response_model=List[VideoClipOut])
 def list_clips(
     match_id: Optional[int] = None,
@@ -198,7 +194,6 @@ def list_clips(
         q = q.filter(VideoClip.player_id.is_(None))
     rows = q.order_by(VideoClip.created_at.desc()).offset(skip).limit(limit).all()
     return [_clip_out(row) for row in rows]
-
 
 @router.post("/tags", response_model=VideoTagOut, status_code=status.HTTP_201_CREATED)
 def create_tag(
@@ -258,7 +253,6 @@ def create_tag(
     db.refresh(tag)
     return _tag_out(tag)
 
-
 @router.patch("/tags/{tag_id}", response_model=VideoTagOut)
 def update_tag(
     tag_id: int,
@@ -290,7 +284,6 @@ def update_tag(
     db.refresh(tag)
     return _tag_out(tag)
 
-
 @router.post("/clips", response_model=VideoClipOut, status_code=status.HTTP_201_CREATED)
 def create_clip(
     data: VideoClipCreate,
@@ -319,7 +312,6 @@ def create_clip(
     db.refresh(clip)
     return _clip_out(clip)
 
-
 @router.patch("/clips/{clip_id}", response_model=VideoClipOut)
 def update_clip(
     clip_id: int,
@@ -339,7 +331,6 @@ def update_clip(
     db.commit()
     db.refresh(clip)
     return _clip_out(clip)
-
 
 @router.post("/clips/{clip_id}/export", response_model=VideoClipOut)
 def export_clip(
@@ -399,7 +390,6 @@ def export_clip(
     db.refresh(clip)
     return _clip_out(clip)
 
-
 @router.get("/clips/{clip_id}/file")
 def clip_file(clip_id: int, token: Optional[str] = None, db: Session = Depends(get_db)):
     from ....core.security import decode_token
@@ -417,12 +407,10 @@ def clip_file(clip_id: int, token: Optional[str] = None, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Archivo de clip no disponible")
     return FileResponse(clip.output_path, media_type="video/mp4", filename=f"clip_{clip.id}.mp4")
 
-
 @router.get("/playlists", response_model=List[VideoPlaylistOut])
 def list_playlists(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     rows = scoped_query(db.query(VideoPlaylist), VideoPlaylist, current_user).order_by(VideoPlaylist.created_at.desc()).all()
     return [_playlist_out(row) for row in rows]
-
 
 @router.post("/playlists", response_model=VideoPlaylistOut, status_code=status.HTTP_201_CREATED)
 def create_playlist(
@@ -445,6 +433,60 @@ def create_playlist(
     db.refresh(playlist)
     return _playlist_out(playlist)
 
+@router.get("/playlists/{playlist_id}", response_model=VideoPlaylistDetailOut)
+def get_playlist(playlist_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    playlist = _get_scoped(VideoPlaylist, playlist_id, db, current_user)
+    return _playlist_detail_out(playlist)
+
+@router.patch("/playlists/{playlist_id}", response_model=VideoPlaylistOut)
+def update_playlist(
+    playlist_id: int,
+    data: VideoPlaylistUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles(UserRole.ADMIN, UserRole.COACH, UserRole.ANALYST)),
+):
+    playlist = _get_scoped(VideoPlaylist, playlist_id, db, current_user)
+    payload = data.model_dump(exclude_unset=True)
+    if "is_shared" in payload:
+        playlist.is_shared = bool(payload.pop("is_shared"))
+        if playlist.is_shared and not playlist.share_token:
+            playlist.share_token = secrets.token_urlsafe(18)
+        if not playlist.is_shared:
+            playlist.share_token = None
+    for key, value in payload.items():
+        setattr(playlist, key, value)
+    db.commit()
+    db.refresh(playlist)
+    return _playlist_out(playlist)
+
+@router.get("/share/{share_token}", response_model=VideoPlaylistDetailOut)
+def get_shared_playlist(share_token: str, db: Session = Depends(get_db)):
+    playlist = db.query(VideoPlaylist).filter(
+        VideoPlaylist.share_token == share_token,
+        VideoPlaylist.is_shared.is_(True),
+    ).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist compartida no encontrada")
+    return _playlist_detail_out(playlist)
+
+@router.get("/share/{share_token}/clips/{clip_id}/file")
+def shared_clip_file(share_token: str, clip_id: int, db: Session = Depends(get_db)):
+    playlist = db.query(VideoPlaylist).filter(
+        VideoPlaylist.share_token == share_token,
+        VideoPlaylist.is_shared.is_(True),
+    ).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist compartida no encontrada")
+    item = db.query(VideoPlaylistItem).filter(
+        VideoPlaylistItem.playlist_id == playlist.id,
+        VideoPlaylistItem.clip_id == clip_id,
+    ).first()
+    if not item or not item.clip:
+        raise HTTPException(status_code=404, detail="Clip no pertenece a esta playlist")
+    clip = item.clip
+    if clip.status != VideoClipStatus.READY or not clip.output_path or not os.path.exists(clip.output_path):
+        raise HTTPException(status_code=404, detail="Archivo de clip no disponible")
+    return FileResponse(clip.output_path, media_type="video/mp4", filename=f"clip_{clip.id}.mp4")
 
 @router.post("/playlists/{playlist_id}/clips", response_model=VideoPlaylistOut)
 def add_clip_to_playlist(

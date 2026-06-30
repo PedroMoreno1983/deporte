@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 
-
 class VideoTagCreate(BaseModel):
     match_id: Optional[int] = None
     video_analysis_id: Optional[int] = None
@@ -34,7 +33,6 @@ class VideoTagCreate(BaseModel):
             raise ValueError("end_s debe ser mayor que start_s")
         return self
 
-
 class VideoTagUpdate(BaseModel):
     player_id: Optional[int] = None
     action_type: Optional[str] = None
@@ -49,7 +47,6 @@ class VideoTagUpdate(BaseModel):
     status: Optional[str] = None
     note: Optional[str] = None
     color: Optional[str] = None
-
 
 class VideoClipCreate(BaseModel):
     match_id: Optional[int] = None
@@ -68,7 +65,6 @@ class VideoClipCreate(BaseModel):
             raise ValueError("end_s debe ser mayor que start_s")
         return self
 
-
 class VideoClipUpdate(BaseModel):
     player_id: Optional[int] = None
     title: Optional[str] = None
@@ -78,7 +74,6 @@ class VideoClipUpdate(BaseModel):
     end_s: Optional[float] = Field(default=None, ge=0)
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     note: Optional[str] = None
-
 
 class VideoClipOut(BaseModel):
     id: int
@@ -108,7 +103,6 @@ class VideoClipOut(BaseModel):
     class Config:
         from_attributes = True
 
-
 class VideoTagOut(BaseModel):
     id: int
     club_id: int
@@ -134,13 +128,11 @@ class VideoTagOut(BaseModel):
     class Config:
         from_attributes = True
 
-
 class VideoPlaylistCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=160)
     description: Optional[str] = None
     purpose: Optional[str] = None
     is_shared: bool = False
-
 
 class VideoPlaylistOut(BaseModel):
     id: int
@@ -156,12 +148,19 @@ class VideoPlaylistOut(BaseModel):
     class Config:
         from_attributes = True
 
+class VideoPlaylistUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    purpose: Optional[str] = None
+    is_shared: Optional[bool] = None
+
+class VideoPlaylistDetailOut(VideoPlaylistOut):
+    clips: list[VideoClipOut] = Field(default_factory=list)
 
 class AddClipToPlaylist(BaseModel):
     clip_id: int
     sort_order: int = 0
     note: Optional[str] = None
-
 
 class VideoLabSummary(BaseModel):
     clips: int
