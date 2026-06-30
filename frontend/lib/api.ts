@@ -233,7 +233,6 @@ export const aiTacticalApi = {
   recommend: (data: unknown) => api.post("/tactical/recommend", data).then((r) => r.data),
 };
 
-
 // --- Video Lab ---
 export interface VideoLabSummary {
   clips: number;
@@ -283,6 +282,9 @@ export interface VideoLabPlaylist {
   created_at: string;
   clips_count: number;
 }
+export interface VideoLabPlaylistDetail extends VideoLabPlaylist {
+  clips: VideoLabClip[];
+}
 export const videoLabApi = {
   summary: (params?: { match_id?: number }) =>
     api.get("/video-lab/summary", { params }).then((r) => r.data as VideoLabSummary),
@@ -296,10 +298,18 @@ export const videoLabApi = {
     api.post(`/video-lab/clips/${id}/export`).then((r) => r.data as VideoLabClip),
   playlists: () =>
     api.get("/video-lab/playlists").then((r) => r.data as VideoLabPlaylist[]),
+  playlist: (id: number) =>
+    api.get(`/video-lab/playlists/${id}`).then((r) => r.data as VideoLabPlaylistDetail),
+  updatePlaylist: (id: number, data: unknown) =>
+    api.patch(`/video-lab/playlists/${id}`, data).then((r) => r.data as VideoLabPlaylist),
   createPlaylist: (data: unknown) =>
     api.post("/video-lab/playlists", data).then((r) => r.data as VideoLabPlaylist),
   addClipToPlaylist: (playlistId: number, data: { clip_id: number; sort_order?: number; note?: string }) =>
     api.post(`/video-lab/playlists/${playlistId}/clips`, data).then((r) => r.data as VideoLabPlaylist),
+  sharedPlaylist: (token: string) =>
+    api.get(`/video-lab/share/${token}`).then((r) => r.data as VideoLabPlaylistDetail),
+  sharedClipFileUrl: (token: string, clipId: number) =>
+    `${API_BASE}/video-lab/share/${encodeURIComponent(token)}/clips/${clipId}/file`,
   clipFileUrl: (id: number) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     return `${API_BASE}/video-lab/clips/${id}/file${token ? `?token=${encodeURIComponent(token)}` : ""}`;

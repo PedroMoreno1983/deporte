@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clapperboard, Download, Film, ListVideo, Loader2, MousePointer2, Play, Plus, Search, Sparkles, Tag, Users } from "lucide-react";
+import { Check, Clapperboard, Copy, Download, ExternalLink, Film, ListVideo, Loader2, MousePointer2, Play, Plus, Search, Share2, Sparkles, Tag, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cvApi, matchesApi, playersApi, videoLabApi, type VideoLabClip } from "@/lib/api";
 import { PageTitle, Card } from "@/components/lupi/viz";
@@ -62,6 +62,7 @@ export default function VideoLabPage() {
   });
   const { data: playlists = [] } = useQuery({ queryKey: ["video-lab-playlists"], queryFn: videoLabApi.playlists });
 
+  const selectedPlaylist = useMemo(() => playlists.find((p) => String(p.id) === playlistId), [playlists, playlistId]);
   const selectedVideo = useMemo(() => (videos as any[]).find((v) => v.id === selectedVideoId), [videos, selectedVideoId]);
   const activePlayers = useMemo(() => (players as any[]).filter((p) => p.is_active !== false), [players]);
 
@@ -127,6 +128,26 @@ export default function VideoLabPage() {
     onError: (err: any) => toast.error(err.response?.data?.detail || "No se pudo agregar el clip"),
   });
 
+  const sharePlaylist = useMutation({
+    mutationFn: ({ id, is_shared }: { id: number; is_shared: boolean }) => videoLabApi.updatePlaylist(id, { is_shared }),
+    onSuccess: (playlist) => {
+      qc.invalidateQueries({ queryKey: ["video-lab-playlists"] });
+      if (playlist.is_shared) toast.success("Link privado activado");
+      else toast.success("Link privado desactivado");
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || "No se pudo actualizar el link"),
+  });
+
+  const shareUrl = selectedPlaylist?.share_token && typeof window !== "undefined"
+    ? `${window.location.origin}/share/video-lab/${selectedPlaylist.share_token}`
+    : "";
+
+  const copyShareUrl = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard?.writeText(shareUrl);
+    toast.success("Link copiado");
+  };
+
   const onPitchClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setPitch({
@@ -175,7 +196,7 @@ export default function VideoLabPage() {
               <Note style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Video fuente</Note>
               <select value={videoId} onChange={(e) => setVideoId(e.target.value)} className="input" style={{ width: "100%" }}>
                 <option value="">Sin video asociado</option>
-                {(videos as any[]).map((v) => <option key={v.id} value={v.id}>{v.name} · {v.status}</option>)}
+                {(videos as any[]).map((v) => <option key={v.id} value={v.id}>{v.name} - {v.status}</option>)}
               </select>
             </div>
             <div>
@@ -232,8 +253,26 @@ export default function VideoLabPage() {
           </div>
           <select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)} className="input" style={{ width: "100%", marginBottom: 12 }}>
             <option value="">Seleccionar playlist activa</option>
-            {playlists.map((p) => <option key={p.id} value={p.id}>{p.title} · {p.clips_count} clips</option>)}
+            {playlists.map((p) => <option key={p.id} value={p.id}>{p.title} - {p.clips_count} clips</option>)}
           </select>
+          {selectedPlaylist && (
+            <div className="filter-bar" style={{ marginBottom: 12 }}>
+              <button
+                onClick={() => sharePlaylist.mutate({ id: selectedPlaylist.id, is_shared: !selectedPlaylist.is_shared })}
+                disabled={sharePlaylist.isPending}
+                className="chip is-on"
+              >
+                {sharePlaylist.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+                {selectedPlaylist.is_shared ? "Desactivar link" : "Compartir"}
+              </button>
+              {shareUrl && (
+                <>
+                  <button onClick={copyShareUrl} className="chip"><Copy className="w-3.5 h-3.5" /> Copiar link</button>
+                  <button onClick={() => window.open(shareUrl, "_blank")} className="chip"><ExternalLink className="w-3.5 h-3.5" /> Abrir</button>
+                </>
+              )}
+            </div>
+          )}
           <div className="inj-list">
             {playlists.map((p) => (
               <div className="inj-row" key={p.id}>
@@ -270,7 +309,7 @@ export default function VideoLabPage() {
               </button>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div className="inj-player" style={{ cursor: "default" }}>{clip.title}</div>
-                <Note style={{ fontSize: 13 }}>{clip.match_label || "sin partido"} · {timeLabel(clip.start_s)}-{timeLabel(clip.end_s)} · {clip.video_name || "sin video fuente"}</Note>
+                <Note style={{ fontSize: 13 }}>{clip.match_label || "sin partido"} - {timeLabel(clip.start_s)}-{timeLabel(clip.end_s)} - {clip.video_name || "sin video fuente"}</Note>
               </div>
               <select value={clip.player_id ?? ""} onChange={(e) => updateClip.mutate({ id: clip.id, data: { player_id: e.target.value ? Number(e.target.value) : null } })} className="input" style={{ width: 210 }}>
                 <option value="">Sin jugador asignado</option>

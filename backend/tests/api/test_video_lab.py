@@ -10,7 +10,6 @@ from app.models.user import UserRole
 
 API = "/api/v1"
 
-
 def _headers(client, make_user, *, club_id: int = 1):
     make_user(
         email="analyst@club.cl",
@@ -24,7 +23,6 @@ def _headers(client, make_user, *, club_id: int = 1):
     )
     assert login.status_code == 200, login.text
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
-
 
 def _seed_context(db_session):
     db = db_session()
@@ -46,7 +44,6 @@ def _seed_context(db_session):
         db.commit()
     finally:
         db.close()
-
 
 def test_create_tag_creates_library_clip(client, make_user, db_session):
     _seed_context(db_session)
@@ -82,7 +79,6 @@ def test_create_tag_creates_library_clip(client, make_user, db_session):
     assert summary["clips"] == 1
     assert summary["players_tagged"] == 1
 
-
 def test_playlist_accepts_clip_once(client, make_user, db_session):
     _seed_context(db_session)
     headers = _headers(client, make_user, club_id=9)
@@ -109,3 +105,50 @@ def test_playlist_accepts_clip_once(client, make_user, db_session):
         )
         assert added.status_code == 200, added.text
         assert added.json()["clips_count"] == 1
+
+def test_shared_playlist_token_flow(client, make_user, db_session):
+    _seed_context(db_session)
+    headers = _headers(client, make_user, club_id=9)
+    tag = client.post(
+        f"{API}/video-lab/tags",
+        headers=headers,
+        json={"match_id": 902, "player_id": 901, "action_type": "Gol", "event_s": 210},
+    ).json()
+    clip_id = tag["clip"]["id"]
+
+    playlist = client.post(
+        f"{API}/video-lab/playlists",
+        headers=headers,
+        json={"title": "Para Juan", "purpose": "jugador"},
+    ).json()
+    playlist_id = playlist["id"]
+    client.post(
+        f"{API}/video-lab/playlists/{playlist_id}/clips",
+        headers=headers,
+        json={"clip_id": clip_id},
+    )
+
+    enabled = client.patch(
+        f"{API}/video-lab/playlists/{playlist_id}",
+        headers=headers,
+        json={"is_shared": True},
+    )
+    assert enabled.status_code == 200, enabled.text
+    token = enabled.json()["share_token"]
+    assert token
+
+    shared = client.get(f"{API}/video-lab/share/{token}")
+    assert shared.status_code == 200, shared.text
+    body = shared.json()
+    assert body["title"] == "Para Juan"
+    assert len(body["clips"]) == 1
+    assert body["clips"][0]["player_name"] == "Juan Perez"
+
+    disabled = client.patch(
+        f"{API}/video-lab/playlists/{playlist_id}",
+        headers=headers,
+        json={"is_shared": False},
+    )
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["share_token"] is None
+    assert client.get(f"{API}/video-lab/share/{token}").status_code == 404
