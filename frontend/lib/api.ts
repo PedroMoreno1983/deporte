@@ -233,6 +233,78 @@ export const aiTacticalApi = {
   recommend: (data: unknown) => api.post("/tactical/recommend", data).then((r) => r.data),
 };
 
+
+// --- Video Lab ---
+export interface VideoLabSummary {
+  clips: number;
+  tags: number;
+  players_tagged: number;
+  playlists: number;
+  exported_clips: number;
+  unassigned_clips: number;
+}
+export interface VideoLabClip {
+  id: number;
+  club_id: number;
+  tag_id: number | null;
+  match_id: number | null;
+  video_analysis_id: number | null;
+  player_id: number | null;
+  title: string;
+  action_type: string | null;
+  team_label: string | null;
+  start_s: number;
+  end_s: number;
+  duration_s: number;
+  status: "virtual" | "exporting" | "ready" | "failed" | string;
+  output_path: string | null;
+  thumbnail_path: string | null;
+  rating: number | null;
+  note: string | null;
+  export_error: string | null;
+  created_at: string;
+  player_name: string | null;
+  player_jersey: number | null;
+  match_label: string | null;
+  video_name: string | null;
+}
+export interface VideoLabTag {
+  id: number;
+  clip: VideoLabClip | null;
+}
+export interface VideoLabPlaylist {
+  id: number;
+  club_id: number;
+  title: string;
+  description: string | null;
+  purpose: string | null;
+  is_shared: boolean;
+  share_token: string | null;
+  created_at: string;
+  clips_count: number;
+}
+export const videoLabApi = {
+  summary: (params?: { match_id?: number }) =>
+    api.get("/video-lab/summary", { params }).then((r) => r.data as VideoLabSummary),
+  clips: (params?: { match_id?: number; player_id?: number; action_type?: string; unassigned?: boolean; skip?: number; limit?: number }) =>
+    api.get("/video-lab/clips", { params }).then((r) => r.data as VideoLabClip[]),
+  createTag: (data: unknown) =>
+    api.post("/video-lab/tags", data).then((r) => r.data as VideoLabTag),
+  updateClip: (id: number, data: unknown) =>
+    api.patch(`/video-lab/clips/${id}`, data).then((r) => r.data as VideoLabClip),
+  exportClip: (id: number) =>
+    api.post(`/video-lab/clips/${id}/export`).then((r) => r.data as VideoLabClip),
+  playlists: () =>
+    api.get("/video-lab/playlists").then((r) => r.data as VideoLabPlaylist[]),
+  createPlaylist: (data: unknown) =>
+    api.post("/video-lab/playlists", data).then((r) => r.data as VideoLabPlaylist),
+  addClipToPlaylist: (playlistId: number, data: { clip_id: number; sort_order?: number; note?: string }) =>
+    api.post(`/video-lab/playlists/${playlistId}/clips`, data).then((r) => r.data as VideoLabPlaylist),
+  clipFileUrl: (id: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    return `${API_BASE}/video-lab/clips/${id}/file${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  },
+};
 export const notificationsApi = {
   list: () => api.get("/notifications").then((r) => r.data),
 };
