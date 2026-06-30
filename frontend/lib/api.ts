@@ -234,6 +234,14 @@ export const aiTacticalApi = {
 };
 
 // --- Video Lab ---
+export interface VideoLabImportResult {
+  analysis_id: number;
+  total_candidates: number;
+  created_tags: number;
+  created_clips: number;
+  matched_players: number;
+  skipped_existing: number;
+}
 export interface VideoLabSummary {
   clips: number;
   tags: number;
@@ -292,6 +300,8 @@ export const videoLabApi = {
     api.get("/video-lab/clips", { params }).then((r) => r.data as VideoLabClip[]),
   createTag: (data: unknown) =>
     api.post("/video-lab/tags", data).then((r) => r.data as VideoLabTag),
+  importCv: (analysisId: number) =>
+    api.post(`/video-lab/import-cv/${analysisId}`).then((r) => r.data as VideoLabImportResult),
   updateClip: (id: number, data: unknown) =>
     api.patch(`/video-lab/clips/${id}`, data).then((r) => r.data as VideoLabClip),
   exportClip: (id: number) =>

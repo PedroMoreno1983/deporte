@@ -66,6 +66,17 @@ export default function VideoLabPage() {
   const selectedVideo = useMemo(() => (videos as any[]).find((v) => v.id === selectedVideoId), [videos, selectedVideoId]);
   const activePlayers = useMemo(() => (players as any[]).filter((p) => p.is_active !== false), [players]);
 
+
+  const importCv = useMutation({
+    mutationFn: () => videoLabApi.importCv(Number(videoId)),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["video-lab-summary"] });
+      qc.invalidateQueries({ queryKey: ["video-lab-clips"] });
+      toast.success(`CV importado: ${result.created_clips} clips, ${result.matched_players} jugadores resueltos`);
+      if (result.skipped_existing) toast.message(`${result.skipped_existing} clips ya existian`);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || "No se pudo importar el analisis CV"),
+  });
   const createTag = useMutation({
     mutationFn: () => videoLabApi.createTag({
       match_id: selectedMatchId,
@@ -208,6 +219,15 @@ export default function VideoLabPage() {
             </div>
           </div>
 
+          {selectedVideo && (
+            <div className="filter-bar" style={{ marginBottom: 12 }}>
+              <button onClick={() => importCv.mutate()} disabled={!videoId || importCv.isPending} className="chip is-on">
+                {importCv.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Importar clips CV
+              </button>
+              <Note style={{ fontSize: 13 }}>Crea clips desde eventos/tracks y cruza dorsal con jugadores cargados.</Note>
+            </div>
+          )}
           {selectedVideo ? (
             <video controls src={cvApi.outputVideoUrl(selectedVideo.id)} style={{ width: "100%", aspectRatio: "16 / 9", background: "#111", borderRadius: 8, marginBottom: 12 }} />
           ) : (

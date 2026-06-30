@@ -162,6 +162,15 @@ class AddClipToPlaylist(BaseModel):
     sort_order: int = 0
     note: Optional[str] = None
 
+
+class VideoLabImportResult(BaseModel):
+    analysis_id: int
+    total_candidates: int
+    created_tags: int
+    created_clips: int
+    matched_players: int
+    skipped_existing: int
+
 class VideoLabSummary(BaseModel):
     clips: int
     tags: int

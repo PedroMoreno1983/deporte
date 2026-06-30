@@ -7,6 +7,7 @@ from app.models.club import Club
 from app.models.match import Match
 from app.models.player import Player, PlayerPosition
 from app.models.user import UserRole
+from app.models.video_analysis import CVStatus, VideoAnalysis
 
 API = "/api/v1"
 
@@ -152,3 +153,66 @@ def test_shared_playlist_token_flow(client, make_user, db_session):
     assert disabled.status_code == 200, disabled.text
     assert disabled.json()["share_token"] is None
     assert client.get(f"{API}/video-lab/share/{token}").status_code == 404
+
+def test_import_cv_analysis_creates_named_clips(client, make_user, db_session):
+    _seed_context(db_session)
+    db = db_session()
+    try:
+        analysis = VideoAnalysis(
+            id=903,
+            name="Clip procesado",
+            video_path="fake.mp4",
+            output_dir=".",
+            duration_s=90,
+            fps=25,
+            frame_count=2250,
+            status=CVStatus.DONE,
+            progress=1.0,
+            club_id=9,
+            match_id=902,
+            results={
+                "duration_s": 90,
+                "tracks": [
+                    {
+                        "track_id": 1,
+                        "jersey": 8,
+                        "team": "A",
+                        "distance_m": 120,
+                        "intensity": {"events": [{"kind": "sprint", "start_t": 12, "end_t": 14, "peak_speed_kmh": 26}]},
+                    },
+                    {
+                        "track_id": 2,
+                        "jersey": 30,
+                        "team": "B",
+                        "distance_m": 40,
+                        "top_speed_kmh": 12,
+                        "intensity": {"events": []},
+                    },
+                ],
+                "identities": [
+                    {"identity": 1, "track_ids": [1], "team": "A", "jersey": 8, "distance_m": 120, "top_speed_kmh": 26},
+                    {"identity": 2, "track_ids": [2], "team": "B", "jersey": 30, "distance_m": 40, "top_speed_kmh": 12},
+                ],
+            },
+        )
+        db.add(analysis)
+        db.commit()
+    finally:
+        db.close()
+
+    headers = _headers(client, make_user, club_id=9)
+    imported = client.post(f"{API}/video-lab/import-cv/903", headers=headers)
+    assert imported.status_code == 200, imported.text
+    body = imported.json()
+    assert body["created_clips"] == 2
+    assert body["matched_players"] == 1
+
+    clips = client.get(f"{API}/video-lab/clips", headers=headers).json()
+    assert len(clips) == 2
+    assert any(c["player_name"] == "Juan Perez" and c["action_type"] == "Sprint" for c in clips)
+    assert any(c["player_name"] is None and "Dorsal #30" in c["title"] for c in clips)
+
+    again = client.post(f"{API}/video-lab/import-cv/903", headers=headers)
+    assert again.status_code == 200, again.text
+    assert again.json()["created_clips"] == 0
+    assert again.json()["skipped_existing"] == 2
