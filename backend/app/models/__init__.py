@@ -16,3 +16,5 @@ from .prediction import PredictionScore
 from .tactical import Tactical
 from .agent_briefing import AgentBriefing
 from .agent_report import AgentReport
+
+from .video_lab import VideoTag, VideoClip, VideoPlaylist, VideoPlaylistItem, VideoTagSource, VideoTagStatus, VideoClipStatus

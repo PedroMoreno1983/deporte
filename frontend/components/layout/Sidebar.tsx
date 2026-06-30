@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/players/compare", labelKey: "nav.compare",     roles: ["admin", "analyst", "coach"] },
       { href: "/predictions",     labelKey: "nav.predictions", roles: ["admin", "analyst"] },
       { href: "/cv",              labelKey: "nav.cv",          roles: ["admin", "analyst", "coach"] },
+      { href: "/video-lab",       labelKey: "nav.video_lab",   roles: ["admin", "analyst", "coach"] },
     ],
   },
   {
