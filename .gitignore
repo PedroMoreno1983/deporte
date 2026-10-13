@@ -1,22 +1,42 @@
-# Python
+# Dependencies
+node_modules/
 __pycache__/
 *.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+env/
+
+# IDEs
+.idea/
+.vscode/
+
+# Build outputs
+.next/
+.vercel/
+dist/
+build/
+
+# Database
 *.db
-*.sqlite3
-backend/venv/
-backend/.venv/
-backend/.env
+deporte.db
 
-# Node
-frontend/node_modules/
-frontend/.next/
-frontend/.env.local
-mobile/node_modules/
+# Python
+*.egg-info/
 
-# General
+# Claude Code worktrees
+.claude/worktrees/
+
+# Misc
 .DS_Store
-*.log
-.env.local
+# Local browser/test artifacts
+.playwright-mcp/
+coco-*.png
+.vercel
 
 # --- estandar DataWise (Hark 2026-10-12) ---
 .env
